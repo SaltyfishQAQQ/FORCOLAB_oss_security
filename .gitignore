@@ -1,0 +1,39 @@
+# Ignore virtual environment folders
+venv/
+.vscode
+
+# Ignore specific library folders
+integrated_scripts/__pycache__/
+integrated_scripts/lib
+integrated_scripts/inter_rater
+integrated_scripts/tukaani-project_xz
+
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+sdist/
+bin/
+var/
+*.dll
+*.dylib
+*.exe
+*.app
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
