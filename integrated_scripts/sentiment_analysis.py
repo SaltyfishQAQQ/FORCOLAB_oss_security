@@ -258,49 +258,6 @@ def clean_user_interactions(source_path, sentiment_tracker):
     return user_interactions
 
 
-
-def post_sentiment_analysis(source_path='tukaani-project_xz/'):
-    """
-    Perform sentiment analysis on the overall post level for each file in a specified directory.
-
-    Parameters:
-        source_path (str): Path to the directory containing individual post files.
-
-    Returns:
-        pd.DataFrame: DataFrame containing sentiment analysis results for each post.
-    """
-    
-    # Initialize an empty list to store sentiment analysis results
-    print("Running post-level sentiment analysis...")
-    count = 0
-    post_sentiment_results = []
-    folder_path = os.path.join(source_path, 'individual_issue_PR/')
-    
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".csv"):
-            file_path = os.path.join(folder_path, filename)
-            df = pd.read_csv(file_path)
-            grouped_text = group_text_from_csv(df)  # Group text for analysis
-            
-            # Perform sentiment analysis on the grouped text
-            result = analyzer.predict(grouped_text)
-            sentiment, sentiment_score = get_sentiment_score(result)
-            
-            # Append analysis result to list
-            post_sentiment_results.append({
-                'name': filename,
-                'type': classify_pr_or_issue(filename),
-                'sentiment': sentiment,
-                'sentiment_score': sentiment_score
-            })
-            count += 1
-    
-    # Convert results to DataFrame and sort by filename
-    post_sentiment_results = pd.DataFrame(post_sentiment_results).sort_values(by=['name'])
-    print("Post-level sentiment analysis done on " + str(count) + " posts.")
-    return post_sentiment_results
-
-
 def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
     """
     Perform sentiment analysis at the sentence level for each message in the posts.
@@ -318,6 +275,7 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
     count = 0
     
     sentiment_tracker = defaultdict(lambda: {'POS': [], 'NEU': [], 'NEG': []})
+    post_sentiment_results = []
     analyzer = create_analyzer(task="sentiment", lang="en")
 
     # Process each file in the folder
@@ -325,6 +283,8 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
         if filename.endswith(".csv"):
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path)
+            sentiment_score_total = 0
+            num_messages = 0
             
             # Perform sentiment analysis on each row in the DataFrame
             for index, row in df.iterrows():
@@ -348,10 +308,33 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
                 result = analyzer.predict(text)
                 sentiment, sentiment_score = get_sentiment_score(result)
                 
+                sentiment_score_total += sentiment_score
+                num_messages += 1
+                
                 for target in target_author:
                     # Update sentiment tracker with result
                     update_sentiment_tracker(sentiment_tracker, source_author, target, sentiment, sentiment_score, text, filename)
+
+            sentiment_score_avg = sentiment_score_total / num_messages if num_messages > 0 else 0
+            
+            if sentiment_score_avg > 0.2:
+                post_sentiment = "POS"
+            elif sentiment_score_avg < -0.2:
+                post_sentiment = "NEG"
+            else:
+                post_sentiment = "NEU"
+            
+            # Append post sentiment analysis result to list
+            post_sentiment_results.append({
+                'name': filename,
+                'type': classify_pr_or_issue(filename),
+                'sentiment': post_sentiment,
+                'sentiment_score': sentiment_score_avg
+            })
+        
         count += 1
+    
+    post_sentiment_results = pd.DataFrame(post_sentiment_results).sort_values(by=['name'])
     
     print("Sentence-level sentiment analysis done on " + str(count) + " posts.")
     print("\nNow cleaning user interactions...")
@@ -363,7 +346,7 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
     # Construct individual conversation files
     construct_individual_conversations(source_path, cleaned_user_interactions)
     
-    return cleaned_user_interactions
+    return post_sentiment_results ,cleaned_user_interactions
 
 
 def construct_individual_conversations(folder_path, user_interactions):
