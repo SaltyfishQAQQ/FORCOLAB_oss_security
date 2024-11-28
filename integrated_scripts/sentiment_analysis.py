@@ -181,7 +181,6 @@ def get_github_user_name(username, token=os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN
         data = response.json()
         return data.get('name', username)
     else:
-        print(f"Error: Unable to fetch data for username '{username}'. Status code: {response.status_code}")
         return username
 
 
@@ -236,7 +235,7 @@ def clean_user_interactions(source_path, sentiment_tracker):
         user_interactions['to'].isin(authors_to_eliminate)
     ]
     user_interactions = user_interactions[
-        ~user_interactions['from'].isin(authors_to_eliminate) &
+        ~user_interactions['from'].isin(authors_to_eliminate) & 
         ~user_interactions['to'].isin(authors_to_eliminate)
     ]
     below_threshold_interactions.to_csv(os.path.join(directory, "removed_below_threshold_interactions.csv"), index=False)
@@ -247,9 +246,17 @@ def clean_user_interactions(source_path, sentiment_tracker):
     # Fetch GitHub usernames for authors in interactions
     user_interactions['from'] = user_interactions['from'].apply(get_github_user_name)
     user_interactions['to'] = user_interactions['to'].apply(get_github_user_name)
+
+    # Step 4: Remove rows where 'from' or 'to' is empty after GitHub username fetching
+    empty_from_to = user_interactions[user_interactions['from'].isna() | user_interactions['to'].isna()]
+    user_interactions = user_interactions.dropna(subset=['from', 'to'])
+    empty_from_to.to_csv(os.path.join(directory, "removed_empty_from_to.csv"), index=False)
+
     print("Done GitHub username fetching")
+    print("Cleaned user interactions saved.")
 
     return user_interactions
+
 
 
 def post_sentiment_analysis(source_path='tukaani-project_xz/'):
