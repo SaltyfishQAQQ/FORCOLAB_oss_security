@@ -7,6 +7,10 @@ integrated_scripts/__pycache__/
 integrated_scripts/lib
 integrated_scripts/inter_rater
 integrated_scripts/tukaani-project_xz
+integrated_scripts/test
+integrated_scripts/test_code_effects
+integrated_scripts/test.ipynb
+integrated_scripts/wut.c
 
 *.py[cod]
 *$py.class

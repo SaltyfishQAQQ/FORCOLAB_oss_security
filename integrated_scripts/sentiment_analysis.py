@@ -8,6 +8,7 @@ import requests
 import shutil
 import github_fetching as fetcher
 import re
+import ast
 
 # Load the sentiment analysis model
 analyzer = create_analyzer(task = "sentiment", lang = "en")
@@ -304,10 +305,11 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
         pd.DataFrame: DataFrame containing cleaned user interactions with sentiment information.
     """
     
-    # Intialize the folder path and sentiment tracker
+    # Initialize the folder path and sentiment tracker
     folder_path = os.path.join(source_path, "individual_issue_PR/")
     print("Running sentence-level sentiment analysis...")
     count = 0
+    
     sentiment_tracker = defaultdict(lambda: {'POS': [], 'NEU': [], 'NEG': []})
     analyzer = create_analyzer(task="sentiment", lang="en")
 
@@ -320,16 +322,28 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
             # Perform sentiment analysis on each row in the DataFrame
             for index, row in df.iterrows():
                 source_author = row['from']
+                
+                # Ensure 'target_author' is treated as a list
                 target_author = row['to']
+                if isinstance(target_author, str):
+                    try:
+                        target_author = ast.literal_eval(target_author)  # Convert string to list
+                    except (ValueError, SyntaxError):
+                        target_author = []  # Default to an empty list if parsing fails
+
+                # Ensure target_author is always a list
+                if not isinstance(target_author, list):
+                    target_author = [target_author]
+                
                 text = str(row['body'])
                 
                 # Analyze sentiment of the text
                 result = analyzer.predict(text)
                 sentiment, sentiment_score = get_sentiment_score(result)
                 
-                # Update sentiment tracker with result
-                update_sentiment_tracker(sentiment_tracker, source_author, target_author, sentiment, sentiment_score, text, filename)
-        
+                for target in target_author:
+                    # Update sentiment tracker with result
+                    update_sentiment_tracker(sentiment_tracker, source_author, target, sentiment, sentiment_score, text, filename)
         count += 1
     
     print("Sentence-level sentiment analysis done on " + str(count) + " posts.")

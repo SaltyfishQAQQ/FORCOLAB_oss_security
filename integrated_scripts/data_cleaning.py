@@ -25,23 +25,21 @@ def remove_quoted_lines(df, column_name='body'):
     return df
     
 
-def extract_mention(text):
-	"""
-    Extract the first mentioned username (preceded by '@') from a text string.
+def extract_mentions(text):
+    """
+    Extract all mentioned usernames (preceded by '@') from a text string.
 
     Parameters:
-        text (str): Text containing a potential mention.
+        text (str): Text containing potential mentions.
 
     Returns:
-        str or None: The username mentioned in the text, or None if no mention is found.
+        list of str: List of usernames mentioned in the text, or an empty list if no mentions are found.
     """
+    if pd.isnull(text):
+        return []
+    # Use re.findall() to extract all mentions
+    return re.findall(r'@(\w+)', text)
 
-	if pd.isnull(text):
-		return None
-	match = re.search(r'@(\w+)', text)
-	if match:
-		return match.group(1)  
-	return None  
 
 def find_reply_to(df):
     """
@@ -51,39 +49,41 @@ def find_reply_to(df):
         df (pd.DataFrame): DataFrame with messages containing 'from' and 'body' columns.
 
     Returns:
-        list: A list of authors that each message replies to.
+        list: A list of lists containing authors that each message replies to.
     """
     
-    # List to store reply_to author for each message
+    # List to store reply_to author(s) for each message
     reply_to_list = []
     previous_author = None
     
     # Iterate over each row in the DataFrame
     for i in range(len(df)):
         current_author = df.iloc[i]['from']
-        mention = extract_mention(df.iloc[i]['body'])
+        mentions = extract_mentions(df.iloc[i]['body'])
         
-        # If a mention is found, set reply_to as the mentioned person
-        if mention:
-            reply_to_list.append(mention)
+        # If mentions are found, save them as a list
+        if mentions:
+            reply_to_list.append(mentions)
+            
         else:
-            # If no mention is found, look for the previous different author to reply to
+            # If no mentions are found, fallback to a previous different author
             if previous_author and current_author == previous_author:
                 for j in range(i - 1, -1, -1):
                     if df.iloc[j]['from'] != current_author:
-                        reply_to_list.append(df.iloc[j]['from'])
+                        reply_to_list.append([df.iloc[j]['from']])
                         break
                 else:
                     # If no previous different author is found, default to the original creator
-                    reply_to_list.append(df.iloc[0]['from'])
+                    reply_to_list.append([df.iloc[0]['from']])
             else:
-                # Default to the previous message's author
-                reply_to_list.append(df.iloc[i - 1]['from'] if i > 0 else df.iloc[0]['from'])
+                # Default to the previous message's author (stored as a list)
+                reply_to_list.append([df.iloc[i - 1]['from']] if i > 0 else [df.iloc[0]['from']])
         
         # Update previous_author to the current one for the next iteration
         previous_author = current_author
     
     return reply_to_list
+
 
 def clean_thread(folder_path):
     """
@@ -102,7 +102,7 @@ def clean_thread(folder_path):
     for file in os.listdir(folder_path):
         if file.endswith(".csv"):
             try:
-                df = pd.read_csv(folder_path + file)
+                df = pd.read_csv(os.path.join(folder_path, file))
                 original_creator = df.iloc[0]['from']
                 
                 # Remove quoted lines and fill missing 'from' values with the original creator
