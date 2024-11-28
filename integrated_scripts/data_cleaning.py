@@ -15,7 +15,7 @@ def remove_quoted_lines(df, column_name='body'):
         column_name (str): 	Name of the column from which quoted lines (starting with '>') should be removed.
 
     Returns:
-        pd.DataFrame: DataFrame with quoted lines removed from the specified column.
+            return df: DataFrame with quoted lines removed from the specified column.
     """
 
     # Remove lines starting with '>'
@@ -49,7 +49,7 @@ def find_reply_to(df):
         df (pd.DataFrame): DataFrame with messages containing 'from' and 'body' columns.
 
     Returns:
-        list: A list of lists containing authors that each message replies to.
+        reply_to_list: A list of lists containing authors that each message replies to.
     """
     
     # List to store reply_to author(s) for each message
@@ -131,9 +131,6 @@ def count_words_or_characters(text, mode='words'):
 
     Returns:
         int: The number of words or characters in the text.
-
-    Raises:
-        ValueError: If mode is not 'words' or 'characters'.
     """
     
     if pd.isnull(text):
@@ -155,7 +152,7 @@ def calculate_author_contributions(source_path = 'tukaani-project_xz/', mode='wo
         mode (str): 		Mode for counting ('words' or 'characters').
 
     Returns:
-        pd.DataFrame: DataFrame containing authors and their respective contribution counts, sorted by count in descending order.
+        contribution_df: DataFrame containing authors and their respective contribution counts, sorted by count in descending order.
     """
     
     # Define the folder path
@@ -194,7 +191,7 @@ def get_unique_authors_from_folder(folder_path):
         folder_path (str): Path to the folder containing CSV files.
 
     Returns:
-        set: A set of unique authors found in the CSV files' 'from' column.
+        unique_authors: A set of unique authors found in the CSV files' 'from' column.
     """
     
     # Initialize an empty set to store unique authors

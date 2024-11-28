@@ -13,28 +13,6 @@ import ast
 # Load the sentiment analysis model
 analyzer = create_analyzer(task = "sentiment", lang = "en")
 
-
-def group_text_from_csv(df):
-    """
-    Concatenate all text from a specified column in a DataFrame.
-
-    Parameters:
-        df (pd.DataFrame):  DataFrame containing text data.
-
-    Returns:
-        str: Concatenated text from the specified column.
-    """
-    
-    # Initialize an empty string to hold the grouped text
-    grouped_text = ""
-    column_name = 'body'
-    
-    # Concatenate all non-null text entries from the column
-    grouped_text += "".join(df[column_name].dropna()) + "\n"
-
-    return str(grouped_text)
-
-
 def classify_pr_or_issue(filename):
     """
     Classify a file as a 'PR' or 'Issue' based on the filename.
@@ -53,25 +31,6 @@ def classify_pr_or_issue(filename):
         return 'Issue'
     else:
         return 'Unknown'
-
-
-def is_valid_author(author_name):
-    """
-    Check if an author name is valid based on character restrictions.
-
-    Parameters:
-        author_name (str): The name of the author to validate.
-
-    Returns:
-        bool: True if the author name is valid, False otherwise.
-    """
-    
-    # Ensure input is a string; return False if not
-    if not isinstance(author_name, str):
-        return False
-    
-    # Return True if author name only contains valid characters
-    return bool(re.match(r'^[a-zA-Z0-9\s\'-]+$', author_name))
 
 
 def count_dataset(user_interactions):
@@ -143,7 +102,7 @@ def get_sentiment_score(sentiment_result):
         sentiment_result (SentimentResult): Result object from sentiment analysis.
 
     Returns:
-        tuple: Sentiment label ('POS', 'NEU', or 'NEG') and the sentiment score.
+        sentiment, sentiment_score: Sentiment label ('POS', 'NEU', or 'NEG') and the sentiment score.
     """
     
     # Calculate sentiment score by combining positive and negative probabilities
@@ -168,7 +127,7 @@ def get_github_user_name(username, token=os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN
         token (str):        GitHub access token.
 
     Returns:
-        str: Display name if available, else the username itself.
+        username: Display name if available, else the username itself.
     """
     
     # Define GitHub API URL and authorization headers
@@ -193,7 +152,7 @@ def clean_user_interactions(source_path, sentiment_tracker):
         sentiment_tracker (dict):   Dictionary storing sentiment interactions.
 
     Returns:
-        pd.DataFrame: DataFrame with cleaned user interactions.
+        user_interactions: DataFrame with cleaned user interactions.
     """
     
     # Initialize an empty list to store cleaned interactions
@@ -258,15 +217,15 @@ def clean_user_interactions(source_path, sentiment_tracker):
     return user_interactions
 
 
-def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
+def sentiment_analysis(source_path='tukaani-project_xz/'):
     """
-    Perform sentiment analysis at the sentence level for each message in the posts.
+    Perform both message and post-level sentiment analysis 
 
     Parameters:
         source_path (str): Path to the directory containing post files.
 
     Returns:
-        pd.DataFrame: DataFrame containing cleaned user interactions with sentiment information.
+        post_sentiment_results, cleaned_user_interactions: DataFrames that contains post and message-level sentiment analysis
     """
     
     # Initialize the folder path and sentiment tracker
@@ -346,7 +305,7 @@ def sentence_sentiment_analysis(source_path='tukaani-project_xz/'):
     # Construct individual conversation files
     construct_individual_conversations(source_path, cleaned_user_interactions)
     
-    return post_sentiment_results ,cleaned_user_interactions
+    return post_sentiment_results, cleaned_user_interactions
 
 
 def construct_individual_conversations(folder_path, user_interactions):
@@ -428,7 +387,7 @@ def track_sentiment_given_and_received(user_interaction_df):
         user_interaction_df (pd.DataFrame): DataFrame containing user interactions.
 
     Returns:
-        pd.DataFrame: A DataFrame with aggregated sentiment scores and counts (given and received).
+        sentiment_summary_df: A DataFrame with aggregated sentiment scores and counts (given and received).
     """
     
     # Initialize dictionaries to track sentiment given and received by users
@@ -492,44 +451,3 @@ def track_sentiment_given_and_received(user_interaction_df):
     # Merge given and received DataFrames for final summary
     sentiment_summary_df = pd.merge(given_df, received_df, on='user', how='outer').fillna(0)
     return sentiment_summary_df
-
-
-def identify_threat(
-    sentiment_summary_df, top_committer_df, top_n=5
-):
-    """
-    Aggregate sentiment summary with contribution data and identify the most dangerous person(s).
-
-    Parameters:
-        sentiment_summary_df (pd.DataFrame):    DataFrame containing user sentiment metrics.
-        top_committer_df (pd.DataFrame):        DataFrame containing top committers and their contributions.
-        top_n (int):                            Number of top dangerous users to return.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the top dangerous users with selected columns.
-    """
-
-    # Step 1: Filter sentiment data to include only top committers
-    top_contributors_sentiment = sentiment_summary_df[
-        sentiment_summary_df['user'].isin(top_committer_df['author_name'])
-    ]
-
-    # Step 2: Merge with commit count from top_committer_df
-    merged_df = pd.merge(
-        top_contributors_sentiment, 
-        top_committer_df[['author_name', 'commit_count']],
-        left_on='user', right_on='author_name',
-        how='inner'
-    )
-
-    # Step 3: Sort by the received sentiment score (from lowest to highest)
-    ranked_contributors = merged_df.sort_values(
-        by='sentiment_received', ascending=True
-    )
-
-    # Step 4: Select the top N contributors with the lowest sentiment score
-    top_dangerous_users = ranked_contributors.head(top_n)
-
-    # Step 5: Return only the relevant columns
-    return top_dangerous_users[['user', 'sentiment_received', 'sentiment_given', 'commit_count']]
-

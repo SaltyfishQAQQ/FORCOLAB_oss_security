@@ -10,7 +10,7 @@ def initialize_scraper():
         Initialize the GitHub scraper.
 
         Returns:
-                ScraperExtend: An initialized scraper instance with GitHub tokens.
+                gh_api: An initialized scraper instance with GitHub tokens.
         """
         gh_api = scraper.ScraperExtend(gh_tokens.tokens)
         return gh_api
@@ -105,7 +105,7 @@ def fetch_issues_pr(repo_name='tukaani-project/xz', folder_location='tukaani-pro
                 end_day (int):          End day for filtering issues and PRs.
 
         Returns:
-                str: The path where issue and PR files are saved.
+                folder_path: The path where issue and PR files are saved.
         """
 
         # Initialize the folder path and GitHub scraper
@@ -152,7 +152,7 @@ def fetch_commit_info(repo_name='tukaani-project/xz',
                 end_day (int):          End day for filtering commits.
 
         Returns:
-                pd.DataFrame: A DataFrame containing the filtered commit information.
+                commit_info_df: A DataFrame containing the filtered commit information.
         """
         
         # Initialize the scraper
@@ -211,11 +211,11 @@ def get_top_committers(commit_info_df, top_n=10):
         Get the top N committers from the commit DataFrame.
         
         Parameters:
-        commit_info_df (pd.DataFrame):  DataFrame containing commit information.
-        top_n (int):                    The number of top committers to return.
-        
+                commit_info_df (pd.DataFrame):  DataFrame containing commit information.
+                top_n (int):                    The number of top committers to return.
+                
         Returns:
-        pd.DataFrame: A DataFrame containing the top N committers and their commit counts.
+                top_committers: A DataFrame containing the top N committers and their commit counts.
         """
         # Group by committer_name and count the number of commits for each committer
         top_committers = (

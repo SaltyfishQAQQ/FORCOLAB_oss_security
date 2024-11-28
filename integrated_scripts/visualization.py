@@ -44,7 +44,7 @@ def generate_network(source_path, user_interaction_df, file_name='network_graph.
         number_of_interactions (int):       Minimum number of interactions between users to include in the graph.
 
     Returns:
-        str: Path to the saved HTML file of the network graph.
+        output_path: Path to the saved HTML file of the network graph.
     """
     
     # Initialize the PyVis network with specific physics settings for optimal visualization
