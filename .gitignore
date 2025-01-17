@@ -11,6 +11,7 @@ integrated_scripts/test
 integrated_scripts/test_code_effects
 integrated_scripts/test.ipynb
 integrated_scripts/wut.c
+integrated_scripts/embeddings_test.ipynb
 
 *.py[cod]
 *$py.class

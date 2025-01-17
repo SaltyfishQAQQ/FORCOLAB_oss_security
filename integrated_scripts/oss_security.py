@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-
 import github_fetching as fetcher
 import data_cleaning as cleaner
 import sentiment_analysis as analyzer
 import visualization as visualizer
 import pandas as pd
+import embedding_gen as emb_gen
 
 def main():
     print("Welcome to the OSS_Security Project!")
