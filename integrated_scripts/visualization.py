@@ -47,6 +47,8 @@ def generate_network(source_path, user_interaction_df, file_name='network_graph.
         output_path: Path to the saved HTML file of the network graph.
     """
     
+    print(f"Generating network graph with user interactions...")
+
     # Initialize the PyVis network with specific physics settings for optimal visualization
     net = Network(height='750px', width='100%', notebook=True, directed=True)
     net.barnes_hut(gravity=-10000, central_gravity=0.3, spring_length=150, spring_strength=0.01)
@@ -100,6 +102,7 @@ def generate_network(source_path, user_interaction_df, file_name='network_graph.
     output_path = os.path.join(source_path, file_name)
     net.save_graph(output_path)
     print(f"Network saved to {output_path}")
+    print("----------------------------------------------")
     
     # Return the path of the saved network graph
     return output_path

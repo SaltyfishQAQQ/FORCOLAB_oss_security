@@ -97,7 +97,7 @@ def clean_thread(folder_path):
     """
     
     file_count = 0
-    print("Data Cleaning in Progress\n")
+    print("Data Cleaning in Progress")
 
     for file in os.listdir(folder_path):
         if file.endswith(".csv"):
@@ -117,7 +117,8 @@ def clean_thread(folder_path):
             except KeyError as e:
                 print(f"Error in file {file}: KeyError -> {e}")
     
-    print(f"Total {file_count} files cleaned\n")
+    print(f"Total {file_count} files cleaned")
+    print("----------------------------------------------")
 
 
 

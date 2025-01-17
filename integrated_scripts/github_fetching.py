@@ -4,6 +4,8 @@ import ScraperExtend as scraper
 import requests
 import os
 import datetime
+from datetime import datetime
+
 
 def initialize_scraper():
         """
@@ -47,7 +49,7 @@ def fetch_thread(gh_api, repo_name, folder_location, thread_type, thread_numbers
                 
                 # Extract the thread creation date
                 thread_date = thread_info.get("created_at")
-                thread_date_dt = datetime.datetime.strptime(thread_date, '%Y-%m-%dT%H:%M:%SZ')
+                thread_date_dt = datetime.strptime(thread_date, '%Y-%m-%dT%H:%M:%SZ')
 
                 # Skip if it's outside the specified date range
                 if not (start_date <= thread_date_dt <= end_date):
@@ -84,12 +86,11 @@ def fetch_thread(gh_api, repo_name, folder_location, thread_type, thread_numbers
                 
                 count += 1
 
-        print(f"Total {count} {thread_type} fetched\n")
-
+        print(f"Total {count} {thread_type} fetched")
 
 
 def fetch_issues_pr(repo_name='tukaani-project/xz', folder_location='tukaani-project_xz/', 
-                    start_year=2018, start_month=1, start_day=1, end_year=2024, end_month=6, end_day=1):
+                    start_date = '2018-01-01', end_date = '2024-06-01'):
         """
         Fetch issues and pull requests from a GitHub repository within a specified date range,
         save the details to separate CSV files, and return the path where files are saved.
@@ -113,8 +114,8 @@ def fetch_issues_pr(repo_name='tukaani-project/xz', folder_location='tukaani-pro
         gh_api = initialize_scraper()
 
         # Fetch all issues and pull requests for the specified repository and time
-        start_date = datetime.datetime(start_year, start_month, start_day)
-        end_date = datetime.datetime(end_year, end_month, end_day)
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
         all_issues = gh_api.repo_issues(repo_name)
         all_prs = gh_api.repo_pulls(repo_name)
 
@@ -124,11 +125,12 @@ def fetch_issues_pr(repo_name='tukaani-project/xz', folder_location='tukaani-pro
         issues_ids = issues_df['number'].tolist()
         prs_ids = prs_df['number'].tolist()
 
-        print(f"Fetching Issues and PRs for {repo_name}\n")
+        print(f"Fetching Issues and PRs for {repo_name}")
 
         # Fetch issues and PRs within the specified date range and save to the folder path
-        fetch_thread(gh_api, repo_name, folder_path, 'issue', issues_ids, start_date, end_date)
-        fetch_thread(gh_api, repo_name, folder_path, 'pr', prs_ids, start_date, end_date)
+        fetch_thread(gh_api, repo_name, folder_path, 'issue', issues_ids, start_date_obj, end_date_obj)
+        fetch_thread(gh_api, repo_name, folder_path, 'pr', prs_ids, start_date_obj, end_date_obj)
+        print("----------------------------------------------")
 
         return folder_path
 
@@ -136,8 +138,8 @@ def fetch_issues_pr(repo_name='tukaani-project/xz', folder_location='tukaani-pro
 
 def fetch_commit_info(repo_name='tukaani-project/xz', 
                       folder_location='tukaani-project_xz/', 
-                      start_year=2018, start_month=1, start_day=1, 
-                      end_year=2024, end_month=6, end_day=1):
+                      start_date='2018-01-01', 
+                      end_date='2024-06-01'):
         """
         Fetch commit information from a GitHub repository, filter commits by date, and save them to a CSV file.
 
@@ -181,9 +183,9 @@ def fetch_commit_info(repo_name='tukaani-project/xz',
         commit_info_df = pd.DataFrame(extracted_data)
         
         # Filter out rows with invalid dates and apply the date range filter
-        start_date = datetime.datetime(start_year, start_month, start_day)
-        end_date = datetime.datetime(end_year, end_month, end_day)
-
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+        
         def safe_strptime(date_str):
                 try:
                         return datetime.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ')
@@ -194,8 +196,8 @@ def fetch_commit_info(repo_name='tukaani-project/xz',
         commit_info_df['author_date'] = commit_info_df['author_date'].apply(safe_strptime)
         commit_info_df = commit_info_df.dropna(subset=['committer_date', 'author_date'])
         commit_info_df = commit_info_df[
-                (commit_info_df['committer_date'] >= start_date) & 
-                (commit_info_df['committer_date'] <= end_date)
+                (commit_info_df['committer_date'] >= start_date_obj) & 
+                (commit_info_df['committer_date'] <= end_date_obj)
         ]
         
         # Save the filtered DataFrame to a CSV file

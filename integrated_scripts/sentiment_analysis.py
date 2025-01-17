@@ -200,6 +200,7 @@ def clean_user_interactions(source_path, sentiment_tracker):
     below_threshold_interactions.to_csv(os.path.join(directory, "removed_below_threshold_interactions.csv"), index=False)
 
     print("Done cleaning for user interactions")
+    print("----------------------------------------------")
     print("Now fetching GitHub usernames")
 
     # Fetch GitHub usernames for authors in interactions
@@ -213,6 +214,7 @@ def clean_user_interactions(source_path, sentiment_tracker):
 
     print("Done GitHub username fetching")
     print("Cleaned user interactions saved.")
+    print("----------------------------------------------")
 
     return user_interactions
 
@@ -230,7 +232,7 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
     
     # Initialize the folder path and sentiment tracker
     folder_path = os.path.join(source_path, "individual_issue_PR/")
-    print("Running sentence-level sentiment analysis...")
+    print("Running thread-level sentiment analysis...")
     count = 0
     
     sentiment_tracker = defaultdict(lambda: {'POS': [], 'NEU': [], 'NEG': []})
@@ -295,15 +297,18 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
     
     post_sentiment_results = pd.DataFrame(post_sentiment_results).sort_values(by=['name'])
     
-    print("Sentence-level sentiment analysis done on " + str(count) + " posts.")
-    print("\nNow cleaning user interactions...")
+    print("Thread-level sentiment analysis done on " + str(count) + " posts.")
+    print("----------------------------------------------")
+    print("Now cleaning user interactions...")
     
     # Clean user interactions based on sentiment tracker
     cleaned_user_interactions = clean_user_interactions(source_path, sentiment_tracker)
-    print("\nNow constructing individual conversations")
+    print("Now constructing individual conversations")
     
     # Construct individual conversation files
     construct_individual_conversations(source_path, cleaned_user_interactions)
+    print("Done constructing individual conversations.")
+    print("----------------------------------------------")
     
     return post_sentiment_results, cleaned_user_interactions
 
