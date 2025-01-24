@@ -37,8 +37,8 @@ def extract_mentions(text):
     """
     if pd.isnull(text):
         return []
-    # Use re.findall() to extract all mentions
-    return re.findall(r'@(\w+)', text)
+    match = re.search(r'@(\w+)', text)
+    return match.group(1) if match else None
 
 
 def find_reply_to(df):
