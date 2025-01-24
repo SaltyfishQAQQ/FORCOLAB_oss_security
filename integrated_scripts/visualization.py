@@ -24,7 +24,7 @@ def post_analysis_visualization(post_sentiment_results):
     sentiment_counts.plot(kind='bar', stacked=False, color=['blue', 'orange', 'gray'])
     
     # Customize the chart's title, labels, and legend
-    plt.title('Sentiment Analysis for PRs, Issues, and MLs')
+    plt.title('Sentiment Analysis for PRs, Issues')
     plt.xlabel('Sentiment')
     plt.ylabel('Count')
     plt.xticks(rotation=0)

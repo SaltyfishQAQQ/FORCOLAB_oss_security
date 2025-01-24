@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-import node2vec
+from sklearn.cluster import KMeans
+from node2vec import Node2Vec
 
 
 def create_graphs_from_interactions(user_interaction_df):
