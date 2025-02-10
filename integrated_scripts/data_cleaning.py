@@ -97,6 +97,7 @@ def clean_thread(folder_path):
     """
     
     file_count = 0
+    messge_count = 0
     print("Data Cleaning in Progress")
 
     for file in os.listdir(folder_path):
@@ -111,13 +112,16 @@ def clean_thread(folder_path):
 
                 # Determine 'to' field based on reply relationship and save back to CSV
                 df['to'] = find_reply_to(df)
+
                 df.to_csv(folder_path + file, index=False)
                 file_count += 1
+                messge_count += len(df)
             
             except KeyError as e:
                 print(f"Error in file {file}: KeyError -> {e}")
     
     print(f"Total {file_count} files cleaned")
+    print(f"Total {messge_count} messages cleaned")
     print("----------------------------------------------")
 
 

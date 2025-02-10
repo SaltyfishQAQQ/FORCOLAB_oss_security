@@ -1,4 +1,10 @@
 sha,author_name,committer_name,author_date,committer_date,commit_message
+9f165076aebb3b5115d2b6520529db8fa11a6bdd,Lasse Collin,Lasse Collin,2025-02-07 17:12:03,2025-02-07 17:13:43,Docs: Update TODO a little
+f5aa292c534f87b9dd588e667d1c65ed31e5f289,Lasse Collin,Lasse Collin,2025-02-07 16:50:56,2025-02-07 16:50:56,"Add researcher credits of CVE-2022-1271 and CVE-2024-47611 to THANKS
+
+These are specific phrases that were included in the advisories and
+NEWS. It's nice to have them in THANKS as well."
+7cf463b5add70e3fb48a10de3965c8beb6c01ad9,Lasse Collin,Lasse Collin,2025-02-07 16:43:00,2025-02-07 16:43:00,Update THANKS
 6b7fe7e27b77038592e2c2e31df955059dda7d1d,Lasse Collin,Lasse Collin,2025-02-04 12:12:46,2025-02-04 17:37:32,"Docs: Update the ""Translations"" section in README
 
 Make it clearer that translations cannot be accepted if they don't
