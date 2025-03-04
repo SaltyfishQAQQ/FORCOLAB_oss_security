@@ -1,0 +1,27 @@
+event,from,created_at,body,to
+thread_started,JiaT75,2023-01-10T17:14:46Z,"### Describe the bug
+
+The CI/CD scripts detected this once the -werror was added. 
+
+### Version
+
+5.5.0 (master @57464bb4ebd6c0)
+
+### Operating System
+
+MacOS
+
+### Relevant log output
+
+```shell
+/Users/runner/work/xz/xz/build-aux/../src/xz/message.c:726:20: error: format string is not a string literal [-Werror,-Wformat-nonliteral]
+                vfprintf(stderr, fmt, ap);
+```",57464bb4ebd6c0
+commented,JiaT75,2023-01-11T12:19:36Z,"Turns out the error is with clang and -Wformat-nonliteral. clang treats this warning differently than gcc, which allows using a non-literal format string if the function takes its format arguments as a va_list. 
+
+Unfortunately, MacOS seems to ship with gcc that really just runs clang. So this makes it harder to detect when MacOS is actually using clang.
+
+A few solutions: 
+- Reduce -Wformat=2 to -Wformat=1
+- Add -Wno-format-literal
+- Add a check for CC=clang and for MacOS to set -Wno-format-literal. We can't just check CC for clang since with MacOS you can't be sure. We also can't just check $GCC=yes, since even if CC is overridden to use clang this will still be set.",JiaT75

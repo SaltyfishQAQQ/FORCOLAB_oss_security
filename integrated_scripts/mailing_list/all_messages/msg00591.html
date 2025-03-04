@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ Utils 5.3.3alpha</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00591" id="c">
+<link rel="index" href="maillist.html#00591" id="i">
+<link rel="prev" href="msg00584.html" id="p">
+<link rel="next" href="msg00592.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00591.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.3.3alpha%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ Utils 5.3.3alpha</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220822" rel="nofollow">Mon, 22 Aug 2022 09:52:17 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>XZ Utils 5.3.3alpha is available at &lt;<a  rel="nofollow" href="https://tukaani.org/xz/">https://tukaani.org/xz/</a>&gt;. Here is an
+extract from the NEWS file:</pre><pre>
+
+    * All fixes from 5.2.6.
+
+    * liblzma:
+
+        - Fixed 32-bit build.
+
+        - Added threaded .xz decompressor lzma_stream_decoder_mt().
+          It can use multiple threads with .xz files that have multiple
+          Blocks with size information in Block Headers. The threaded
+          encoder in xz has always created such files.
+
+          Single-threaded encoder cannot store the size information in
+          Block Headers even if one used LZMA_FULL_FLUSH to create
+          multiple Blocks, so this threaded decoder cannot use multiple
+          threads with such files.
+
+          If there are multiple Streams (concatenated .xz files), one
+          Stream will be decompressed completely before starting the
+          next Stream.
+
+        - A new decoder flag LZMA_FAIL_FAST was added. It makes the
+          threaded decompressor report errors soon instead of first
+          flushing all pending data before the error location.
+
+    * xz:
+
+        - Using -T0 (--threads=0) will now use multi-threaded encoder
+          even on a single-core system. This is to ensure that output
+          from the same xz binary is identical on both single-core and
+          multi-core systems.
+
+        - A default soft memory usage limit is now used for compression
+          when -T0 is used and no explicit limit has been specified.
+          This soft limit is used to restrict the number of threads
+          but if the limit is exceeded with even one thread then xz
+          will continue with one thread using the multi-threaded
+          encoder and this limit is ignored. If the number of threads
+          is specified manually then no default limit will be used;
+          this affects only -T0.
+
+          This change helps on systems that have very many cores and
+          using all of them for xz makes no sense. Previously xz -T0
+          could run out of memory on such systems because it attempted
+          to reserve memory for too many threads.
+
+          This also helps with 32-bit builds which don't have a large
+          amount of address space that would be required for many
+          threads. The default limit is 1400 MiB on all 32-bit
+          platforms with -T0.
+
+          Now xz -T0 should just work. It might use too few threads
+          in some cases but at least it shouldn't easily run out of
+          memory. It's possible that this will be tweaked before 5.4.0.
+
+        - Changes to --memlimit-compress and --no-adjust:
+
+          In single-threaded mode, --memlimit-compress can make xz
+          scale down the LZMA2 dictionary size to meet the memory usage
+          limit. This obviously affects the compressed output. However,
+          if xz was in threaded mode, --memlimit-compress could make xz
+          reduce the number of threads but it wouldn't make xz switch
+          from multi-threaded mode to single-threaded mode or scale
+          down the LZMA2 dictionary size. This seemed illogical.
+
+          Now --memlimit-compress can make xz switch to single-threaded
+          mode if one thread in multi-threaded mode uses too much
+          memory. If memory usage is still too high, then the LZMA2
+          dictionary size can be scaled down too.
+
+          The option --no-adjust was also changed so that it no longer
+          prevents xz from scaling down the number of threads as that
+          doesn't affect compressed output (only performance). After
+          this commit --no-adjust only prevents adjustments that affect
+          compressed output, that is, with --no-adjust xz won't switch
+          from multithreaded mode to single-threaded mode and won't
+          scale down the LZMA2 dictionary size.
+
+        - Added a new option --memlimit-decompress-mt=LIMIT. This is
+          used to limit the number of decompressor threads (possibly
+          falling back to single-threaded mode) but it will never make
+          xz refuse to decompress a file. This has a system-specific
+          default value because without any limit xz could end up
+          allocating memory for the whole compressed input file, the
+          whole uncompressed output file, multiple thread-specific
+          decompressor instances and so on. Basically xz could
+          attempt to use an insane amount of memory even with fairly
+          common files.
+
+          The new option works together with the existing option
+          --memlimit-decompress=LIMIT. The old option sets a hard limit
+          that must not be exceeded (xz will refuse to decompress)
+          while the new option only restricts the number of threads.
+          If the limit set with --memlimit-mt-decompress is greater
+          than the limit set with --memlimit-compress, then the latter
+          value is used also for --memlimit-mt-decompress.
+
+    * Tests:
+
+        - Added a few more tests.
+
+        - Added tests/code_coverage.sh to create a code coverage report
+          of the tests.
+
+    * Build systems:
+
+        - Automake's parallel test harness is now used to make tests
+          finish faster.
+
+        - Added the CMake files to the distribution tarball. These were
+          supposed to be in 5.2.5 already.
+
+        - Added liblzma tests to the CMake build.
+
+        - Windows: Fix building of liblzma.dll with the included
+          Visual Studio project files.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00584.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00591">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00591">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00592.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] XZ Utils 5.3.3alpha</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00592.html">Re: [xz-devel] XZ Utils 5.3.3alpha</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00593.html">Re: [xz-devel] XZ Utils 5.3.3alpha</a></span> <span class="sender italic">Jia Tan</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00594.html">Re: [xz-devel] XZ Utils 5.3.3alpha</a></span> <span class="sender italic">Sam James</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00595.html">Re: [xz-devel] XZ Utils 5.3.3alpha</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00596.html">Re: [xz-devel] XZ Utils 5.3.3al...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00597.html">Re: [xz-devel] XZ Utils 5....</a></span> <span class="sender italic">Guillem Jover</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00600.html">Re: [xz-devel] XZ Util...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00601.html">Re: [xz-devel] XZ ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00599.html">Re: [xz-devel] XZ Utils 5....</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ Utils 5.3.3alpha">
+<input type="hidden" name="msgid" value="20220822195209.65f2ad08@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00591.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.3.3alpha%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00584.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00592.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20220822195209.65f2ad08@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+timestamp,from,to,body,title,msg_file
+"Sat, 08 Jan 2022 09:15:31 -0800",Jean-Pierre Giraud,,"
+Package xz-utils
+version 5.2.5-2
+
+Hi,
+
+
+I think that this new translation could be included in a future release.
+
+Best regards
+
+Jean-Pierre Giraud
+Debian French Translation Team","[xz-devel] xz-utils-man.po, French translation",msg00527.html
+"Sun, 06 Feb 2022 15:47:49 -0800",Lasse Collin,Jean-Pierre Giraud,"On 2022-01-08 Jean-Pierre Giraud wrote:
+
+
+Thanks! Committed.
+
+-- 
+Lasse Collin
+","Re: [xz-devel] xz-utils-man.po, French translation",msg00529.html
+"Thu, 10 Feb 2022 09:15:01 -0800",Mario Blättermann,Jean-Pierre Giraud,"Hello all,
+
+Am Sa., 8. Jan. 2022 um 18:15 Uhr schrieb Jean-Pierre Giraud
+<jenapierregirau...@free.fr>:
+The file is broken; due to some markup errors it produces only one of
+the manpages. See the attached patch.
+
+
+Lasse,  besides the markup issues, both French and German translations
+are meanwhile incomplete and partially outdated. Please update
+po4a/xz-man.pot, and then consider to create a kind of ""intermediate""
+tarball and send it to the TP robot, requesting a new TP domain for
+""xz-man"".
+
+Best Regards,
+Mario","Re: [xz-devel] xz-utils-man.po, French translation",msg00531.html
+"Mon, 21 Feb 2022 15:07:58 -0800",Lasse Collin,Mario Blättermann,"On 2022-02-10 Mario Blättermann wrote:
+
+
+Sorry to all, this time I had skipped testing and checking the
+translation before committing it and it broke the build (po4a failure).
+
+I have committed your patch. Now it works. :-) Thanks!
+
+
+Yes, although in context of the v5.2 branch it should be slightly less
+outdated. The master is still in alpha stage and not meant for any
+distribution like Debian. This is a problem with translations as it's
+not clear if v5.2 or master should be translated. They don't differ
+much but still. If 5.2.6 will be needed, then translating v5.2 might
+make more sense, maybe.
+
+
+I tried requesting for xz-man domain a year ago and that didn't go well
+for a few reasons. Perhaps maybe I might dare to retry when the master
+branch is getting close to becoming a stable release. Or it might be
+easier to handle the man pages outside the Translation Project, we'll
+see.
+
+There are many open issues in the project that have been accumulated
+over the years; translations are unfortunately just one thing. I have
+many xz-related emails that I haven't answered yet. So the situation
+is a bit chaotic. My life situation is now a little different and I'm
+hoping I can focus on xz more now. So I'm trying to sort this, we'll
+see how it goes in the next 2-4 months.
+
+I'm hoping to commit a version of the threaded decoder in a few days.
+All big FIXMEs are solved, only a few small ones to do. :-)
+
+Gitweb is working again.
+
+-- 
+Lasse Collin
+","Re: [xz-devel] xz-utils-man.po, French translation",msg00535.html

@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH] add xz arm64 bcj filter support</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00537" id="c">
+<link rel="index" href="maillist.html#00537" id="i">
+<link rel="prev" href="msg00609.html" id="p">
+<link rel="next" href="msg00509.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00537.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+add+xz+arm64+bcj+filter+support%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH] add xz arm64 bcj filter support</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220222" rel="nofollow">Tue, 22 Feb 2022 06:39:58 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Hi all!
+
+I was not subscribed to the mailing list when these messages were
+originally posted, so I hope I am replying correctly. I have attached
+the original patch from Liao Hua, along with my changes. I also
+attached an updated version of the XZ specification with the added
+filter.</pre><pre>
+
+&gt; Ignoring 01 (offset &gt; 64 MiB) and 10 (offset &lt; -64 MiB) results in
+&gt; fewer false matches when the filter is applied to non-code data. Also,
+&gt; perhaps such offsets aren't so common in actual code (they can appear
+&gt; in big binaries only). If false matches are an issue, it might even
+&gt; make sense to reduce the range further (+/-32 MiB would be the same as
+&gt; on 32-bit ARM)
+
+I did quite a bit of benchmarking, and the false matches were not an
+issue, so I removed the artificial limiting on the 26 bit immediate
+value. I would argue the jumps in large binaries are the most
+important since these are the files users will want to have the best
+compression ratio. A 26 bit immediate allows for very large jumps that
+I don't think are unreasonable to exist in a large binary like a
+compiler or graphics library.
+
+&gt; Also, the way the two highest bits are ignored means that the sign bit
+&gt; isn't taken into account when doing the conversion. The calculation of
+&gt; &quot;dest&quot; will never flip the sign bit(s) (0x94 to 0x97 or vice versa) when
+&gt; the addition/substraction wraps around. Maybe it doesn't matter much in
+&gt; practice.
+
+It took me a while to understand, but it is essential to treat src and
+dest as unsigned integers. Otherwise, the decoder cannot know if the
+original src was positive or negative because of the potential integer
+overflow. I tried my best to explain this in the comments of the
+patch.
+
+&gt; Have you tested if instructions other than &quot;bl&quot; could be worth
+&gt; converting too? Unconditional branch instruction &quot;b&quot; is the most
+&gt; obvious candidate to try (0x14 instead of 0x94). I don't expect much
+&gt; but at this point it is easy to test. It's possible that it depends too
+&gt; much on what kind of code the input file has (it might help with some
+&gt; files and be harmful with many others).
+
+I tried using the &quot;b&quot; instruction, and as you predicted it helped with
+some files and harmed others. In general, it did more harm than good.
+
+&gt; Since this is a new filter, I would like to avoid a problem that other
+&gt; BCJ filters have: Linux kernel modules, static libraries and such files
+&gt; have the address part in the instructions filled with zeroes (correct
+&gt; values will be set when the file is linked). For example, if you run
+&gt; &quot;objdump -d&quot; on a x86-64 Linux module, there are lots of &quot;call&quot;
+&gt; instructions encoded as &quot;e8 00 00 00 00&quot;. I haven't checked if this is
+&gt; similar on ARM64 but it sounds likely.
+
+Your suggestion worked perfectly. I tested it on a few ARM64 Linux
+kernel modules and it compressed better than without the filter every
+time. I object dumped them to be sure, and most of the function calls
+were &quot;0x94000000&quot;, just as you had described with x86.
+
+&gt; The &quot;start=offset&quot; option probably could be omitted. It's quite useless
+&gt; inside .xz. XZ Embedded doesn't support it anyway.
+
+I left the option to keep this filter consistent with the other BCJ
+filters that all have this option.
+
+Let me know if there are more improvements I can make to this patch or
+if anything needs clarifying.
+
+Jia Tan
+</pre><pre>
+The .xz File Format
+===================
+
+Version 1.1.0 (2022-02-22)
+
+
+        0. Preface
+           0.1. Notices and Acknowledgements
+           0.2. Getting the Latest Version
+           0.3. Version History
+        1. Conventions
+           1.1. Byte and Its Representation
+           1.2. Multibyte Integers
+        2. Overall Structure of .xz File
+           2.1. Stream
+                2.1.1. Stream Header
+                       2.1.1.1. Header Magic Bytes
+                       2.1.1.2. Stream Flags
+                       2.1.1.3. CRC32
+                2.1.2. Stream Footer
+                       2.1.2.1. CRC32
+                       2.1.2.2. Backward Size
+                       2.1.2.3. Stream Flags
+                       2.1.2.4. Footer Magic Bytes
+           2.2. Stream Padding
+        3. Block
+           3.1. Block Header
+                3.1.1. Block Header Size
+                3.1.2. Block Flags
+                3.1.3. Compressed Size
+                3.1.4. Uncompressed Size
+                3.1.5. List of Filter Flags
+                3.1.6. Header Padding
+                3.1.7. CRC32
+           3.2. Compressed Data
+           3.3. Block Padding
+           3.4. Check
+        4. Index
+           4.1. Index Indicator
+           4.2. Number of Records
+           4.3. List of Records
+                4.3.1. Unpadded Size
+                4.3.2. Uncompressed Size
+           4.4. Index Padding
+           4.5. CRC32
+        5. Filter Chains
+           5.1. Alignment
+           5.2. Security
+           5.3. Filters
+                5.3.1. LZMA2
+                5.3.2. Branch/Call/Jump Filters for Executables
+                5.3.3. Delta
+                       5.3.3.1. Format of the Encoded Output
+           5.4. Custom Filter IDs
+                5.4.1. Reserved Custom Filter ID Ranges
+        6. Cyclic Redundancy Checks
+        7. References
+
+
+0. Preface
+
+        This document describes the .xz file format (filename suffix
+        &quot;.xz&quot;, MIME type &quot;application/x-xz&quot;). It is intended that this
+        this format replace the old .lzma format used by LZMA SDK and
+        LZMA Utils.
+
+
+0.1. Notices and Acknowledgements
+
+        This file format was designed by Lasse Collin
+        &lt;lasse.col...@tukaani.org&gt; and Igor Pavlov.
+
+        Special thanks for helping with this document goes to
+        Ville Koskinen. Thanks for helping with this document goes to
+        Mark Adler, H. Peter Anvin, Mikko Pouru, and Lars Wirzenius.
+
+        This document has been put into the public domain.
+
+
+0.2. Getting the Latest Version
+
+        The latest official version of this document can be downloaded
+        from &lt;<a  rel="nofollow" href="http://tukaani.org/xz/xz-file-format.txt">http://tukaani.org/xz/xz-file-format.txt</a>&gt;.
+
+        Specific versions of this document have a filename
+        xz-file-format-X.Y.Z.txt where X.Y.Z is the version number.
+        For example, the version 1.0.0 of this document is available
+        at &lt;<a  rel="nofollow" href="http://tukaani.org/xz/xz-file-format-1.0.0.txt">http://tukaani.org/xz/xz-file-format-1.0.0.txt</a>&gt;.
+
+
+0.3. Version History
+
+        Version   Date          Description
+        
+        1.1.0     2022-02-22    Added ARM64 BCJ filter in Section 5.3.2
+
+        1.0.4     2009-08-27    Language improvements in Sections 1.2,
+                                2.1.1.2, 3.1.1, 3.1.2, and 5.3.1
+
+        1.0.3     2009-06-05    Spelling fixes in Sections 5.1 and 5.4
+
+        1.0.2     2009-06-04    Typo fixes in Sections 4 and 5.3.1
+
+        1.0.1     2009-06-01    Typo fix in Section 0.3 and minor
+                                clarifications to Sections 2, 2.2,
+                                3.3, 4.4, and 5.3.2
+
+        1.0.0     2009-01-14    The first official version
+
+
+1. Conventions
+
+        The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHOULD&quot;,
+        &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this
+        document are to be interpreted as described in [RFC-2119].
+
+        Indicating a warning means displaying a message, returning
+        appropriate exit status, or doing something else to let the
+        user know that something worth warning occurred. The operation
+        SHOULD still finish if a warning is indicated.
+
+        Indicating an error means displaying a message, returning
+        appropriate exit status, or doing something else to let the
+        user know that something prevented successfully finishing the
+        operation. The operation MUST be aborted once an error has
+        been indicated.
+
+
+1.1. Byte and Its Representation
+
+        In this document, byte is always 8 bits.
+
+        A &quot;null byte&quot; has all bits unset. That is, the value of a null
+        byte is 0x00.
+
+        To represent byte blocks, this document uses notation that
+        is similar to the notation used in [RFC-1952]:
+
+            +-------+
+            |  Foo  |   One byte.
+            +-------+
+
+            +---+---+
+            |  Foo  |   Two bytes; that is, some of the vertical bars
+            +---+---+   can be missing.
+
+            +=======+
+            |  Foo  |   Zero or more bytes.
+            +=======+
+
+        In this document, a boxed byte or a byte sequence declared
+        using this notation is called &quot;a field&quot;. The example field
+        above would be called &quot;the Foo field&quot; or plain &quot;Foo&quot;.
+
+        If there are many fields, they may be split to multiple lines.
+        This is indicated with an arrow (&quot;---&gt;&quot;):
+
+            +=====+
+            | Foo |
+            +=====+
+
+                 +=====+
+            ---&gt; | Bar |
+                 +=====+
+
+        The above is equivalent to this:
+
+            +=====+=====+
+            | Foo | Bar |
+            +=====+=====+
+
+
+1.2. Multibyte Integers
+
+        Multibyte integers of static length, such as CRC values,
+        are stored in little endian byte order (least significant
+        byte first).
+
+        When smaller values are more likely than bigger values (for
+        example file sizes), multibyte integers are encoded in a
+        variable-length representation:
+          - Numbers in the range [0, 127] are copied as is, and take
+            one byte of space.
+          - Bigger numbers will occupy two or more bytes. All but the
+            last byte of the multibyte representation have the highest
+            (eighth) bit set.
+
+        For now, the value of the variable-length integers is limited
+        to 63 bits, which limits the encoded size of the integer to
+        nine bytes. These limits may be increased in the future if
+        needed.
+
+        The following C code illustrates encoding and decoding of
+        variable-length integers. The functions return the number of
+        bytes occupied by the integer (1-9), or zero on error.
+
+            #include &lt;stddef.h&gt;
+            #include &lt;inttypes.h&gt;
+
+            size_t
+            encode(uint8_t buf[static 9], uint64_t num)
+            {
+                if (num &gt; UINT64_MAX / 2)
+                    return 0;
+
+                size_t i = 0;
+
+                while (num &gt;= 0x80) {
+                    buf[i++] = (uint8_t)(num) | 0x80;
+                    num &gt;&gt;= 7;
+                }
+
+                buf[i++] = (uint8_t)(num);
+
+                return i;
+            }
+
+            size_t
+            decode(const uint8_t buf[], size_t size_max, uint64_t *num)
+            {
+                if (size_max == 0)
+                    return 0;
+
+                if (size_max &gt; 9)
+                    size_max = 9;
+
+                *num = buf[0] &amp; 0x7F;
+                size_t i = 0;
+
+                while (buf[i++] &amp; 0x80) {
+                    if (i &gt;= size_max || buf[i] == 0x00)
+                        return 0;
+
+                    *num |= (uint64_t)(buf[i] &amp; 0x7F) &lt;&lt; (i * 7);
+                }
+
+                return i;
+            }
+
+
+2. Overall Structure of .xz File
+
+        A standalone .xz files consist of one or more Streams which may
+        have Stream Padding between or after them:
+
+            +========+================+========+================+
+            | Stream | Stream Padding | Stream | Stream Padding | ...
+            +========+================+========+================+
+
+        The sizes of Stream and Stream Padding are always multiples
+        of four bytes, thus the size of every valid .xz file MUST be
+        a multiple of four bytes.
+
+        While a typical file contains only one Stream and no Stream
+        Padding, a decoder handling standalone .xz files SHOULD support
+        files that have more than one Stream or Stream Padding.
+
+        In contrast to standalone .xz files, when the .xz file format
+        is used as an internal part of some other file format or
+        communication protocol, it usually is expected that the decoder
+        stops after the first Stream, and doesn't look for Stream
+        Padding or possibly other Streams.
+
+
+2.1. Stream
+
+        +-+-+-+-+-+-+-+-+-+-+-+-+=======+=======+     +=======+
+        |     Stream Header     | Block | Block | ... | Block |
+        +-+-+-+-+-+-+-+-+-+-+-+-+=======+=======+     +=======+
+
+             +=======+-+-+-+-+-+-+-+-+-+-+-+-+
+        ---&gt; | Index |     Stream Footer     |
+             +=======+-+-+-+-+-+-+-+-+-+-+-+-+
+
+        All the above fields have a size that is a multiple of four. If
+        Stream is used as an internal part of another file format, it
+        is RECOMMENDED to make the Stream start at an offset that is
+        a multiple of four bytes.
+
+        Stream Header, Index, and Stream Footer are always present in
+        a Stream. The maximum size of the Index field is 16 GiB (2^34).
+
+        There are zero or more Blocks. The maximum number of Blocks is
+        limited only by the maximum size of the Index field.
+
+        Total size of a Stream MUST be less than 8 EiB (2^63 bytes).
+        The same limit applies to the total amount of uncompressed
+        data stored in a Stream.
+
+        If an implementation supports handling .xz files with multiple
+        concatenated Streams, it MAY apply the above limits to the file
+        as a whole instead of limiting per Stream basis.
+
+
+2.1.1. Stream Header
+
+        +---+---+---+---+---+---+-------+------+--+--+--+--+
+        |  Header Magic Bytes   | Stream Flags |   CRC32   |
+        +---+---+---+---+---+---+-------+------+--+--+--+--+
+
+
+2.1.1.1. Header Magic Bytes
+
+        The first six (6) bytes of the Stream are so called Header
+        Magic Bytes. They can be used to identify the file type.
+
+            Using a C array and ASCII:
+            const uint8_t HEADER_MAGIC[6]
+                    = { 0xFD, '7', 'z', 'X', 'Z', 0x00 };
+
+            In plain hexadecimal:
+            FD 37 7A 58 5A 00
+
+        Notes:
+          - The first byte (0xFD) was chosen so that the files cannot
+            be erroneously detected as being in .lzma format, in which
+            the first byte is in the range [0x00, 0xE0].
+          - The sixth byte (0x00) was chosen to prevent applications
+            from misdetecting the file as a text file.
+
+        If the Header Magic Bytes don't match, the decoder MUST
+        indicate an error.
+
+
+2.1.1.2. Stream Flags
+
+        The first byte of Stream Flags is always a null byte. In the
+        future, this byte may be used to indicate a new Stream version
+        or other Stream properties.
+
+        The second byte of Stream Flags is a bit field:
+
+            Bit(s)  Mask  Description
+             0-3    0x0F  Type of Check (see Section 3.4):
+                              ID    Size      Check name
+                              0x00   0 bytes  None
+                              0x01   4 bytes  CRC32
+                              0x02   4 bytes  (Reserved)
+                              0x03   4 bytes  (Reserved)
+                              0x04   8 bytes  CRC64
+                              0x05   8 bytes  (Reserved)
+                              0x06   8 bytes  (Reserved)
+                              0x07  16 bytes  (Reserved)
+                              0x08  16 bytes  (Reserved)
+                              0x09  16 bytes  (Reserved)
+                              0x0A  32 bytes  SHA-256
+                              0x0B  32 bytes  (Reserved)
+                              0x0C  32 bytes  (Reserved)
+                              0x0D  64 bytes  (Reserved)
+                              0x0E  64 bytes  (Reserved)
+                              0x0F  64 bytes  (Reserved)
+             4-7    0xF0  Reserved for future use; MUST be zero for now.
+
+        Implementations SHOULD support at least the Check IDs 0x00
+        (None) and 0x01 (CRC32). Supporting other Check IDs is
+        OPTIONAL. If an unsupported Check is used, the decoder SHOULD
+        indicate a warning or error.
+
+        If any reserved bit is set, the decoder MUST indicate an error.
+        It is possible that there is a new field present which the
+        decoder is not aware of, and can thus parse the Stream Header
+        incorrectly.
+
+
+2.1.1.3. CRC32
+
+        The CRC32 is calculated from the Stream Flags field. It is
+        stored as an unsigned 32-bit little endian integer. If the
+        calculated value does not match the stored one, the decoder
+        MUST indicate an error.
+
+        The idea is that Stream Flags would always be two bytes, even
+        if new features are needed. This way old decoders will be able
+        to verify the CRC32 calculated from Stream Flags, and thus
+        distinguish between corrupt files (CRC32 doesn't match) and
+        files that the decoder doesn't support (CRC32 matches but
+        Stream Flags has reserved bits set).
+
+
+2.1.2. Stream Footer
+
+        +-+-+-+-+---+---+---+---+-------+------+----------+---------+
+        | CRC32 | Backward Size | Stream Flags | Footer Magic Bytes |
+        +-+-+-+-+---+---+---+---+-------+------+----------+---------+
+
+
+2.1.2.1. CRC32
+
+        The CRC32 is calculated from the Backward Size and Stream Flags
+        fields. It is stored as an unsigned 32-bit little endian
+        integer. If the calculated value does not match the stored one,
+        the decoder MUST indicate an error.
+
+        The reason to have the CRC32 field before the Backward Size and
+        Stream Flags fields is to keep the four-byte fields aligned to
+        a multiple of four bytes.
+
+
+2.1.2.2. Backward Size
+
+        Backward Size is stored as a 32-bit little endian integer,
+        which indicates the size of the Index field as multiple of
+        four bytes, minimum value being four bytes:
+
+            real_backward_size = (stored_backward_size + 1) * 4;
+
+        If the stored value does not match the real size of the Index
+        field, the decoder MUST indicate an error.
+
+        Using a fixed-size integer to store Backward Size makes
+        it slightly simpler to parse the Stream Footer when the
+        application needs to parse the Stream backwards.
+
+
+2.1.2.3. Stream Flags
+
+        This is a copy of the Stream Flags field from the Stream
+        Header. The information stored to Stream Flags is needed
+        when parsing the Stream backwards. The decoder MUST compare
+        the Stream Flags fields in both Stream Header and Stream
+        Footer, and indicate an error if they are not identical.
+
+
+2.1.2.4. Footer Magic Bytes
+
+        As the last step of the decoding process, the decoder MUST
+        verify the existence of Footer Magic Bytes. If they don't
+        match, an error MUST be indicated.
+
+            Using a C array and ASCII:
+            const uint8_t FOOTER_MAGIC[2] = { 'Y', 'Z' };
+
+            In hexadecimal:
+            59 5A
+
+        The primary reason to have Footer Magic Bytes is to make
+        it easier to detect incomplete files quickly, without
+        uncompressing. If the file does not end with Footer Magic Bytes
+        (excluding Stream Padding described in Section 2.2), it cannot
+        be undamaged, unless someone has intentionally appended garbage
+        after the end of the Stream.
+
+
+2.2. Stream Padding
+
+        Only the decoders that support decoding of concatenated Streams
+        MUST support Stream Padding.
+
+        Stream Padding MUST contain only null bytes. To preserve the
+        four-byte alignment of consecutive Streams, the size of Stream
+        Padding MUST be a multiple of four bytes. Empty Stream Padding
+        is allowed. If these requirements are not met, the decoder MUST
+        indicate an error.
+
+        Note that non-empty Stream Padding is allowed at the end of the
+        file; there doesn't need to be a new Stream after non-empty
+        Stream Padding. This can be convenient in certain situations
+        [GNU-tar].
+
+        The possibility of Stream Padding MUST be taken into account
+        when designing an application that parses Streams backwards,
+        and the application supports concatenated Streams.
+
+
+3. Block
+
+        +==============+=================+===============+=======+
+        | Block Header | Compressed Data | Block Padding | Check |
+        +==============+=================+===============+=======+
+
+
+3.1. Block Header
+
+        +-------------------+-------------+=================+
+        | Block Header Size | Block Flags | Compressed Size |
+        +-------------------+-------------+=================+
+
+             +===================+======================+
+        ---&gt; | Uncompressed Size | List of Filter Flags |
+             +===================+======================+
+
+             +================+--+--+--+--+
+        ---&gt; | Header Padding |   CRC32   |
+             +================+--+--+--+--+
+
+
+3.1.1. Block Header Size
+
+        This field overlaps with the Index Indicator field (see
+        Section 4.1).
+
+        This field contains the size of the Block Header field,
+        including the Block Header Size field itself. Valid values are
+        in the range [0x01, 0xFF], which indicate the size of the Block
+        Header as multiples of four bytes, minimum size being eight
+        bytes:
+
+            real_header_size = (encoded_header_size + 1) * 4;
+
+        If a Block Header bigger than 1024 bytes is needed in the
+        future, a new field can be added between the Block Header and
+        Compressed Data fields. The presence of this new field would
+        be indicated in the Block Header field.
+
+
+3.1.2. Block Flags
+
+        The Block Flags field is a bit field:
+
+            Bit(s)  Mask  Description
+             0-1    0x03  Number of filters (1-4)
+             2-5    0x3C  Reserved for future use; MUST be zero for now.
+              6     0x40  The Compressed Size field is present.
+              7     0x80  The Uncompressed Size field is present.
+
+        If any reserved bit is set, the decoder MUST indicate an error.
+        It is possible that there is a new field present which the
+        decoder is not aware of, and can thus parse the Block Header
+        incorrectly.
+
+
+3.1.3. Compressed Size
+
+        This field is present only if the appropriate bit is set in
+        the Block Flags field (see Section 3.1.2).
+
+        The Compressed Size field contains the size of the Compressed
+        Data field, which MUST be non-zero. Compressed Size is stored
+        using the encoding described in Section 1.2. If the Compressed
+        Size doesn't match the size of the Compressed Data field, the
+        decoder MUST indicate an error.
+
+
+3.1.4. Uncompressed Size
+
+        This field is present only if the appropriate bit is set in
+        the Block Flags field (see Section 3.1.2).
+
+        The Uncompressed Size field contains the size of the Block
+        after uncompressing. Uncompressed Size is stored using the
+        encoding described in Section 1.2. If the Uncompressed Size
+        does not match the real uncompressed size, the decoder MUST
+        indicate an error.
+
+        Storing the Compressed Size and Uncompressed Size fields serves
+        several purposes:
+          - The decoder knows how much memory it needs to allocate
+            for a temporary buffer in multithreaded mode.
+          - Simple error detection: wrong size indicates a broken file.
+          - Seeking forwards to a specific location in streamed mode.
+
+        It should be noted that the only reliable way to determine
+        the real uncompressed size is to uncompress the Block,
+        because the Block Header and Index fields may contain
+        (intentionally or unintentionally) invalid information.
+
+
+3.1.5. List of Filter Flags
+
+        +================+================+     +================+
+        | Filter 0 Flags | Filter 1 Flags | ... | Filter n Flags |
+        +================+================+     +================+
+
+        The number of Filter Flags fields is stored in the Block Flags
+        field (see Section 3.1.2).
+
+        The format of each Filter Flags field is as follows:
+
+            +===========+====================+===================+
+            | Filter ID | Size of Properties | Filter Properties |
+            +===========+====================+===================+
+
+        Both Filter ID and Size of Properties are stored using the
+        encoding described in Section 1.2. Size of Properties indicates
+        the size of the Filter Properties field as bytes. The list of
+        officially defined Filter IDs and the formats of their Filter
+        Properties are described in Section 5.3.
+
+        Filter IDs greater than or equal to 0x4000_0000_0000_0000
+        (2^62) are reserved for implementation-specific internal use.
+        These Filter IDs MUST never be used in List of Filter Flags.
+
+
+3.1.6. Header Padding
+
+        This field contains as many null byte as it is needed to make
+        the Block Header have the size specified in Block Header Size.
+        If any of the bytes are not null bytes, the decoder MUST
+        indicate an error. It is possible that there is a new field
+        present which the decoder is not aware of, and can thus parse
+        the Block Header incorrectly.
+
+
+3.1.7. CRC32
+
+        The CRC32 is calculated over everything in the Block Header
+        field except the CRC32 field itself. It is stored as an
+        unsigned 32-bit little endian integer. If the calculated
+        value does not match the stored one, the decoder MUST indicate
+        an error.
+
+        By verifying the CRC32 of the Block Header before parsing the
+        actual contents allows the decoder to distinguish between
+        corrupt and unsupported files.
+
+
+3.2. Compressed Data
+
+        The format of Compressed Data depends on Block Flags and List
+        of Filter Flags. Excluding the descriptions of the simplest
+        filters in Section 5.3, the format of the filter-specific
+        encoded data is out of scope of this document.
+
+
+3.3. Block Padding
+
+        Block Padding MUST contain 0-3 null bytes to make the size of
+        the Block a multiple of four bytes. This can be needed when
+        the size of Compressed Data is not a multiple of four. If any
+        of the bytes in Block Padding are not null bytes, the decoder
+        MUST indicate an error.
+
+
+3.4. Check
+
+        The type and size of the Check field depends on which bits
+        are set in the Stream Flags field (see Section 2.1.1.2).
+
+        The Check, when used, is calculated from the original
+        uncompressed data. If the calculated Check does not match the
+        stored one, the decoder MUST indicate an error. If the selected
+        type of Check is not supported by the decoder, it SHOULD
+        indicate a warning or error.
+
+
+4. Index
+
+        +-----------------+===================+
+        | Index Indicator | Number of Records |
+        +-----------------+===================+
+
+             +=================+===============+-+-+-+-+
+        ---&gt; | List of Records | Index Padding | CRC32 |
+             +=================+===============+-+-+-+-+
+
+        Index serves several purposes. Using it, one can
+          - verify that all Blocks in a Stream have been processed;
+          - find out the uncompressed size of a Stream; and
+          - quickly access the beginning of any Block (random access).
+
+
+4.1. Index Indicator
+
+        This field overlaps with the Block Header Size field (see
+        Section 3.1.1). The value of Index Indicator is always 0x00.
+
+
+4.2. Number of Records
+
+        This field indicates how many Records there are in the List
+        of Records field, and thus how many Blocks there are in the
+        Stream. The value is stored using the encoding described in
+        Section 1.2. If the decoder has decoded all the Blocks of the
+        Stream, and then notices that the Number of Records doesn't
+        match the real number of Blocks, the decoder MUST indicate an
+        error.
+
+
+4.3. List of Records
+
+        List of Records consists of as many Records as indicated by the
+        Number of Records field:
+
+            +========+========+
+            | Record | Record | ...
+            +========+========+
+
+        Each Record contains information about one Block:
+
+            +===============+===================+
+            | Unpadded Size | Uncompressed Size |
+            +===============+===================+
+
+        If the decoder has decoded all the Blocks of the Stream, it
+        MUST verify that the contents of the Records match the real
+        Unpadded Size and Uncompressed Size of the respective Blocks.
+
+        Implementation hint: It is possible to verify the Index with
+        constant memory usage by calculating for example SHA-256 of
+        both the real size values and the List of Records, then
+        comparing the hash values. Implementing this using
+        non-cryptographic hash like CRC32 SHOULD be avoided unless
+        small code size is important.
+
+        If the decoder supports random-access reading, it MUST verify
+        that Unpadded Size and Uncompressed Size of every completely
+        decoded Block match the sizes stored in the Index. If only
+        partial Block is decoded, the decoder MUST verify that the
+        processed sizes don't exceed the sizes stored in the Index.
+
+
+4.3.1. Unpadded Size
+
+        This field indicates the size of the Block excluding the Block
+        Padding field. That is, Unpadded Size is the size of the Block
+        Header, Compressed Data, and Check fields. Unpadded Size is
+        stored using the encoding described in Section 1.2. The value
+        MUST never be zero; with the current structure of Blocks, the
+        actual minimum value for Unpadded Size is five.
+
+        Implementation note: Because the size of the Block Padding
+        field is not included in Unpadded Size, calculating the total
+        size of a Stream or doing random-access reading requires
+        calculating the actual size of the Blocks by rounding Unpadded
+        Sizes up to the next multiple of four.
+
+        The reason to exclude Block Padding from Unpadded Size is to
+        ease making a raw copy of Compressed Data without Block
+        Padding. This can be useful, for example, if someone wants
+        to convert Streams to some other file format quickly.
+
+
+4.3.2. Uncompressed Size
+
+        This field indicates the Uncompressed Size of the respective
+        Block as bytes. The value is stored using the encoding
+        described in Section 1.2.
+
+
+4.4. Index Padding
+
+        This field MUST contain 0-3 null bytes to pad the Index to
+        a multiple of four bytes. If any of the bytes are not null
+        bytes, the decoder MUST indicate an error.
+
+
+4.5. CRC32
+
+        The CRC32 is calculated over everything in the Index field
+        except the CRC32 field itself. The CRC32 is stored as an
+        unsigned 32-bit little endian integer. If the calculated
+        value does not match the stored one, the decoder MUST indicate
+        an error.
+
+
+5. Filter Chains
+
+        The Block Flags field defines how many filters are used. When
+        more than one filter is used, the filters are chained; that is,
+        the output of one filter is the input of another filter. The
+        following figure illustrates the direction of data flow.
+
+                    v   Uncompressed Data   ^
+                    |       Filter 0        |
+            Encoder |       Filter 1        | Decoder
+                    |       Filter n        |
+                    v    Compressed Data    ^
+
+
+5.1. Alignment
+
+        Alignment of uncompressed input data is usually the job of
+        the application producing the data. For example, to get the
+        best results, an archiver tool should make sure that all
+        PowerPC executable files in the archive stream start at
+        offsets that are multiples of four bytes.
+
+        Some filters, for example LZMA2, can be configured to take
+        advantage of specified alignment of input data. Note that
+        taking advantage of aligned input can be beneficial also when
+        a filter is not the first filter in the chain. For example,
+        if you compress PowerPC executables, you may want to use the
+        PowerPC filter and chain that with the LZMA2 filter. Because
+        not only the input but also the output alignment of the PowerPC
+        filter is four bytes, it is now beneficial to set LZMA2
+        settings so that the LZMA2 encoder can take advantage of its
+        four-byte-aligned input data.
+
+        The output of the last filter in the chain is stored to the
+        Compressed Data field, which is is guaranteed to be aligned
+        to a multiple of four bytes relative to the beginning of the
+        Stream. This can increase
+          - speed, if the filtered data is handled multiple bytes at
+            a time by the filter-specific encoder and decoder,
+            because accessing aligned data in computer memory is
+            usually faster; and
+          - compression ratio, if the output data is later compressed
+            with an external compression tool.
+
+
+5.2. Security
+
+        If filters would be allowed to be chained freely, it would be
+        possible to create malicious files, that would be very slow to
+        decode. Such files could be used to create denial of service
+        attacks.
+
+        Slow files could occur when multiple filters are chained:
+
+            v   Compressed input data
+            |   Filter 1 decoder (last filter)
+            |   Filter 0 decoder (non-last filter)
+            v   Uncompressed output data
+
+        The decoder of the last filter in the chain produces a lot of
+        output from little input. Another filter in the chain takes the
+        output of the last filter, and produces very little output
+        while consuming a lot of input. As a result, a lot of data is
+        moved inside the filter chain, but the filter chain as a whole
+        gets very little work done.
+
+        To prevent this kind of slow files, there are restrictions on
+        how the filters can be chained. These restrictions MUST be
+        taken into account when designing new filters.
+
+        The maximum number of filters in the chain has been limited to
+        four, thus there can be at maximum of three non-last filters.
+        Of these three non-last filters, only two are allowed to change
+        the size of the data.
+
+        The non-last filters, that change the size of the data, MUST
+        have a limit how much the decoder can compress the data: the
+        decoder SHOULD produce at least n bytes of output when the
+        filter is given 2n bytes of input. This  limit is not
+        absolute, but significant deviations MUST be avoided.
+
+        The above limitations guarantee that if the last filter in the
+        chain produces 4n bytes of output, the chain as a whole will
+        produce at least n bytes of output.
+
+
+5.3. Filters
+
+5.3.1. LZMA2
+
+        LZMA (Lempel-Ziv-Markov chain-Algorithm) is a general-purpose
+        compression algorithm with high compression ratio and fast
+        decompression. LZMA is based on LZ77 and range coding
+        algorithms.
+
+        LZMA2 is an extension on top of the original LZMA. LZMA2 uses
+        LZMA internally, but adds support for flushing the encoder,
+        uncompressed chunks, eases stateful decoder implementations,
+        and improves support for multithreading. Thus, the plain LZMA
+        will not be supported in this file format.
+
+            Filter ID:                  0x21
+            Size of Filter Properties:  1 byte
+            Changes size of data:       Yes
+            Allow as a non-last filter: No
+            Allow as the last filter:   Yes
+
+            Preferred alignment:
+                Input data:             Adjustable to 1/2/4/8/16 byte(s)
+                Output data:            1 byte
+
+        The format of the one-byte Filter Properties field is as
+        follows:
+
+            Bits   Mask   Description
+            0-5    0x3F   Dictionary Size
+            6-7    0xC0   Reserved for future use; MUST be zero for now.
+
+        Dictionary Size is encoded with one-bit mantissa and five-bit
+        exponent. The smallest dictionary size is 4 KiB and the biggest
+        is 4 GiB.
+
+            Raw value   Mantissa   Exponent   Dictionary size
+                0           2         11         4 KiB
+                1           3         11         6 KiB
+                2           2         12         8 KiB
+                3           3         12        12 KiB
+                4           2         13        16 KiB
+                5           3         13        24 KiB
+                6           2         14        32 KiB
+              ...         ...        ...      ...
+               35           3         27       768 MiB
+               36           2         28      1024 MiB
+               37           3         29      1536 MiB
+               38           2         30      2048 MiB
+               39           3         30      3072 MiB
+               40           2         31      4096 MiB - 1 B
+
+        Instead of having a table in the decoder, the dictionary size
+        can be decoded using the following C code:
+
+            const uint8_t bits = get_dictionary_flags() &amp; 0x3F;
+            if (bits &gt; 40)
+                return DICTIONARY_TOO_BIG; // Bigger than 4 GiB
+
+            uint32_t dictionary_size;
+            if (bits == 40) {
+                dictionary_size = UINT32_MAX;
+            } else {
+                dictionary_size = 2 | (bits &amp; 1);
+                dictionary_size &lt;&lt;= bits / 2 + 11;
+            }
+
+
+5.3.2. Branch/Call/Jump Filters for Executables
+
+        These filters convert relative branch, call, and jump
+        instructions to their absolute counterparts in executable
+        files. This conversion increases redundancy and thus
+        compression ratio.
+
+            Size of Filter Properties:  0 or 4 bytes
+            Changes size of data:       No
+            Allow as a non-last filter: Yes
+            Allow as the last filter:   No
+
+        Below is the list of filters in this category. The alignment
+        is the same for both input and output data.
+
+            Filter ID   Alignment   Description
+              0x04       1 byte     x86 filter (BCJ)
+              0x05       4 bytes    PowerPC (big endian) filter
+              0x06      16 bytes    IA64 filter
+              0x07       4 bytes    ARM (little endian) filter
+              0x08       2 bytes    ARM Thumb (little endian) filter
+              0x09       4 bytes    SPARC filter
+              0xB        4 bytes    ARM64 (little endian) filter
+
+        If the size of Filter Properties is four bytes, the Filter
+        Properties field contains the start offset used for address
+        conversions. It is stored as an unsigned 32-bit little endian
+        integer. The start offset MUST be a multiple of the alignment
+        of the filter as listed in the table above; if it isn't, the
+        decoder MUST indicate an error. If the size of Filter
+        Properties is zero, the start offset is zero.
+
+        Setting the start offset may be useful if an executable has
+        multiple sections, and there are many cross-section calls.
+        Taking advantage of this feature usually requires usage of
+        the Subblock filter, whose design is not complete yet.
+
+
+5.3.3. Delta
+
+        The Delta filter may increase compression ratio when the value
+        of the next byte correlates with the value of an earlier byte
+        at specified distance.
+
+            Filter ID:                  0x03
+            Size of Filter Properties:  1 byte
+            Changes size of data:       No
+            Allow as a non-last filter: Yes
+            Allow as the last filter:   No
+
+            Preferred alignment:
+                Input data:             1 byte
+                Output data:            Same as the original input data
+
+        The Properties byte indicates the delta distance, which can be
+        1-256 bytes backwards from the current byte: 0x00 indicates
+        distance of 1 byte and 0xFF distance of 256 bytes.
+
+
+5.3.3.1. Format of the Encoded Output
+
+        The code below illustrates both encoding and decoding with
+        the Delta filter.
+
+            // Distance is in the range [1, 256].
+            const unsigned int distance = get_properties_byte() + 1;
+            uint8_t pos = 0;
+            uint8_t delta[256];
+
+            memset(delta, 0, sizeof(delta));
+
+            while (1) {
+                const int byte = read_byte();
+                if (byte == EOF)
+                    break;
+
+                uint8_t tmp = delta[(uint8_t)(distance + pos)];
+                if (is_encoder) {
+                    tmp = (uint8_t)(byte) - tmp;
+                    delta[pos] = (uint8_t)(byte);
+                } else {
+                    tmp = (uint8_t)(byte) + tmp;
+                    delta[pos] = tmp;
+                }
+
+                write_byte(tmp);
+                --pos;
+            }
+
+
+5.4. Custom Filter IDs
+
+        If a developer wants to use custom Filter IDs, he has two
+        choices. The first choice is to contact Lasse Collin and ask
+        him to allocate a range of IDs for the developer.
+
+        The second choice is to generate a 40-bit random integer,
+        which the developer can use as his personal Developer ID.
+        To minimize the risk of collisions, Developer ID has to be
+        a randomly generated integer, not manually selected &quot;hex word&quot;.
+        The following command, which works on many free operating
+        systems, can be used to generate Developer ID:
+
+            dd if=/dev/urandom bs=5 count=1 | hexdump
+
+        The developer can then use his Developer ID to create unique
+        (well, hopefully unique) Filter IDs.
+
+            Bits    Mask                    Description
+             0-15   0x0000_0000_0000_FFFF   Filter ID
+            16-55   0x00FF_FFFF_FFFF_0000   Developer ID
+            56-62   0x3F00_0000_0000_0000   Static prefix: 0x3F
+
+        The resulting 63-bit integer will use 9 bytes of space when
+        stored using the encoding described in Section 1.2. To get
+        a shorter ID, see the beginning of this Section how to
+        request a custom ID range.
+
+
+5.4.1. Reserved Custom Filter ID Ranges
+
+        Range                       Description
+        0x0000_0300 - 0x0000_04FF   Reserved to ease .7z compatibility
+        0x0002_0000 - 0x0007_FFFF   Reserved to ease .7z compatibility
+        0x0200_0000 - 0x07FF_FFFF   Reserved to ease .7z compatibility
+
+
+6. Cyclic Redundancy Checks
+
+        There are several incompatible variations to calculate CRC32
+        and CRC64. For simplicity and clarity, complete examples are
+        provided to calculate the checks as they are used in this file
+        format. Implementations MAY use different code as long as it
+        gives identical results.
+
+        The program below reads data from standard input, calculates
+        the CRC32 and CRC64 values, and prints the calculated values
+        as big endian hexadecimal strings to standard output.
+
+            #include &lt;stddef.h&gt;
+            #include &lt;inttypes.h&gt;
+            #include &lt;stdio.h&gt;
+
+            uint32_t crc32_table[256];
+            uint64_t crc64_table[256];
+
+            void
+            init(void)
+            {
+                static const uint32_t poly32 = UINT32_C(0xEDB88320);
+                static const uint64_t poly64
+                        = UINT64_C(0xC96C5795D7870F42);
+
+                for (size_t i = 0; i &lt; 256; ++i) {
+                    uint32_t crc32 = i;
+                    uint64_t crc64 = i;
+
+                    for (size_t j = 0; j &lt; 8; ++j) {
+                        if (crc32 &amp; 1)
+                            crc32 = (crc32 &gt;&gt; 1) ^ poly32;
+                        else
+                            crc32 &gt;&gt;= 1;
+
+                        if (crc64 &amp; 1)
+                            crc64 = (crc64 &gt;&gt; 1) ^ poly64;
+                        else
+                            crc64 &gt;&gt;= 1;
+                    }
+
+                    crc32_table[i] = crc32;
+                    crc64_table[i] = crc64;
+                }
+            }
+
+            uint32_t
+            crc32(const uint8_t *buf, size_t size, uint32_t crc)
+            {
+                crc = ~crc;
+                for (size_t i = 0; i &lt; size; ++i)
+                    crc = crc32_table[buf[i] ^ (crc &amp; 0xFF)]
+                            ^ (crc &gt;&gt; 8);
+                return ~crc;
+            }
+
+            uint64_t
+            crc64(const uint8_t *buf, size_t size, uint64_t crc)
+            {
+                crc = ~crc;
+                for (size_t i = 0; i &lt; size; ++i)
+                    crc = crc64_table[buf[i] ^ (crc &amp; 0xFF)]
+                            ^ (crc &gt;&gt; 8);
+                return ~crc;
+            }
+
+            int
+            main()
+            {
+                init();
+
+                uint32_t value32 = 0;
+                uint64_t value64 = 0;
+                uint64_t total_size = 0;
+                uint8_t buf[8192];
+
+                while (1) {
+                    const size_t buf_size
+                            = fread(buf, 1, sizeof(buf), stdin);
+                    if (buf_size == 0)
+                        break;
+
+                    total_size += buf_size;
+                    value32 = crc32(buf, buf_size, value32);
+                    value64 = crc64(buf, buf_size, value64);
+                }
+
+                printf(&quot;Bytes:  %&quot; PRIu64 &quot;\n&quot;, total_size);
+                printf(&quot;CRC-32: 0x%08&quot; PRIX32 &quot;\n&quot;, value32);
+                printf(&quot;CRC-64: 0x%016&quot; PRIX64 &quot;\n&quot;, value64);
+
+                return 0;
+            }
+
+
+7. References
+
+        LZMA SDK - The original LZMA implementation
+        <a  rel="nofollow" href="http://7-zip.org/sdk.html">http://7-zip.org/sdk.html</a>
+
+        LZMA Utils - LZMA adapted to POSIX-like systems
+        <a  rel="nofollow" href="http://tukaani.org/lzma/">http://tukaani.org/lzma/</a>
+
+        XZ Utils - The next generation of LZMA Utils
+        <a  rel="nofollow" href="http://tukaani.org/xz/">http://tukaani.org/xz/</a>
+
+        [RFC-1952]
+        GZIP file format specification version 4.3
+        <a  rel="nofollow" href="http://www.ietf.org/rfc/rfc1952.txt">http://www.ietf.org/rfc/rfc1952.txt</a>
+          - Notation of byte boxes in section &quot;2.1. Overall conventions&quot;
+
+        [RFC-2119]
+        Key words for use in RFCs to Indicate Requirement Levels
+        <a  rel="nofollow" href="http://www.ietf.org/rfc/rfc2119.txt">http://www.ietf.org/rfc/rfc2119.txt</a>
+
+        [GNU-tar]
+        GNU tar 1.21 manual
+        <a  rel="nofollow" href="http://www.gnu.org/software/tar/manual/html_node/Blocking-Factor.html">http://www.gnu.org/software/tar/manual/html_node/Blocking-Factor.html</a>
+          - Node 9.4.2 &quot;Blocking Factor&quot;, paragraph that begins
+            &quot;gzip will complain about trailing garbage&quot;
+          - Note that this URL points to the latest version of the
+            manual, and may some day not contain the note which is in
+            1.21. For the exact version of the manual, download GNU
+            tar 1.21: <a  rel="nofollow" href="ftp://ftp.gnu.org/pub/gnu/tar/tar-1.21.tar.gz">ftp://ftp.gnu.org/pub/gnu/tar/tar-1.21.tar.gz</a>
+</pre><pre>From 28a066e2f5d093a89ea5b19a91b92845d74941cb Mon Sep 17 00:00:00 2001
+From: liaohua &lt;liaoh...@huawei.com&gt;
+Date: Wed, 1 Sep 2021 18:49:04 -0700
+Subject: [PATCH 1/2] add xz arm64 bcj filter support
+
+---
+ CMakeLists.txt                      |  3 ++
+ configure.ac                        |  4 +-
+ src/liblzma/api/lzma/bcj.h          |  4 ++
+ src/liblzma/common/filter_common.c  | 10 +++-
+ src/liblzma/common/filter_decoder.c |  8 ++++
+ src/liblzma/common/filter_encoder.c | 10 ++++
+ src/liblzma/simple/Makefile.inc     |  4 ++
+ src/liblzma/simple/arm64.c          | 72 +++++++++++++++++++++++++++++
+ src/liblzma/simple/simple_coder.h   |  7 +++
+ src/xz/args.c                       |  7 +++
+ src/xz/message.c                    |  5 +-
+ 11 files changed, 130 insertions(+), 4 deletions(-)
+ create mode 100644 src/liblzma/simple/arm64.c
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index af175d31..a7dffcc9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -86,6 +86,7 @@ add_compile_definitions(
+     HAVE_CHECK_SHA256
+     HAVE_DECODERS
+     HAVE_DECODER_ARM
++    HAVE_DECODER_ARM64
+     HAVE_DECODER_ARMTHUMB
+     HAVE_DECODER_DELTA
+     HAVE_DECODER_IA64
+@@ -96,6 +97,7 @@ add_compile_definitions(
+     HAVE_DECODER_X86
+     HAVE_ENCODERS
+     HAVE_ENCODER_ARM
++    HAVE_ENCODER_ARM64
+     HAVE_ENCODER_ARMTHUMB
+     HAVE_ENCODER_DELTA
+     HAVE_ENCODER_IA64
+@@ -330,6 +332,7 @@ add_library(liblzma
+     src/liblzma/rangecoder/range_decoder.h
+     src/liblzma/rangecoder/range_encoder.h
+     src/liblzma/simple/arm.c
++    src/liblzma/simple/arm64.c
+     src/liblzma/simple/armthumb.c
+     src/liblzma/simple/ia64.c
+     src/liblzma/simple/powerpc.c
+diff --git a/configure.ac b/configure.ac
+index 2418e4b0..7a3956eb 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -79,8 +79,8 @@ fi
+ # Filters #
+ ###########
+ 
+-m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
+-m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,armthumb,sparc])
++m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,delta,x86,powerpc,ia64,arm,arm64,armthumb,sparc])dnl
++m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,arm64,armthumb,sparc])
+ m4_define([LZ_FILTERS], [lzma1,lzma2])
+ 
+ m4_foreach([NAME], [SUPPORTED_FILTERS],
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 8e37538a..2c1cdb9b 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -49,6 +49,10 @@
+ 	 * Filter for SPARC binaries.
+ 	 */
+ 
++#define LZMA_FILTER_ARM64         LZMA_VLI_C(0x0a)
++       /**&lt;
++        * Filter for ARM64 binaries.
++        */
+ 
+ /**
+  * \brief       Options for BCJ filters
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 9ad5d5d8..88dc6042 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -12,7 +12,6 @@
+ 
+ #include &quot;filter_common.h&quot;
+ 
+-
+ static const struct {
+ 	/// Filter ID
+ 	lzma_vli id;
+@@ -88,6 +87,15 @@ static const struct {
+ 		.changes_size = false,
+ 	},
+ #endif
++#if defined(HAVE_ENCODER_ARM64) || defined(HAVE_DECODER_ARM64)
++       {
++               .id = LZMA_FILTER_ARM64,
++               .options_size = sizeof(lzma_options_bcj),
++               .non_last_ok = true,
++               .last_ok = false,
++               .changes_size = false,
++       },
++#endif
+ #if defined(HAVE_ENCODER_ARMTHUMB) || defined(HAVE_DECODER_ARMTHUMB)
+ 	{
+ 		.id = LZMA_FILTER_ARMTHUMB,
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index c75b0a89..d6baa479 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -91,6 +91,14 @@ static const lzma_filter_decoder decoders[] = {
+ 		.props_decode = &amp;lzma_simple_props_decode,
+ 	},
+ #endif
++#ifdef HAVE_DECODER_ARM64
++       {
++               .id = LZMA_FILTER_ARM64,
++               .init = &amp;lzma_simple_arm64_decoder_init,
++               .memusage = NULL,
++               .props_decode = &amp;lzma_simple_props_decode,
++       },
++#endif
+ #ifdef HAVE_DECODER_ARMTHUMB
+ 	{
+ 		.id = LZMA_FILTER_ARMTHUMB,
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index c5d8f397..70bc4298 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -116,6 +116,16 @@ static const lzma_filter_encoder encoders[] = {
+ 		.props_encode = &amp;lzma_simple_props_encode,
+ 	},
+ #endif
++#ifdef HAVE_ENCODER_ARM64
++       {
++               .id = LZMA_FILTER_ARM64,
++               .init = &amp;lzma_simple_arm64_encoder_init,
++               .memusage = NULL,
++               .block_size = NULL,
++               .props_size_get = &amp;lzma_simple_props_size,
++               .props_encode = &amp;lzma_simple_props_encode,
++       },
++#endif
+ #ifdef HAVE_ENCODER_ARMTHUMB
+ 	{
+ 		.id = LZMA_FILTER_ARMTHUMB,
+diff --git a/src/liblzma/simple/Makefile.inc b/src/liblzma/simple/Makefile.inc
+index 8a5e2d7f..3e1f41dc 100644
+--- a/src/liblzma/simple/Makefile.inc
++++ b/src/liblzma/simple/Makefile.inc
+@@ -38,6 +38,10 @@ if COND_FILTER_ARM
+ liblzma_la_SOURCES += simple/arm.c
+ endif
+ 
++if COND_FILTER_ARM64
++liblzma_la_SOURCES += simple/arm64.c
++endif
++
+ if COND_FILTER_ARMTHUMB
+ liblzma_la_SOURCES += simple/armthumb.c
+ endif
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+new file mode 100644
+index 00000000..1abaec60
+--- /dev/null
++++ b/src/liblzma/simple/arm64.c
+@@ -0,0 +1,72 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       arm64.c
++/// \brief      Filter for ARM64 binaries
++///
++//  Authors:    Igor Pavlov
++//              Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include &quot;simple_private.h&quot;
++
++
++static size_t
++arm64_code(void *simple lzma_attribute((__unused__)),
++               uint32_t now_pos, bool is_encoder,
++               uint8_t *buffer, size_t size)
++{
++       size_t i;
++       for (i = 0; i + 4 &lt;= size; i += 4) {
++               // arm64 bl instruction: 0x94 and 0x97;
++               if (buffer[i + 3] == 0x94 || buffer[i + 3] == 0x97) {
++                       uint32_t src = ((uint32_t)(buffer[i + 2]) &lt;&lt; 16)
++                                       | ((uint32_t)(buffer[i + 1]) &lt;&lt; 8)
++                                       | (uint32_t)(buffer[i + 0]);
++                       src &lt;&lt;= 2;
++
++                       uint32_t dest;
++                       if (is_encoder)
++                               dest = now_pos + (uint32_t)(i) + src;
++                       else
++                               dest = src - (now_pos + (uint32_t)(i));
++
++                       dest &gt;&gt;= 2;
++                       buffer[i + 2] = (dest &gt;&gt; 16);
++                       buffer[i + 1] = (dest &gt;&gt; 8);
++                       buffer[i + 0] = dest;
++               }
++       }
++
++       return i;
++}
++
++
++static lzma_ret
++arm64_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
++               const lzma_filter_info *filters, bool is_encoder)
++{
++       return lzma_simple_coder_init(next, allocator, filters,
++                       &amp;arm64_code, 0, 4, 4, is_encoder);
++}
++
++
++extern lzma_ret
++lzma_simple_arm64_encoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters)
++{
++       return arm64_coder_init(next, allocator, filters, true);
++}
++
++
++extern lzma_ret
++lzma_simple_arm64_decoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters)
++{
++       return arm64_coder_init(next, allocator, filters, false);
++}
+diff --git a/src/liblzma/simple/simple_coder.h b/src/liblzma/simple/simple_coder.h
+index 19c2ee03..1b4c515c 100644
+--- a/src/liblzma/simple/simple_coder.h
++++ b/src/liblzma/simple/simple_coder.h
+@@ -51,6 +51,13 @@ extern lzma_ret lzma_simple_arm_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters);
+ 
++extern lzma_ret lzma_simple_arm64_encoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters);
++
++extern lzma_ret lzma_simple_arm64_decoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters);
+ 
+ extern lzma_ret lzma_simple_armthumb_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 9238fb32..afaf7e90 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -124,6 +124,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_POWERPC,
+ 		OPT_IA64,
+ 		OPT_ARM,
++               OPT_ARM64,
+ 		OPT_ARMTHUMB,
+ 		OPT_SPARC,
+ 		OPT_DELTA,
+@@ -193,6 +194,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ &quot;powerpc&quot;,      optional_argument, NULL,  OPT_POWERPC },
+ 		{ &quot;ia64&quot;,         optional_argument, NULL,  OPT_IA64 },
+ 		{ &quot;arm&quot;,          optional_argument, NULL,  OPT_ARM },
++               { &quot;arm64&quot;,        optional_argument, NULL,  OPT_ARM64 },
+ 		{ &quot;armthumb&quot;,     optional_argument, NULL,  OPT_ARMTHUMB },
+ 		{ &quot;sparc&quot;,        optional_argument, NULL,  OPT_SPARC },
+ 		{ &quot;delta&quot;,        optional_argument, NULL,  OPT_DELTA },
+@@ -355,6 +357,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 					options_bcj(optarg));
+ 			break;
+ 
++               case OPT_ARM64:
++                       coder_add_filter(LZMA_FILTER_ARM64,
++                                       options_bcj(optarg));
++                       break;
++
+ 		case OPT_ARMTHUMB:
+ 			coder_add_filter(LZMA_FILTER_ARMTHUMB,
+ 					options_bcj(optarg));
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 00eb65b6..62b6c350 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1013,13 +1013,15 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
+ 		case LZMA_FILTER_POWERPC:
+ 		case LZMA_FILTER_IA64:
+ 		case LZMA_FILTER_ARM:
++               case LZMA_FILTER_ARM64:
+ 		case LZMA_FILTER_ARMTHUMB:
+ 		case LZMA_FILTER_SPARC: {
+-			static const char bcj_names[][9] = {
++                       static const char bcj_names[][10] = {
+ 				&quot;x86&quot;,
+ 				&quot;powerpc&quot;,
+ 				&quot;ia64&quot;,
+ 				&quot;arm&quot;,
++                               &quot;arm64&quot;,
+ 				&quot;armthumb&quot;,
+ 				&quot;sparc&quot;,
+ 			};
+@@ -1220,6 +1222,7 @@ message_help(bool long_help)
+ &quot;  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n&quot;
+ &quot;  --ia64[=OPTS]       IA-64 (Itanium) BCJ filter\n&quot;
+ &quot;  --arm[=OPTS]        ARM BCJ filter (little endian only)\n&quot;
++&quot;  --arm64[=OPTS]      ARM64 BCJ filter (little endian only)\n&quot;
+ &quot;  --armthumb[=OPTS]   ARM-Thumb BCJ filter (little endian only)\n&quot;
+ &quot;  --sparc[=OPTS]      SPARC BCJ filter\n&quot;
+ &quot;                      Valid OPTS for all BCJ filters:\n&quot;
+-- 
+2.25.1
+
+</pre><pre>From 6572227ffdddbdfd67ed5776b079b4de56c0a1e4 Mon Sep 17 00:00:00 2001
+From: jiat75 &lt;jiat0...@gmail.com&gt;
+Date: Tue, 22 Feb 2022 21:42:50 +0800
+Subject: [PATCH 2/2] Updating new ARM64 filter
+
+Now using full 26 bit immediate to calculate absolute
+address. Also using Lasse's suggestion to ignore 0 value immediate to not
+lose compression on things like Linux kernel modules that have many 0 value
+immediates. Updated the ARM64 filter ID to 0xB instead of 0xA since these
+updates will make the filter incompatible with any already created .xz files
+using filter ID 0xA.
+
+---
+ src/liblzma/api/lzma/bcj.h |   2 +-
+ src/liblzma/simple/arm64.c | 132 +++++++++++++++++++++++++++----------
+ 2 files changed, 97 insertions(+), 37 deletions(-)
+
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 2c1cdb9b..18c8cf21 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -49,7 +49,7 @@
+ 	 * Filter for SPARC binaries.
+ 	 */
+ 
+-#define LZMA_FILTER_ARM64         LZMA_VLI_C(0x0a)
++#define LZMA_FILTER_ARM64         LZMA_VLI_C(0xB)
+        /**&lt;
+         * Filter for ARM64 binaries.
+         */
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+index 1abaec60..e9f23549 100644
+--- a/src/liblzma/simple/arm64.c
++++ b/src/liblzma/simple/arm64.c
+@@ -3,8 +3,9 @@
+ /// \file       arm64.c
+ /// \brief      Filter for ARM64 binaries
+ ///
+-//  Authors:    Igor Pavlov
+-//              Lasse Collin
++//  Authors:    Lasse Collin
++//              Liao Hua
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+@@ -13,60 +14,119 @@
+ 
+ #include &quot;simple_private.h&quot;
+ 
++// 28 bit mask ending in 0xC since the last two bits need to be ignored
++#define MAX_DEST_VALUE 0xFFFFFFC
++// Op code for the bl instruction in arm64
++#define ARM64_BL_OPCODE 0x25
+ 
++/*
++ * In ARM64, there are two main branch instructions.
++ * bl - branch and link. Calls a function and stores the return address.
++ * b - branch. Jumps to a location, but does not store the return address.
++ *
++ * After some benchmarking, it is determined that only the bl instruction
++ * is beneficial for compression. A majority of the jumps for the b
++ * instruction are very small (+/- 0xFF). These are
++ * typical for loops and if statements.
++ * Encoding them to their absolute address reduces redundancy since
++ * many of the small relative jump values are repeated,
++ * but very few of the absolute address are.
++ *
++ * Thus, only the bl instruction will be encoded and decoded.
++ * The bl instruction uses 26 bits for it the immediate value and 6
++ * bits for the opcode (0x25).
++ * The immediate is shifted by 2, then sign extended to calculate
++ * the absolute address for a jump.
++ *
++ * However, in our encoding and decoding, the sign extension is ignored and
++ * values are calculated as unsigned integers only.
++ * This is to prevent issues with integer overflows so the
++ * decoder can know if the original value was +/- in call cases
++*/
+ static size_t
+ arm64_code(void *simple lzma_attribute((__unused__)),
+-               uint32_t now_pos, bool is_encoder,
+-               uint8_t *buffer, size_t size)
++		uint32_t now_pos, bool is_encoder,
++		uint8_t *buffer, size_t size)
+ {
+-       size_t i;
+-       for (i = 0; i + 4 &lt;= size; i += 4) {
+-               // arm64 bl instruction: 0x94 and 0x97;
+-               if (buffer[i + 3] == 0x94 || buffer[i + 3] == 0x97) {
+-                       uint32_t src = ((uint32_t)(buffer[i + 2]) &lt;&lt; 16)
+-                                       | ((uint32_t)(buffer[i + 1]) &lt;&lt; 8)
+-                                       | (uint32_t)(buffer[i + 0]);
+-                       src &lt;&lt;= 2;
+-
+-                       uint32_t dest;
+-                       if (is_encoder)
+-                               dest = now_pos + (uint32_t)(i) + src;
+-                       else
+-                               dest = src - (now_pos + (uint32_t)(i));
+-
+-                       dest &gt;&gt;= 2;
+-                       buffer[i + 2] = (dest &gt;&gt; 16);
+-                       buffer[i + 1] = (dest &gt;&gt; 8);
+-                       buffer[i + 0] = dest;
+-               }
+-       }
+-
+-       return i;
++	size_t i;
++	for (i = 0; i + 4 &lt;= size; i += 4) {
++		uint8_t opcode = buffer[i+3] &gt;&gt; 2;
++		if (opcode == ARM64_BL_OPCODE) {
++			// Combine 26 bit immediate into an unsigned value
++			uint32_t src = ((uint32_t)(buffer[i + 3]
++					&amp; 0x3) &lt;&lt; 24) |
++					((uint32_t)(buffer[i + 2]) &lt;&lt; 16) |
++					((uint32_t)(buffer[i + 1]) &lt;&lt; 8) |
++					(uint32_t)(buffer[i + 0]);
++
++			// If the immediate is 0, then redundency will be
++			// lost by trying to encode it
++			// Instead, ignore these values, which are common in
++			// things like Linux kernel modules
++			if(src == 0)
++				continue;
++
++			// Adjust immdediate by * 4 as described in
++			// ARM64 bl instruction spec
++			src &lt;&lt;= 2;
++
++			uint32_t dest;
++			uint32_t pc = now_pos + (uint32_t)(i);
++
++			if (is_encoder)
++				dest = pc + src;
++			else
++				dest = src - pc;
++
++			// Since the decoder will also ignore src values
++			// of 0, we must ensure nothing is ever encoded
++			// to 0. In the case it is, set the value to +/-
++			// pc in order to encode / decode properly
++			if((dest &amp; MAX_DEST_VALUE) == 0){
++				assert((pc &amp; MAX_DEST_VALUE) != 0);
++				dest = is_encoder ? pc : 0U - pc;
++			}
++
++			// Re-adjust dest by / 4 to re-encode
++			dest &gt;&gt;= 2;
++
++			// Set the lower bits of the buffer[i+3]
++			// to bits 25 and 26 of the dest value
++			// Next, OR in the correct opcode
++			buffer[i + 3] = ((dest &gt;&gt; 24) &amp; 0x3) |
++					(ARM64_BL_OPCODE &lt;&lt; 2);
++			buffer[i + 2] = (dest &gt;&gt; 16);
++			buffer[i + 1] = (dest &gt;&gt; 8);
++			buffer[i + 0] = dest;
++		}
++	}
++
++	return i;
+ }
+ 
+ 
+ static lzma_ret
+ arm64_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+-               const lzma_filter_info *filters, bool is_encoder)
++		const lzma_filter_info *filters, bool is_encoder)
+ {
+-       return lzma_simple_coder_init(next, allocator, filters,
+-                       &amp;arm64_code, 0, 4, 4, is_encoder);
++	return lzma_simple_coder_init(next, allocator, filters,
++		&amp;arm64_code, 0, 4, 4, is_encoder);
+ }
+ 
+ 
+ extern lzma_ret
+ lzma_simple_arm64_encoder_init(lzma_next_coder *next,
+-               const lzma_allocator *allocator,
+-               const lzma_filter_info *filters)
++		const lzma_allocator *allocator,
++		const lzma_filter_info *filters)
+ {
+-       return arm64_coder_init(next, allocator, filters, true);
++	return arm64_coder_init(next, allocator, filters, true);
+ }
+ 
+ 
+ extern lzma_ret
+ lzma_simple_arm64_decoder_init(lzma_next_coder *next,
+-               const lzma_allocator *allocator,
+-               const lzma_filter_info *filters)
++		const lzma_allocator *allocator,
++		const lzma_filter_info *filters)
+ {
+-       return arm64_coder_init(next, allocator, filters, false);
++	return arm64_coder_init(next, allocator, filters, false);
+ }
+-- 
+2.25.1
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00609.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00537">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00537">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00509.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00507.html">[xz-devel] [PATCH] add xz arm64 bcj filter support</a></span> <span class="sender italic">Liao Hua</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00508.html">Re: [xz-devel] [PATCH] add xz arm64 bcj filter support</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00609.html">Re: [xz-devel] [PATCH] add xz arm64 bcj filter suppo...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH] add xz arm64 bcj filter support</span> <span class="sender italic">Jia Tan</span></li>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH] add xz arm64 bcj filter support">
+<input type="hidden" name="msgid" value="CAMzPPJ9unrRO8SYRo3RL6xS4SOqWvsk1knHNPwWkptJRp_bpKg@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00537.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+add+xz+arm64+bcj+filter+support%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00609.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00509.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ9unrRO8SYRo3RL6xS4SOqWvsk1knHNPwWkptJRp_bpKg@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

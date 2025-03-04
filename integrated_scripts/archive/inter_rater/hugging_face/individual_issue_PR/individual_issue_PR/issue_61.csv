@@ -1,0 +1,34 @@
+event,from,created_at,body
+thread_started,TheStoryEnd,2023-08-29T08:45:10Z,"https://nvd.nist.gov/vuln/detail/CVE-2020-22916
+
+This link seems to be inaccessible：https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability
+
+Is there a fix for CVE xz?
+[1] If not, what is the repair plan for xz?
+[2] If yes, can you indicate which submissions fix CVE-2020-22916?
+
+
+"
+commented,JiaT75,2023-08-29T12:21:13Z,"Hello!
+
+This CVE was never reported to us, so we do not have any further information about it. So at this moment we cannot say which versions of XZ Utils this effects or if it was unknowingly patched by a change made after 5.2.5.
+
+If you or anyone else has additional information about this CVE please share it over email or through a [GitHub security advisory](https://github.com/tukaani-project/xz/security/advisories). For more information please see [our Security Policy](https://github.com/tukaani-project/xz/blob/master/.github/SECURITY.md).
+
+Thanks for bringing this to our attention."
+commented,Larhzu,2023-09-13T18:11:25Z,"There's now a little more information in the NVD. The [entry in Debian](https://security-tracker.debian.org/tracker/CVE-2020-22916) is somewhat informative:
+
+> Bogus CVE, original URL is gone and resource limits are a natural constraint for any unpacker
+
+That makes me wonder if it could have been a file which uses a 4 GiB LZMA2 dictionary and thus needs lots of RAM even in single-threaded mode. xz has had memory usage limiting options for such files since the first stable version because high memory usage could be a denial of service. Strict limits (which would make xz refuse to decompress) aren't enabled by default because of the strong feedback I got before 5.0.0 was released: a too low limit can also result in a denial of service. The [Memory usage](https://tukaani.org/xz/man/xz.1.html#DESCRIPTION:_Memory_usage) section on the xz man page has been there since 5.0.0 too.
+
+This was just a guess; the CVE could be about something else, of course. With the information I currently have, I consider this CVE to be incorrect (not a bug or a security issue).
+"
+commented,Larhzu,2023-09-15T17:16:19Z,"The snappyJack repository is available again. It contains a corrupt .lzma file which uses a tiny 256-byte dictionary. So decompression needs very little memory. The reporter claims that decompressing it ""could cause endless output"".
+
+Both XZ Utils and even the long-deprecated LZMA Utils produce 114,881,179 bytes of output from the payload before reporting an error. This is not ""endless output"". The decompression speed is good too.
+
+There is no denial of service or other bug with this file.
+"
+commented,Larhzu,2023-09-18T16:37:27Z,The CVE has been marked as disputed so I'm closing this issue.
+commented,TheStoryEnd,2023-09-19T06:34:19Z,thanks

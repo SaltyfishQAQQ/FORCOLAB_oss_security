@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00655" id="c">
+<link rel="index" href="maillist.html#00655" id="i">
+<link rel="prev" href="msg00653.html" id="p">
+<link rel="next" href="msg00656.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00655.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Avoid+warnings+due+to+memlimit+if+threads+are+in+auto+mode.%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240226" rel="nofollow">Mon, 26 Feb 2024 12:33:11 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>From: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+
+If threads are automatically selected then it is possible that their
+number needs to get reduced in order not to exceed the current memory
+limit. This &quot;reducing&quot; forces a warning which is printed on stderr to
+inform the user.
+The information is probably not something the user would be interested
+in since he did not explicitly ask for the additional threads and so any
+number of threads would probably do it without raising an eyebrow.
+The downside of this warning is that a few testsuites capture the output
+of stderr and complain now that something went wrong.</pre><pre>
+
+Print the warning about reduced threads only if number is selected
+- automatically and asked to be verbose (-v)
+- explicit by the user
+
+Signed-off-by: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+---
+ src/xz/coder.c    | 13 +++++++++++--
+ src/xz/hardware.c |  7 +++++++
+ src/xz/hardware.h |  2 ++
+ 3 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 4efaa802b9bbc..e5e30558aedf6 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -580,8 +580,13 @@ coder_set_compression_settings(void)
+                                message_bug();
+ 
+                        if (memory_usage &lt;= memory_limit) {
++                               enum message_verbosity v = V_WARNING;
++
++                               if (hardware_threads_are_automatic())
++                                       v = V_VERBOSE;
++
+                                // The memory usage is now low enough.
+-                               message(V_WARNING, _(&quot;Reduced the number of &quot;
++                               message(v, _(&quot;Reduced the number of &quot;
+                                        &quot;threads from %s to %s to not exceed &quot;
+                                        &quot;the memory usage limit of %s MiB&quot;),
+                                        uint64_to_str(
+@@ -601,7 +606,11 @@ coder_set_compression_settings(void)
+                // time the soft limit will never make xz fail and never make
+                // xz change settings that would affect the compressed output.
+                if (hardware_memlimit_mtenc_is_default()) {
+-                       message(V_WARNING, _(&quot;Reduced the number of threads &quot;
++                       enum message_verbosity v = V_WARNING;
++
++                       if (hardware_threads_are_automatic())
++                               v = V_VERBOSE;
++                       message(v, _(&quot;Reduced the number of threads &quot;
+                                &quot;from %s to one. The automatic memory usage &quot;
+                                &quot;limit of %s MiB is still being exceeded. &quot;
+                                &quot;%s MiB of memory is required. &quot;
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 952652fecb8d9..c1d54a5910b7a 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -195,6 +195,13 @@ hardware_memlimit_mtenc_get(void)
+ }
+ 
+ 
++extern bool
++hardware_threads_are_automatic(void)
++{
++       return threads_are_automatic;
++}
++
++
+ extern bool
+ hardware_memlimit_mtenc_is_default(void)
+ {
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index 25b351e32b195..e4cfe299d2b2d 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -25,6 +25,8 @@ extern uint32_t hardware_threads_get(void);
+ /// This can be true even if the number of threads is one.
+ extern bool hardware_threads_is_mt(void);
+ 
++/// Returns true if the number of threads has set automaticaly.
++extern bool hardware_threads_are_automatic(void);
+ 
+ /// Set the memory usage limit. There are separate limits for compression,
+ /// decompression (also includes --list), and multithreaded decompression.
+-- 
+2.43.0
+
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00653.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00655">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00655">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00656.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [PATCH] xz: Avoid warnings due to mem...</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00656.html">Re: [xz-devel] [PATCH] xz: Avoid warnings d...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00657.html">Re: [xz-devel] [PATCH] xz: Avoid warnin...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00658.html">Re: [xz-devel] [PATCH] xz: Avoid wa...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00659.html">Re: [xz-devel] [PATCH] xz: Avoi...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00660.html">Re: [xz-devel] [PATCH] xz:...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00661.html">Re: [xz-devel] [PATCH]...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.">
+<input type="hidden" name="msgid" value="20240226203254.s1NZyQs3@breakpoint.cc">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00655.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Avoid+warnings+due+to+memlimit+if+threads+are+in+auto+mode.%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00653.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00656.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20240226203254.s1NZyQs3@breakpoint.cc</li>
+</ul>
+</div>
+</body>
+</html>

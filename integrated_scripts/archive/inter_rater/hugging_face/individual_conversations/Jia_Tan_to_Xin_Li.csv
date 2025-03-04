@@ -1,0 +1,7 @@
+from,to,file_name,message,mood,score
+Jia Tan,Xin Li,pr_43.csv,"Hi @delphij! Thanks for the notifying us about the issue and for the PR. I solved it a slightly different way with the newest commits on master to avoid unneeded function calls after ENOSYS and to issue a warning message. Can you verify this solves the problem? Additionally, an extra check should be added to ax_check_capsicum.m4, but that can be added later.",positive,0.24386439099907875
+Jia Tan,Xin Li,pr_43.csv,"Silly mistake by me. I just pushed up [01587dd](https://github.com/tukaani-project/xz/commit/01587dda2a8f13fef7e12fd624e6d05da5f9624f) with your suggestion of hiding it in the `#else` clause.
+
+This seems like the most efficient solution, although I'm guessing compilers would be smart enough to optimize the jump out of your second suggestion.
+
+Hopefully it works this time! Let me know if there are any other issues.",neutral,0.0058834850788116455

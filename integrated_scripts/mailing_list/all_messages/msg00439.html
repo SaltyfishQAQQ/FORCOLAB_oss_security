@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] xz-java and newer java</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="thrd2.html#00439" id="c">
+<link rel="index" href="mail2.html#00439" id="i">
+<link rel="prev" href="msg00436.html" id="p">
+<link rel="next" href="msg00447.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00439.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] xz-java and newer java</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210124" rel="nofollow">Sun, 24 Jan 2021 15:35:48 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Based on some playing around with unrolling loops as part of the crc64
+implementation, I tried unrolling the &quot;legacy&quot; implementation and
+found it provided some nice improvements. The improvements were most
+pronounced on 32 bit jdk 11:</pre><pre>
+
+32 jdk 11 - LEGACY
+Benchmark                                 (file)  Mode  Cnt      Score
+    Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    3     17.812
+±   0.588  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    3   8404.259
+± 391.678  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    3  16037.416
+± 467.379  ms/op
+
+Unrolled
+Benchmark                                 (file)  Mode  Cnt      Score
+    Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    3     13.624
+±   0.845  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    3   7833.118
+±  28.132  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    3  12838.831
+± 192.884  ms/op
+
+32 jdk 11 - LEGACY (server)
+Benchmark                                 (file)  Mode  Cnt      Score
+    Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    3     14.105
+±   0.081  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    3   8474.630
+± 518.903  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    3  16009.553
+± 529.315  ms/op
+
+Unrolled
+Benchmark                                 (file)  Mode  Cnt      Score
+    Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    3     10.513
+±   0.290  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    3   7900.578
+± 309.317  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    3  12871.200
+± 570.491  ms/op
+
+
+    /**
+     * Simply loops over all of the bytes, comparing one at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int legacyMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length) {
+        int i=0;
+        for (int j=length - 7; i&lt;j; i+=8) {
+            if (a[aFromIndex + i] != a[bFromIndex + i])
+                return i;
+            if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                return i + 1;
+            if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                return i + 2;
+            if (a[aFromIndex + i + 3] != a[bFromIndex + i + 3])
+                return i + 3;
+            if (a[aFromIndex + i + 4] != a[bFromIndex + i + 4])
+                return i + 4;
+            if (a[aFromIndex + i + 5] != a[bFromIndex + i + 5])
+                return i + 5;
+            if (a[aFromIndex + i + 6] != a[bFromIndex + i + 6])
+                return i + 6;
+            if (a[aFromIndex + i + 7] != a[bFromIndex + i + 7])
+                return i + 7;
+        }
+
+        for ( ; i&lt;length; ++i) {
+            if (a[aFromIndex + i] != a[bFromIndex + i]) {
+                return i;
+            }
+        }
+        return length;
+    }
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00436.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="thrd2.html#00439">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="mail2.html#00439">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00447.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00408.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00414.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00419.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00420.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00421.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00423.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00426.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00433.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00435.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00436.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] xz-java and newer java</span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00447.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00483.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00484.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00485.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00491.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00492.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00533.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00648.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00650.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00654.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] xz-java and newer java">
+<input type="hidden" name="msgid" value="CANBJVOG54LFiD2Wubda=Awnji16tw2xKwn4gxg6BzZonGBwDLA@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00439.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00436.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00447.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOG54LFiD2Wubda=Awnji16tw2xKwn4gxg6BzZonGBwDLA@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

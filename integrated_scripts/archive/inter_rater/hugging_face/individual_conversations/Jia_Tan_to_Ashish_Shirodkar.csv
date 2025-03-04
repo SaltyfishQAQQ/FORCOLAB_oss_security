@@ -1,0 +1,7 @@
+from,to,file_name,message,mood,score
+Jia Tan,Ashish Shirodkar,issue_18.csv,"Hi! This question doesn't exactly belong on this issue. This issue is for discussing changes to our Continuous Integration scripts for improving Windows support (which I still need to improve/finish). Anyways, I will still answer your question here.
+
+
+We have always had the `BUILD_SHARED_LIBS` option defined in `CMakeLists.txt` since we first supported a CMake build. You can search for the line `option(BUILD_SHARED_LIBS ""Build liblzma as a shared library instead of static"")` if you are curious. In general, CMake defaults to `BUILD_SHARED_LIBS` not being set. Other projects can choose to override this by default but since we have always had it OFF by default it is difficult to change. Applications may be relying on this default behavior if they only want the static library to be built. So changing the default to instead build the shared library could cause their build pipelines to fail.
+
+Thank you for this report, but we will not be changing this.",neutral,-0.01816386729478836

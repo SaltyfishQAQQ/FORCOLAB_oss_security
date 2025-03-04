@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ Utils 5.5.2beta</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00644" id="c">
+<link rel="index" href="maillist.html#00644" id="i">
+<link rel="prev" href="msg00643.html" id="p">
+<link rel="next" href="msg00645.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00644.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.5.2beta%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ Utils 5.5.2beta</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240214" rel="nofollow">Wed, 14 Feb 2024 10:23:41 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>This is the first release made under the 0BSD license. Please let us
+know if there are any concerns about the license change. We are looking
+forward to releasing 5.6.0 later this month!</pre><pre>
+
+XZ Utils 5.5.2beta is available at &lt;<a  rel="nofollow" href="https://xz.tukaani.org/xz-utils/">https://xz.tukaani.org/xz-utils/</a>&gt;.
+
+Here is an extract from the NEWS file:
+
+5.5.2beta (2024-02-14)
+
+    * Licensing change: The core components are now under the
+      BSD Zero Clause License (0BSD). In XZ Utils 5.4.6 and older
+      and 5.5.1alpha these components are in the public domain and
+      obviously remain so; the change affects the new releases only.
+
+      0BSD is an extremely permissive license which doesn't require
+      retaining or reproducing copyright or license notices when
+      distributing the code, thus in practice there is extremely
+      little difference to public domain.
+
+    * liblzma
+
+        - Significant speed optimizations to the LZMA decoder were
+          made. There are now three variants that can be chosen at
+          build time:
+
+            * Basic C version: This is a few percent faster than
+              5.4.x due to some new optimizations.
+
+            * Branchless C: This is currently the default on platforms
+              for which there is no assembly code. This should be a few
+              percent faster than the basic C version.
+
+            * x86-64 inline assembly. This works with GCC and Clang.
+
+          The default choice can currently be overriden by setting
+          LZMA_RANGE_DECODER_CONFIG in CPPFLAGS: 0 means the basic
+          version and 3 means that branchless C version.
+
+        - Optimized the CRC32 calculation on ARM64 platforms using the
+          CRC32 instructions. The instructions are optional in ARMv8.0
+          and are required in ARMv8.1 and later. Runtime detection for
+          the instruction is used on GNU/Linux, FreeBSD, Windows, and
+          macOS. If the compiler flags indicate unconditional CRC32
+          instruction support (+crc) then the generic version is not
+          built.
+
+    * Added lz4 support to xzdiff/xzcmp and xzgrep.
+
+    * Man pages of xzdiff/xzcmp, xzgrep, and xzmore were rewritten
+      to simplify licensing of the man page translations.
+
+    * Translations:
+
+        - Updated Chinese (simplified), German, Korean, Polish,
+          Romanian, Spanish, Swedish, and Ukrainian translations.
+
+        - Updated German, Korean, Romanian, and Ukrainian man page
+          translations.
+
+    * Small improvements to the tests.
+
+    * Added doc/examples/11_file_info.c. It was added to the Git
+      repository in 2017 but forgotten to be added into distribution
+      tarballs.
+
+    * Removed doc/examples_old. These were from 2012.
+
+    * Removed the macos/build.sh script. It had not been updated
+      since 2013.
+
+---
+Jia Tan
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00643.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00644">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00644">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00645.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ Utils 5.5.2beta">
+<input type="hidden" name="msgid" value="CAMzPPJ8HRmYZDCRMP3BeFdp2mabtUwyx-ARuCqNcHx9sC6frDA@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00644.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.5.2beta%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00643.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00645.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ8HRmYZDCRMP3BeFdp2mabtUwyx-ARuCqNcHx9sC6frDA@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ Utils 5.2.11 and 5.4.2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00635" id="c">
+<link rel="index" href="maillist.html#00635" id="i">
+<link rel="prev" href="msg00634.html" id="p">
+<link rel="next" href="msg00636.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00635.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.2.11+and+5.4.2%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ Utils 5.2.11 and 5.4.2</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20230318" rel="nofollow">Sat, 18 Mar 2023 10:01:38 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>XZ Utils 5.2.11 and 5.4.2 are available at &lt;<a  rel="nofollow" href="https://tukaani.org/xz/">https://tukaani.org/xz/</a>&gt;.</pre><pre>
+
+The Doxygen-generated liblzma API documentation is now available online
+at &lt;<a  rel="nofollow" href="https://tukaani.org/xz/liblzma-api/files.html">https://tukaani.org/xz/liblzma-api/files.html</a>&gt;.
+
+Please let us know if there is interest in more releases for the
+5.2 branch. Jia Tan and I will plan further bug-fix releases for this
+branch only if people will use it.
+
+Future release tarballs might be signed by Jia Tan. Recently he has done
+most of the work in XZ Utils. :-)
+
+Here is an extract from the NEWS file:
+
+5.2.11 (2023-03-18)
+
+    * Removed all possible cases of null pointer + 0. It is undefined
+      behavior in C99 and C17. This was detected by a sanitizer and had
+      not caused any known issues.
+
+    * Build systems:
+
+        - Added a workaround for building with GCC on MicroBlaze Linux.
+          GCC 12 on MicroBlaze doesn't support the __symver__ attribute
+          even though __has_attribute(__symver__) returns true. The
+          build is now done without the extra RHEL/CentOS 7 symbols
+          that were added in XZ Utils 5.2.7. The workaround only
+          applies to the Autotools build (not CMake).
+
+        - CMake: Ensure that the C compiler language is set to C99 or
+          a newer standard.
+
+        - CMake changes from XZ Utils 5.4.1:
+
+            * Added a workaround for a build failure with
+              windres from GNU binutils.
+
+            * Included the Windows resource files in the xz
+              and xzdec build rules.
+
+5.4.2 (2023-03-18)
+
+    * All fixes from 5.2.11 that were not included in 5.4.1.
+
+    * If xz is built with support for the Capsicum sandbox but running
+      in an environment that doesn't support Capsicum, xz now runs
+      normally without sandboxing instead of exiting with an error.
+
+    * liblzma:
+
+        - Documentation was updated to improve the style, consistency,
+          and completeness of the liblzma API headers.
+
+        - The Doxygen-generated HTML documentation for the liblzma API
+          header files is now included in the source release and is
+          installed as part of &quot;make install&quot;. All JavaScript is
+          removed to simplify license compliance and to reduce the
+          install size.
+
+        - Fixed a minor bug in lzma_str_from_filters() that produced
+          too many filters in the output string instead of reporting
+          an error if the input array had more than four filters. This
+          bug did not affect xz.
+
+    * Build systems:
+
+        - autogen.sh now invokes the doxygen tool via the new wrapper
+          script doxygen/update-doxygen, unless the command line option
+          --no-doxygen is used.
+
+        - Added microlzma_encoder.c and microlzma_decoder.c to the
+          VS project files for Windows and to the CMake build. These
+          should have been included in 5.3.2alpha.
+
+    * Tests:
+
+        - Added a test to the CMake build that was forgotten in the
+          previous release.
+
+        - Added and refactored a few tests.
+
+    * Translations:
+
+        - Updated the Brazilian Portuguese translation.
+
+        - Added Brazilian Portuguese man page translation.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00634.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00635">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00635">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00636.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ Utils 5.2.11 and 5.4.2">
+<input type="hidden" name="msgid" value="20230318190125.0f6afc4d@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00635.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.2.11+and+5.4.2%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00634.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00636.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20230318190125.0f6afc4d@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

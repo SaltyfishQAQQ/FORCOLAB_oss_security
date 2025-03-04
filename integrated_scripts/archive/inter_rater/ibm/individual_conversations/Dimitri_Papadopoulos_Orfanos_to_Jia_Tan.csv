@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Dimitri Papadopoulos Orfanos,Jia Tan,pr_58.csv,"You're welcome. A manual step might be preferable to start with, as there are often false positives, and of course false negatives. You can install codespell using `pip install codespell` and run it locally. Create a `.codespellrc` file if you need specific configuration.
+
+Once you are accustomed to it, you may try the [GitHub action](https://github.com/codespell-project/actions-codespell).",positive,0.401037

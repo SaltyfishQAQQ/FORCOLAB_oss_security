@@ -4830,3 +4830,183 @@ it does contain a dot. This fixes it.
 
 Thanks to nick87720z for reporting this. Apparently it had been
 reported here <https://bugs.gentoo.org/489362> in 2013."
+5fb5212d816addbc523d0798cb482fdd0484f8fa,Lasse Collin,Lasse Collin,2021-04-11 16:58:10,2021-04-11 16:58:10,Update THANKS.
+fc3d3a7296ef58bb799a73943636b8bfd95339f7,Ivan A. Melnikov,Lasse Collin,2021-04-09 08:45:10,2021-04-11 16:50:41,"Reduce maximum possible memory limit on MIPS32
+
+Due to architectural limitations, address space available to a single
+userspace process on MIPS32 is limited to 2 GiB, not 4, even on systems
+that have more physical RAM -- e.g. 64-bit systems with 32-bit
+userspace, or systems that use XPA (an extension similar to x86's PAE).
+
+So, for MIPS32, we have to impose stronger memory limits. I've chosen
+2000MiB to give the process some headroom."
+e7da44d5151e21f153925781ad29334ae0786101,Lasse Collin,Lasse Collin,2021-02-13 21:31:27,2021-02-13 21:31:27,"CMake: Use interface library for better FindLibLZMA compatibility.
+
+https://www.mail-archive.com/xz-devel@tukaani.org/msg00446.html
+
+Thanks to Markus Rickert."
+a61dd82ada39030f41b4ffca9ea551714908bedc,Lasse Collin,Lasse Collin,2021-01-30 16:36:04,2021-01-30 16:36:04,"CMake: Try to improve compatibility with the FindLibLZMA module.
+
+The naming conflict with FindLibLZMA module gets worse.
+Not avoiding it in the first place was stupid.
+
+Normally find_package(LibLZMA) will use the module and
+find_package(liblzma 5.2.5 REQUIRED CONFIG) will use the config
+file even with a case insensitive file system. However, if
+CMAKE_FIND_PACKAGE_PREFER_CONFIG is TRUE and the file system
+is case insensitive, find_package(LibLZMA) will find our liblzma
+config file instead of using FindLibLZMA module.
+
+One big problem with this is that FindLibLZMA uses
+LibLZMA::LibLZMA and we use liblzma::liblzma as the target
+name. With target names CMake happens to be case sensitive.
+To workaround this, this commit adds
+
+    add_library(LibLZMA::LibLZMA ALIAS liblzma::liblzma)
+
+to the config file. Then both spellings work.
+
+To make the behavior consistent between case sensitive and
+insensitive file systems, the config and related files are
+renamed from liblzmaConfig.cmake to liblzma-config.cmake style.
+With this style CMake looks for lowercase version of the package
+name so find_package(LiBLzmA 5.2.5 REQUIRED CONFIG) will work
+to find our config file.
+
+There are other differences between our config file and
+FindLibLZMA so it's still possible that things break for
+reasons other than the spelling of the target name. Hopefully
+those situations aren't too common.
+
+When the config file is available, it should always give as good or
+better results as FindLibLZMA so this commit doesn't affect the
+recommendation to use find_package(liblzma 5.2.5 REQUIRED CONFIG)
+which explicitly avoids FindLibLZMA.
+
+Thanks to Markus Rickert."
+5b7bc1b8ae766a76710ca1b99f909cf52c697f05,Lasse Collin,Lasse Collin,2021-01-29 19:19:43,2021-01-29 19:19:43,Update THANKS.
+6c6f0db340dcb8bb424411cedba713405d55f6b8,Lasse Collin,Lasse Collin,2021-01-29 19:19:08,2021-01-29 19:19:08,"liblzma: Fix unitialized variable.
+
+This was introduced two weeks ago in the commit
+625f4c7c99b2fcc4db9e7ab2deb4884790e2e17c.
+
+Thanks to Nathan Moinvaziri."
+bb1d5c1fdd30550d4221ecd336e0be1206132a5c,Lasse Collin,Lasse Collin,2021-01-24 20:32:41,2021-01-24 20:32:41,Tests: Add bad-1-lzma2-10.xz and also modify -9.xz.
+6b8abc84a5469792e0355d0bfc0784d41cfdfef7,Lasse Collin,Lasse Collin,2021-01-24 17:22:35,2021-01-24 17:22:35,liblzma: Fix a wrong comment in stream_encoder_mt.c.
+939fc5ed654aac25fe0c8684b2df8dbeadb2de1e,Lasse Collin,Lasse Collin,2021-01-24 16:51:51,2021-01-24 16:51:51,Tests: Add bad-1-lzma2-9.xz.
+fdd30032f8531ac89519b48c21d810ecf06825f6,Lasse Collin,Lasse Collin,2021-01-24 15:02:00,2021-01-24 15:04:51,Tests: Add bad-1-check-crc32-2.xz.
+db465419ae26ec7fb9b9472183911ff521620c77,Lasse Collin,Lasse Collin,2021-01-17 17:20:50,2021-01-17 17:20:50,"liblzma: In EROFS LZMA decoder, verify that comp_size matches at the end.
+
+When the uncompressed size is known to be exact, after decompressing
+the stream exactly comp_size bytes of input must have been consumed.
+This is a minor improvement to error detection."
+774cc0118ba2496581cb2621505a04bb6598cc75,Lasse Collin,Lasse Collin,2021-01-17 16:53:34,2021-01-17 16:53:34,"liblzma: Make EROFS LZMA decoder work when exact uncomp_size isn't known.
+
+The caller must still not specify an uncompressed size bigger
+than the actual uncompressed size.
+
+As a downside, this now needs the exact compressed size."
+421b0aa352da244075db10205cf33712f91b9835,Lasse Collin,Lasse Collin,2021-01-14 18:57:11,2021-01-14 18:57:11,"liblzma: Fix missing normalization in rc_encode_dummy().
+
+Without this fix it could attempt to create too much output."
+601ec0311e769fc704daaaa7dac0ca840aff080e,Lasse Collin,Lasse Collin,2021-01-14 18:07:01,2021-01-14 18:10:59,"liblzma: Add EROFS LZMA encoder and decoder.
+
+Right now this is just a planned extra-compact format for use
+in the EROFS file system in Linux. At this point it's possible
+that the format will either change or be abandoned and removed
+completely.
+
+The special thing about the encoder is that it uses the
+output-size-limited encoding added in the previous commit.
+EROFS uses fixed-sized blocks (e.g. 4 KiB) to hold compressed
+data so the compressors must be able to create valid streams
+that fill the given block size."
+625f4c7c99b2fcc4db9e7ab2deb4884790e2e17c,Lasse Collin,Lasse Collin,2021-01-13 17:16:32,2021-01-14 16:58:13,"liblzma: Add rough support for output-size-limited encoding in LZMA1.
+
+With this it is possible to encode LZMA1 data without EOPM so that
+the encoder will encode as much input as it can without exceeding
+the specified output size limit. The resulting LZMA1 stream will
+be a normal LZMA1 stream without EOPM. The actual uncompressed size
+will be available to the caller via the uncomp_size pointer.
+
+One missing thing is that the LZMA layer doesn't inform the LZ layer
+when the encoding is finished and thus the LZ may read more input
+when it won't be used. However, this doesn't matter if encoding is
+done with a single call (which is the planned use case for now).
+For proper multi-call encoding this should be improved.
+
+This commit only adds the functionality for internal use.
+Nothing uses it yet."
+9cdabbeea891e8f1e7741b076f7db6ac05ae392a,Lasse Collin,Lasse Collin,2021-01-11 21:57:11,2021-01-11 21:57:11,Scripts: Add zstd support to xzdiff.
+d9ec3add97cf4c999a7f594c6529680227b6c274,Lasse Collin,Lasse Collin,2021-01-11 21:41:30,2021-01-11 21:41:30,Update THANKS.
+074259f4f3966aeac6edb205fecbc1a8d2b58bb2,Lasse Collin,Lasse Collin,2021-01-11 21:41:16,2021-01-11 21:41:16,"xz: Make --keep accept symlinks, hardlinks, and setuid/setgid/sticky.
+
+Previously this required using --force but that has other
+effects too which might be undesirable. Changing the behavior
+of --keep has a small risk of breaking existing scripts but
+since this is a fairly special corner case I expect the
+likehood of breakage to be low enough.
+
+I think the new behavior is more logical. The only reason for
+the old behavior was to be consistent with gzip and bzip2.
+
+Thanks to Vincent Lefevre and Sebastian Andrzej Siewior."
+73c555b3077c19dda29b6f4592ced2af876f8333,Lasse Collin,Lasse Collin,2021-01-11 21:28:52,2021-01-11 21:28:52,"Scripts: Fix exit status of xzgrep.
+
+Omit the -q option from xz, gzip, and bzip2. With xz this shouldn't
+matter. With gzip it's important because -q makes gzip replace SIGPIPE
+with exit status 2. With bzip2 it's important because with -q bzip2
+is completely silent if input is corrupt while other decompressors
+still give an error message.
+
+Avoiding exit status 2 from gzip is important because bzip2 uses
+exit status 2 to indicate corrupt input. Before this commit xzgrep
+didn't recognize corrupt .bz2 files because xzgrep was treating
+exit status 2 as SIGPIPE for gzip compatibility.
+
+zstd still needs -q because otherwise it is noisy in normal
+operation.
+
+The code to detect real SIGPIPE didn't check if the exit status
+was due to a signal (>= 128) and so could ignore some other exit
+status too."
+194029ffaf74282a81f0c299c07f73caca3232ca,Lasse Collin,Lasse Collin,2021-01-11 20:01:51,2021-01-11 20:58:58,"Scripts: Fix exit status of xzdiff/xzcmp.
+
+This is a minor fix since this affects only the situation when
+the files differ and the exit status is something else than 0.
+In such case there could be SIGPIPE from a decompression tool
+and that would result in exit status of 2 from xzdiff/xzcmp
+while the correct behavior would be to return 1 or whatever
+else diff or cmp may have returned.
+
+This commit omits the -q option from xz/gzip/bzip2/lzop arguments.
+I'm not sure why the -q was used in the first place, perhaps it
+hides warnings in some situation that I cannot see at the moment.
+Hopefully the removal won't introduce a new bug.
+
+With gzip the -q option was harmful because it made gzip return 2
+instead of >= 128 with SIGPIPE. Ignoring exit status 2 (warning
+from gzip) isn't practical because bzip2 uses exit status 2 to
+indicate corrupt input file. It's better if SIGPIPE results in
+exit status >= 128.
+
+With bzip2 the removal of -q seems to be good because with -q
+it prints nothing if input is corrupt. The other tools aren't
+silent in this situation even with -q. On the other hand, if
+zstd support is added, it will need -q since otherwise it's
+noisy in normal situations.
+
+Thanks to Étienne Mollier and Sebastian Andrzej Siewior."
+f7fa309e1f7178d04c7bedc03b73077639371e97,Lasse Collin,Lasse Collin,2021-01-09 19:14:36,2021-01-09 20:18:23,"liblzma: Make lzma_outq usable for threaded decompression too.
+
+Before this commit all output queue buffers were allocated as
+a single big allocation. Now each buffer is allocated separately
+when needed. Used buffers are cached to avoid reallocation
+overhead but the cache will keep only one buffer size at a time.
+This should make things work OK in the decompression where most
+of the time the buffer sizes will be the same but with some less
+common files the buffer sizes may vary.
+
+While this should work fine, it's still a bit preliminary
+and may even get reverted if it turns out to be useless for
+decompression."

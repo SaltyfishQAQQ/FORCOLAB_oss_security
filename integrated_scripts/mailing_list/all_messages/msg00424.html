@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [PATCH] Use outq</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00424" id="c">
+<link rel="index" href="maillist.html#00424" id="i">
+<link rel="prev" href="msg00413.html" id="p">
+<link rel="next" href="msg00438.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00424.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+Use+outq%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [PATCH] Use outq</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210116" rel="nofollow">Sat, 16 Jan 2021 15:57:15 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>From: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+
+This is against the MT decoder to use the outq instead the self cooked
+one buffer/thread to illustrate what had to be done.
+It appears to work.</pre><pre>
+
+The numbers changed from
+  xz -tv
+   100 %         10,2 GiB / 40,0 GiB = 0,255   958 MiB/s       0:42
+  xz -dv | openssl sha1
+   100 %         10,2 GiB / 40,0 GiB = 0,255   813 MiB/s       0:50
+
+to
+  xz -tv
+   100 %         10,2 GiB / 40,0 GiB = 0,255   1,1 GiB/s       0:36
+  xz -dv | openssl sha1
+   100 %         10,2 GiB / 40,0 GiB = 0,255   914 MiB/s       0:44
+
+Signed-off-by: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+---
+ src/liblzma/common/outqueue.h          |   9 +
+ src/liblzma/common/stream_decoder_mt.c | 277 +++++++++++++------------
+ 2 files changed, 148 insertions(+), 138 deletions(-)
+
+diff --git a/src/liblzma/common/outqueue.h b/src/liblzma/common/outqueue.h
+index 355e0ced2cfc3..de630ee855c6b 100644
+--- a/src/liblzma/common/outqueue.h
++++ b/src/liblzma/common/outqueue.h
+@@ -203,6 +203,15 @@ lzma_outq_has_buf(const lzma_outq *outq)
+        return outq-&gt;bufs_in_use &lt; outq-&gt;bufs_limit;
+ }
+ 
++/// \brief      Test if there is at least one preallocated buffer free
++///
++/// This returns true then a new buffer will be pre-allocated.
++///
++static inline bool
++lzma_outq_has_buf_prealloc(const lzma_outq *outq)
++{
++       return outq-&gt;bufs_in_use &lt; outq-&gt;bufs_allocated;
++}
+ 
+ /// \brief      Test if the queue is completely empty
+ static inline bool
+diff --git a/src/liblzma/common/stream_decoder_mt.c 
+b/src/liblzma/common/stream_decoder_mt.c
+index 1bfd2279c176b..8e361c38f27a2 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -14,6 +14,7 @@
+ #include &quot;block_decoder.h&quot;
+ #include &quot;stream_decoder.h&quot;
+ #include &quot;index.h&quot;
++#include &quot;outqueue.h&quot;
+ 
+ #include &lt;stdio.h&gt;
+ 
+@@ -33,16 +34,6 @@ typedef enum {
+ 
+ } worker_state;
+ 
+-struct out_buffer {
+-       uint8_t *out;
+-       /// Size of -&gt;out
+-       size_t out_block_size;
+-       /// Bytes written to -&gt;out (worker)
+-       size_t out_pos;
+-       /// Bytes consumed of -&gt;out (coordinator)
+-       size_t out_filled;
+-};
+-
+ struct worker_thread {
+        uint8_t *in;
+        /// Size of -&gt;in
+@@ -63,7 +54,9 @@ struct worker_thread {
+        /// The allocator is set by the main thread.
+        const lzma_allocator *allocator;
+ 
+-       struct out_buffer out;
++       lzma_outbuf *outbuf;
++       bool partial_update;
++       size_t secret_progress;
+ 
+        lzma_next_coder block_decoder;
+        lzma_block block_options;
+@@ -102,12 +95,12 @@ struct lzma_stream_coder {
+        /// are created only when actually needed.
+        struct worker_thread *threads_free;
+        /// Current thread decompressed is read from
+-       struct worker_thread *thr_read;
+-       /// Last read thread, used for -&gt;next assignment
+-       struct worker_thread *thr_read_last;
++
+        /// Current thread compressed data is written to
+        struct worker_thread *thr_write;
+ 
++       lzma_outq outq;
++
+        /// Memory usage limit
+        uint64_t memlimit;
+        /// Amount of memory actually needed (only an estimate)
+@@ -140,6 +133,15 @@ struct lzma_stream_coder {
+        uint8_t buffer[LZMA_BLOCK_HEADER_SIZE_MAX];
+ };
+ 
++static void thr_do_partial_update(void *thr_ptr)
++{
++       struct worker_thread *thr = thr_ptr;
++
++       mythread_mutex_lock(&amp;thr-&gt;mutex);
++       thr-&gt;partial_update = true;
++       mythread_mutex_unlock(&amp;thr-&gt;mutex);
++}
++
+ /// Use smaller chunks so cancellation attempts don't block for long
+ #define CHUNK_SIZE     16384
+ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+@@ -148,7 +150,6 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+        size_t in_filled;
+        size_t out_pos;
+        lzma_ret ret;
+-       struct out_buffer *out;
+ 
+ next_loop_lock:
+ 
+@@ -162,7 +163,7 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+                mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ 
+                lzma_free(thr-&gt;in, thr-&gt;allocator);
+-               lzma_free(thr-&gt;out.out, thr-&gt;allocator);
++
+                lzma_next_end(&amp;thr-&gt;block_decoder, thr-&gt;allocator);
+ 
+                mythread_mutex_destroy(&amp;thr-&gt;mutex);
+@@ -190,35 +191,57 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+                mythread_cond_wait(&amp;thr-&gt;cond, &amp;thr-&gt;mutex);
+                goto next_loop_unlocked;
+        }
+-       out = &amp;thr-&gt;out;
++
+        mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ 
+        if ((in_filled - thr-&gt;in_pos) &gt; CHUNK_SIZE)
+                in_filled = thr-&gt;in_pos + CHUNK_SIZE;
+ 
+-       out_pos = out-&gt;out_pos;
++       out_pos = thr-&gt;secret_progress;
++
+        ret = thr-&gt;block_decoder.code(thr-&gt;block_decoder.coder,
+                                      thr-&gt;allocator,
+                                      thr-&gt;in, &amp;thr-&gt;in_pos, in_filled,
+-                                     out-&gt;out, &amp;out_pos, out-&gt;out_block_size,
++                                     thr-&gt;outbuf-&gt;buf, &amp;out_pos, 
+thr-&gt;outbuf-&gt;allocated,
+                                      LZMA_RUN);
+        if (ret == LZMA_OK || ret == LZMA_STREAM_END) {
++               bool partial_update;
+ 
++               mythread_mutex_lock(&amp;thr-&gt;mutex);
+                if (thr-&gt;in_pos == thr-&gt;in_block_size) {
+-                       mythread_mutex_lock(&amp;thr-&gt;mutex);
+                        if (thr-&gt;state == THR_RUN)
+                                thr-&gt;state = THR_IDLE;
+-                       mythread_mutex_unlock(&amp;thr-&gt;mutex);
+                }
++               partial_update = thr-&gt;partial_update;
++               mythread_mutex_unlock(&amp;thr-&gt;mutex);
++
++               if ((partial_update &amp;&amp; (out_pos != thr-&gt;outbuf-&gt;pos)) ||
++                   out_pos == thr-&gt;outbuf-&gt;allocated) {
+ 
+-               if (out_pos != out-&gt;out_pos) {
+                        mythread_mutex_lock(&amp;thr-&gt;coder-&gt;mutex);
+-                       out-&gt;out_pos = out_pos;
+-                       if (thr-&gt;coder-&gt;thr_read == thr) {
++                       thr-&gt;outbuf-&gt;pos = out_pos;
++
++                       if (partial_update)
+                                mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
++
++                       if (out_pos == thr-&gt;outbuf-&gt;allocated) {
++
++                               thr-&gt;outbuf-&gt;unpadded_size = 
+lzma_block_unpadded_size(&amp;thr-&gt;block_options);
++                               thr-&gt;outbuf-&gt;uncompressed_size = 
+thr-&gt;block_options.uncompressed_size;
++                               thr-&gt;outbuf-&gt;finished = true;
++                               thr-&gt;outbuf = NULL;
++
++                               thr-&gt;next = thr-&gt;coder-&gt;threads_free;
++                               thr-&gt;coder-&gt;threads_free = thr;
++
++                               mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
++                               goto next_loop_lock;
+                        }
++
+                        mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
+                }
++
++               thr-&gt;secret_progress = out_pos;
+                goto next_loop_lock;
+        } else {
+ 
+@@ -273,6 +296,7 @@ static void stream_decoder_mt_end(void *coder_ptr,
+        struct lzma_stream_coder *coder = coder_ptr;
+ 
+        threads_end(coder, allocator);
++       lzma_outq_end(&amp;coder-&gt;outq, allocator);
+        lzma_index_hash_end(coder-&gt;index_hash, allocator);
+        lzma_free(coder, allocator);
+ }
+@@ -363,35 +387,43 @@ static lzma_ret initialize_new_thread(struct 
+lzma_stream_coder *coder,
+ static lzma_ret get_thread(struct lzma_stream_coder *coder,
+                           const lzma_allocator *allocator)
+ {
++       if (!lzma_outq_has_buf(&amp;coder-&gt;outq))
++               return LZMA_OK;
++
++       if (!lzma_outq_has_buf_prealloc(&amp;coder-&gt;outq) &amp;&amp;
++           coder-&gt;threads_initialized &amp;&amp;
++           coder-&gt;exp_filter_size &amp;&amp; coder-&gt;exp_block_size) {
++               size_t exp;
++
++               // It is assumed that the archive consists of multiple
++               // blocks sharing the same filter and block settings.
++               // The in-block is extended over time to fit the current
++               // block. For accouting the wrost case is assumed, that
++               // is compressed size = uncompressed size.
++               exp = coder-&gt;exp_filter_size;
++               exp += coder-&gt;exp_block_size;
++               exp += coder-&gt;exp_block_size;
++
++               exp += coder-&gt;memusage;
++               exp += coder-&gt;outq.memusage;
++
++               if (exp &gt; coder-&gt;memlimit)
++                       return LZMA_OK;
++       }
++
+        // If there is a free structure on the stack, use it.
++       mythread_mutex_lock(&amp;coder-&gt;mutex);
+        if (coder-&gt;threads_free != NULL) {
+                coder-&gt;thr_write = coder-&gt;threads_free;
+                coder-&gt;threads_free = coder-&gt;threads_free-&gt;next;
+        }
++       mythread_mutex_unlock(&amp;coder-&gt;mutex);
+ 
+        if (coder-&gt;thr_write == NULL) {
+                // If there are no uninitialized structures left, return.
+                if (coder-&gt;threads_initialized == coder-&gt;threads_max)
+                        return LZMA_OK;
+ 
+-               if (coder-&gt;exp_filter_size &amp;&amp; coder-&gt;exp_block_size) {
+-                       size_t exp;
+-
+-                       // It is assumed that the archive consists of multiple
+-                       // blocks sharing the same filter and block settings.
+-                       // The in-block is extended over time to fit the current
+-                       // block. For accouting the wrost case is assumed, that
+-                       // is compressed size = uncompressed size.
+-                       exp = coder-&gt;exp_filter_size;
+-                       exp += coder-&gt;exp_block_size;
+-                       exp += coder-&gt;exp_block_size;
+-
+-                       if (coder-&gt;memusage + exp &gt; coder-&gt;memlimit) {
+-                               coder-&gt;threads_max = coder-&gt;threads_initialized;
+-                               return LZMA_OK;
+-                       }
+-               }
+-
+                // Initialize a new thread.
+                return_if_error(initialize_new_thread(coder, allocator));
+        }
+@@ -402,9 +434,8 @@ static lzma_ret get_thread(struct lzma_stream_coder *coder,
+        coder-&gt;thr_write-&gt;in_block_size = 0;
+        coder-&gt;thr_write-&gt;in_filled = 0;
+        coder-&gt;thr_write-&gt;in_pos = 0;
+-
+-       coder-&gt;thr_write-&gt;out.out_pos = 0;
+-       coder-&gt;thr_write-&gt;out.out_filled = 0;
++       coder-&gt;thr_write-&gt;partial_update = false;
++       coder-&gt;thr_write-&gt;secret_progress = 0;
+ 
+        memset(&amp;coder-&gt;thr_write-&gt;block_options, 0, sizeof(lzma_block));
+        coder-&gt;thr_write-&gt;state = THR_RUN;
+@@ -417,101 +448,65 @@ static lzma_ret alloc_out_buffer(struct 
+lzma_stream_coder *coder,
+                                 const lzma_allocator *allocator)
+ {
+        struct worker_thread *thr;
+-       struct out_buffer *buf;
+        size_t uncomp_size;
++       lzma_ret ret;
+ 
+        thr = coder-&gt;thr_write;
+-       buf = &amp;thr-&gt;out;
++
+        uncomp_size = thr-&gt;block_options.uncompressed_size;
+ 
+-       if (buf-&gt;out) {
+-               if (buf-&gt;out_block_size == uncomp_size)
+-                       goto recycle_old;
++       ret = lzma_outq_prealloc_buf(&amp;coder-&gt;outq, allocator,
++                                    uncomp_size);
++       if (ret != LZMA_OK)
++               return ret;
+ 
+-               coder-&gt;memusage -= buf-&gt;out_block_size;
+-               buf-&gt;out_block_size = 0;
+-               lzma_free(buf-&gt;out, allocator);
+-       }
+-       buf-&gt;out = lzma_alloc(uncomp_size, allocator);
+-       if (!buf-&gt;out)
+-               return LZMA_MEM_ERROR;
+-       coder-&gt;memusage += uncomp_size;
+-       buf-&gt;out_block_size = uncomp_size;
++       /* coder-&gt;memusage += uncomp_size; */
+        if (coder-&gt;exp_block_size &lt; uncomp_size)
+                coder-&gt;exp_block_size = uncomp_size;
+ 
+-recycle_old:
+-       buf-&gt;out_pos = 0;
+-       buf-&gt;out_filled = 0;
+-
+-       mythread_mutex_lock(&amp;coder-&gt;mutex);
+-       if (!coder-&gt;thr_read) {
+-               coder-&gt;thr_read = thr;
+-               coder-&gt;thr_read_last = thr;
+-       } else {
+-               coder-&gt;thr_read_last-&gt;next = thr;
+-               coder-&gt;thr_read_last = thr;
+-       }
+-       mythread_mutex_unlock(&amp;coder-&gt;mutex);
++       thr-&gt;outbuf = lzma_outq_get_buf(&amp;coder-&gt;outq, thr);
+        return LZMA_OK;
+ }
+ 
+ static lzma_ret try_copy_decoded(struct lzma_stream_coder *coder,
+-                            uint8_t *restrict out, size_t *restrict out_pos,
+-                            size_t out_size)
++                                const lzma_allocator *allocator,
++                                uint8_t *restrict out,
++                                size_t *restrict out_pos,
++                                size_t out_size)
+ {
+-       struct out_buffer *out_buff;
+-       size_t out_buff_size;
+-
+-       if (!coder-&gt;thr_read)
+-               return LZMA_OK;
+-
+-       out_buff = &amp;coder-&gt;thr_read-&gt;out;
++       lzma_ret ret;
+ 
+        do {
+-               // block fully consumed
+-               if (out_buff-&gt;out_filled == out_buff-&gt;out_block_size) {
+-                       struct worker_thread *thr_new;
+-                       struct worker_thread *thr_old;
+-                       lzma_ret ret;
+-
+-                       ret = lzma_index_hash_append(coder-&gt;index_hash,
+-                                                    
+lzma_block_unpadded_size(&amp;coder-&gt;thr_read-&gt;block_options),
+-                                                    
+coder-&gt;thr_read-&gt;block_options.uncompressed_size);
+-                       if (ret != LZMA_OK)
+-                               return ret;
+-
+-                       mythread_mutex_lock(&amp;coder-&gt;mutex);
+-                       thr_old = coder-&gt;thr_read;
+-                       thr_new = thr_old-&gt;next;
+-                       thr_old-&gt;next = NULL;
+-
+-                       if (coder-&gt;threads_free)
+-                               thr_old-&gt;next = coder-&gt;threads_free;
+-                       coder-&gt;threads_free = thr_old;
+-                       coder-&gt;thr_read = thr_new;
++               lzma_vli unpadded_size;
++               lzma_vli uncompressed_size;
+ 
++               mythread_mutex_lock(&amp;coder-&gt;mutex);
++               if (!lzma_outq_is_readable(&amp;coder-&gt;outq)) {
+                        mythread_mutex_unlock(&amp;coder-&gt;mutex);
+-
+-                       if (!thr_new)
+-                               return LZMA_OK;
+-
+-                       out_buff = &amp;thr_new-&gt;out;
++                       return LZMA_OK;
+                }
+ 
+-               // whatever is done has been consumed
+-               if (out_buff-&gt;out_pos == out_buff-&gt;out_filled)
+-                       return LZMA_OK;
++               ret = lzma_outq_read(&amp;coder-&gt;outq, allocator,
++                                    out, out_pos, out_size,
++                                    &amp;unpadded_size,
++                                    &amp;uncompressed_size);
++               mythread_mutex_unlock(&amp;coder-&gt;mutex);
++
++               // block fully consumed
++               if (ret == LZMA_STREAM_END) {
++
++                       ret = lzma_index_hash_append(coder-&gt;index_hash,
++                                                    unpadded_size,
++                                                    uncompressed_size);
++                       if (ret != LZMA_OK)
++                               return ret;
++                       lzma_outq_enable_partial_output(&amp;coder-&gt;outq,
++                                                       thr_do_partial_update);
++               }
+ 
+                if (*out_pos == out_size)
+                        return LZMA_OK;
+ 
+-               mythread_mutex_lock(&amp;coder-&gt;mutex);
+-               out_buff_size = out_buff-&gt;out_pos;
+-               mythread_mutex_unlock(&amp;coder-&gt;mutex);
+-
+-               lzma_bufcpy(out_buff-&gt;out, &amp;out_buff-&gt;out_filled, out_buff_size,
+-                           out, out_pos, out_size);
+        } while (1);
+ }
+ 
+@@ -630,7 +625,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+               thr = coder-&gt;thr_write;
+               if (!thr) {
+ seq_blk_hdr_again:
+-                      ret = try_copy_decoded(coder, out, out_pos, out_size);
++                      ret = try_copy_decoded(coder, allocator, out, out_pos,
++                                             out_size);
+                       if (ret != LZMA_OK)
+                               return ret;
+ 
+@@ -645,10 +641,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+                                       return LZMA_OK;
+ 
+                               mythread_mutex_lock(&amp;coder-&gt;mutex);
+-                              if (coder-&gt;thr_read-&gt;out.out_pos ==
+-                                  coder-&gt;thr_read-&gt;out.out_filled) {
+-                                      ret = wait_cond_progress(coder);
+-                              }
++                              if (!lzma_outq_is_readable(&amp;coder-&gt;outq))
++                                  ret = wait_cond_progress(coder);
++
+                               mythread_mutex_unlock(&amp;coder-&gt;mutex);
+ 
+                               if (ret != LZMA_OK)
+@@ -815,6 +810,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+                                       coder-&gt;memusage += coder-&gt;exp_block_size;
+                               thr-&gt;in_size = thr-&gt;in_block_size;
+                       }
++                      if (thr-&gt;outbuf == coder-&gt;outq.head)
++                              lzma_outq_enable_partial_output(&amp;coder-&gt;outq,
++                                                              
+thr_do_partial_update);
+               }
+ 
+               coder-&gt;sequence = SEQ_BLOCK;
+@@ -844,7 +842,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+                       break;
+               }
+ 
+-              ret = try_copy_decoded(coder, out, out_pos, out_size);
++              ret = try_copy_decoded(coder, allocator, out, out_pos, out_size);
+               if (ret != LZMA_OK)
+                       return ret;
+ 
+@@ -869,19 +867,20 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+ 
+                // first flush all worker threads, so the accounting of decoded
+                // blocks matches index's expectation.
+-               while (coder-&gt;thr_read) {
+-                       ret = try_copy_decoded(coder, out, out_pos, out_size);
++               while (!lzma_outq_is_empty(&amp;coder-&gt;outq)) {
++                       ret = try_copy_decoded(coder, allocator, out, out_pos,
++                                              out_size);
+                        if (ret != LZMA_OK)
+                                return ret;
+ 
+                        if (*out_pos &gt;= out_size)
+                                return LZMA_OK;
+ 
+-                       if (!coder-&gt;thr_read)
++                       if (lzma_outq_is_empty(&amp;coder-&gt;outq))
+                                break;
+ 
+                        mythread_mutex_lock(&amp;coder-&gt;mutex);
+-                       if (coder-&gt;thr_read-&gt;out.out_pos == 
+coder-&gt;thr_read-&gt;out.out_filled)
++                       if (!lzma_outq_is_readable(&amp;coder-&gt;outq))
+                                ret = wait_cond_progress(coder);
+                        mythread_mutex_unlock(&amp;coder-&gt;mutex);
+ 
+@@ -889,14 +888,13 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+                                return ret;
+                }
+ 
+-                // Decode the Index and compare it to the hash calculated
+-                // from the sizes of the Blocks (if any).
++               // Decode the Index and compare it to the hash calculated
++               // from the sizes of the Blocks (if any).
+                ret = lzma_index_hash_decode(coder-&gt;index_hash, in, in_pos,
+                                             in_size);
+-                if (ret != LZMA_STREAM_END)
+-                        return ret;
+-
+-                coder-&gt;sequence = SEQ_STREAM_FOOTER;
++               if (ret != LZMA_STREAM_END)
++                       return ret;
++               coder-&gt;sequence = SEQ_STREAM_FOOTER;
+                break;
+        }
+ 
+@@ -994,11 +992,11 @@ static lzma_ret stream_decoder_mt_memconfig(void 
+*coder_ptr, uint64_t *memusage,
+ {
+        struct lzma_stream_coder *coder = coder_ptr;
+ 
+-       *memusage = coder-&gt;memusage;
++       *memusage = coder-&gt;memusage + coder-&gt;outq.memusage;
+        *old_memlimit = coder-&gt;memlimit;
+ 
+        if (new_memlimit != 0) {
+-               if (new_memlimit &lt; coder-&gt;memusage)
++               if (new_memlimit &lt; coder-&gt;memusage + coder-&gt;outq.memusage)
+                        return LZMA_MEMLIMIT_ERROR;
+ 
+                coder-&gt;memlimit = new_memlimit;
+@@ -1036,6 +1034,7 @@ stream_decoder_mt_init(lzma_next_coder *next, const 
+lzma_allocator *allocator,
+                        return LZMA_MEM_ERROR;
+ 
+                memset(coder, 0xff, sizeof(struct lzma_stream_coder));
++               memzero(&amp;coder-&gt;outq, sizeof(coder-&gt;outq));
+ 
+                if (mythread_mutex_init(&amp;coder-&gt;mutex))
+                        goto err_out;
+@@ -1090,17 +1089,19 @@ stream_decoder_mt_init(lzma_next_coder *next, const 
+lzma_allocator *allocator,
+                threads_end(coder, allocator);
+        }
+ 
++       coder-&gt;threads_free = NULL;
++       coder-&gt;thr_write = NULL;
++
+        coder-&gt;threads = lzma_alloc(options-&gt;threads * sizeof(struct 
+worker_thread),
+                                    allocator);
+        if (coder-&gt;threads == NULL)
+                goto err_out;
+-       coder-&gt;threads_free = NULL;
+-       coder-&gt;thr_read = NULL;
+-       coder-&gt;thr_read_last = NULL;
+-       coder-&gt;thr_write = NULL;
+ 
+        coder-&gt;threads_max = options-&gt;threads;
+ 
++       return_if_error(lzma_outq_init(&amp;coder-&gt;outq, allocator,
++                                      options-&gt;threads));
++
+        return stream_decoder_reset(coder, allocator);
+ 
+ err_out:
+-- 
+2.30.0
+
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00413.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00424">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00424">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00438.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00397.html">[xz-devel] [PATCH v2] liblzma: Add multi-threade...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00409.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00413.html">Re: [xz-devel] [PATCH v2] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [PATCH] Use outq</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00438.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00440.html">Re: [xz-devel] [PATCH v2] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00444.html">[xz-devel] [PATCH] partial update, ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00496.html">Re: [xz-devel] [PATCH v2] liblzma: ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00498.html">Re: [xz-devel] [PATCH v2] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [PATCH] Use outq">
+<input type="hidden" name="msgid" value="20210116235659.taju4dqbcjnonxtp@flow">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00424.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+Use+outq%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00413.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00438.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210116235659.taju4dqbcjnonxtp@flow</li>
+</ul>
+</div>
+</body>
+</html>

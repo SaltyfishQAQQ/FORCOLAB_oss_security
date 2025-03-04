@@ -1,0 +1,40 @@
+from,to,file_name,message,mood,score
+Lasse Collin,BAR_1,pr_32.csv,"
+Thanks! So it's a normal ELF target that supports symbol versioning. It's just the `__symver__` attribute that is broken in GCC on MicroBlaze.
+
+There are two possible solutions:
+
+1. Use the old `asm("".symver ..."")` method on MicroBlaze (and possible other platforms that don't support `__symver__` attribute).
+  - With this method LTO (`-flto`) will be silently broken on MicroBlaze.
+  - This requires a test in configure.ac and CMakeLists.txt.
+2. Only use simple/basic/generic symbol versioning on MicroBlaze.
+  - Before the compatibility symbols for the patch from RHEL/CentOS 7 were added, this was the only method. The patch had spread outside CentOS 7 but even then I guess these symbols probably aren't useful on MicroBlaze and omitting them should do no harm.
+  - This is simpler than the option 1 above. It sounds likely that MicroBlaze is a special case (GCC issue) so adding a special case for MicroBlaze in configure.ac is OK.
+  - This way there is no risk of silent LTO breakage with GCC >= 10 since no test for the `__symver__` attribute is needed in configure.ac or CMakeLists.txt.
+
+I committed a fix using the second method. I didn't do it for CMake-based build but I guess building liblzma with CMake on MicroBlaze isn't so important.
+
+
+My Meson skills are non-existent for now so I don't know if the method in libfuse is correct. If user-supplied `CFLAGS` don't affect the test then it probably is good.
+
+The other two first declare the function and then define it so they work even with `-Wmissing-prototypes` or `-Wmissing-declarations`. The test in this XZ Utils PR missed the declaration and thus it was more fragile (wrong test result and thus broken LTO if `configure` is run with `CFLAGS=-Wmissing-declarations`).
+
+In case Clang some day happened to support the attribute then being future-compatible with `clang -Weverything` would matter too. It gives warnings from what `AC_LANG_SOURCE` outputs. This test doesn't need `AC_LANG_SOURCE` or `AC_LANG_PROGRAM` so a test like the following is enough:
+
+```
+AC_COMPILE_IFELSE([
+    void foo(void);
+    __attribute__((__symver__(""foo@BAR_1.2"")))
+    void foo(void) { return; }
+], [
+    ...
+```
+
+A somewhat similar test is already used in XZ Utils for the `__constructor__` attribute. It uses a static function so it doesn't need a separate declaration.
+
+Of course there are multiple slightly different ways to write a working test. One just has to be really careful that the test program will never give a warning about an unrelated thing in the test program which would make the test fail when it shouldn't. Perhaps `-Werror=attributes` instead of `-Werror` would be more robust if the attribute is supported only by compilers that support `-Werror=attributes`. When testing for attributes that are supported by ancient GCC versions (like `__constructor__`) then this doesn't work as the ancient GCC versions don't support `-Werror=attributes`.
+
+
+I have no idea, sorry.
+
+Thanks!",negative,-0.398153

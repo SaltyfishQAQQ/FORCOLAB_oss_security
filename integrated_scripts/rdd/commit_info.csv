@@ -1,4 +1,26 @@
 sha,author_name,committer_name,author_date,committer_date,commit_message
+9351592710e0df3238b09d39c545a643c50ac88f,Lasse Collin,Lasse Collin,2025-02-22 14:04:58,2025-02-22 14:04:58,Update THANKS
+9023be7831faca2f28def55e16c39e3a42e1e262,Lasse Collin,Lasse Collin,2025-02-19 14:33:52,2025-02-19 14:33:52,Translations: Update the Croatian translation
+2eaf242c56e8c65db83d48b018fa44aeafeb33a5,Lasse Collin,Lasse Collin,2025-02-17 19:46:15,2025-02-17 19:48:24,"Build: Fix out-of-tree builds when using the replacement getopt_long
+
+Nowaways $(top_builddir)/lib/getopt.h depends on headers in
+$(top_srcdir)/lib, so both have to be in the include path.
+CMake-based build already did this.
+
+Fixes: 7e884c00d0093c38339f17fb1d280eec493f42ca"
+41322b2c60cd2c67a1053cb40d27e573420185b7,Lasse Collin,Lasse Collin,2025-02-17 16:25:52,2025-02-17 16:25:52,m4/getopt.m4: Remove an outdated comment
+03c23a4952bce1b50a1d213ca2d1c15acd76a489,Lasse Collin,Lasse Collin,2025-02-17 16:11:58,2025-02-17 16:11:58,"Build: Allow forcing the use of the replacement getopt_long
+
+Now one can pass gl_replace_getopt=yes to configure to force the use
+of GNU getopt_long from the lib directory. This only checks that the
+value of gl_replace_getopt is non-empty, so one cannot force the
+replacement to be disabled.
+
+Closes: https://github.com/tukaani-project/xz/pull/166"
+c23b837d15960ecc0d537f0260f389904e1e7f02,Lasse Collin,Lasse Collin,2025-02-17 16:11:42,2025-02-17 16:11:42,Update THANKS
+2672a38f1159babf9ba3cca429f644bb823a8bdd,Lasse Collin,Lasse Collin,2025-02-12 17:23:31,2025-02-12 17:23:31,Update THANKS
+4fdcbfaf3f222299747c6a815762a74eeb1b0b23,Lasse Collin,Lasse Collin,2025-02-11 10:13:41,2025-02-11 10:13:41,Update THANKS
+0d553568f1af9a35779ecac41392a6c871786930,Lasse Collin,Lasse Collin,2025-02-08 09:39:08,2025-02-08 09:39:08,Translations: Update the Polish translation
 9f165076aebb3b5115d2b6520529db8fa11a6bdd,Lasse Collin,Lasse Collin,2025-02-07 17:12:03,2025-02-07 17:13:43,Docs: Update TODO a little
 f5aa292c534f87b9dd588e667d1c65ed31e5f289,Lasse Collin,Lasse Collin,2025-02-07 16:50:56,2025-02-07 16:50:56,"Add researcher credits of CVE-2022-1271 and CVE-2024-47611 to THANKS
 

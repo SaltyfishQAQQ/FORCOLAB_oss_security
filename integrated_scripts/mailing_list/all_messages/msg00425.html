@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00425" id="c">
+<link rel="index" href="maillist.html#00425" id="i">
+<link rel="prev" href="msg00411.html" id="p">
+<link rel="next" href="msg00428.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00425.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Fix+setting+memory+limit+on+32%5C-bit+systems%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210118" rel="nofollow">Mon, 18 Jan 2021 13:53:09 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-01-10 Sebastian Andrzej Siewior wrote:
+&gt; I hope for sane defaults :)</pre><pre>
+
+I hope so too. So far I have felt that the suggested solutions have
+significant flaws or downsides, and I'm not able to see what is a good
+enough compromise. As a result the discussion hasn't progressed much
+and I feel it's partly my fault, sorry. I will try again:
+
+I have understood that *in practice* the problem with the xz command
+line tool is limited to &quot;xz -T0&quot; usage so fixing this use case is
+enough for most people. Please correct me if I missed something.
+
+The change in XZ Utils 5.2.5 helps a little with 32-bit xz running
+under 64-bit kernel but only if one specifies a memory usage limit like
+-M90% together with -T0. To make plain -T0 work too, in an earlier
+email I suggested that -T0 could also imply a memory usage limit if no
+limit was otherwise specified (a preliminary patch was included too). I
+have been hesitant to make changes to the defaults of the memory usage
+limiter but this solution would only affect a very specific situation
+and thus I feel it would be fine. Comments would be appreciated.
+
+
+The problem with applications using liblzma and running out of address
+space sounds harder to fix. As I explained in another email, making
+liblzma more robust with memory allocation failures is not a perfect
+fix and can still result in severe problems depending on how the
+application as a whole works (with some apps it could be enough).
+
+An alternative &quot;fix&quot; for the liblzma case could be adding a simple API
+function that would scale down the number of threads in a lzma_mt
+structure based on a memory usage limit and if the application is 32
+bits. Currently the thread count and LZMA2 settings adjusting code is
+in xz, not in liblzma.
+
+&gt; Anyway. Not to overcompilcate things: On Linux you can obtain the
+&gt; available system memory which I would cap to 2 or 2.5 GiB by default.
+&gt; Nobody should be hurt by that.
+
+If full 4 GiB of address space is available, capping to 2 GiB to 2.5 GiB
+when the available memory isn't known would mean fewer threads than
+with the 4020 MiB limit. Obviously this is less bad than failing due to
+running out of address space but it still makes me feel that if
+available memory is used on Linux, it should be ported to other OSes
+too.
+
+The idea for the current 4020 MiB special limit is based on a patch
+that was in use in FreeBSD to solve the problem of 32-bit xz on 64-bit
+kernel. So at least FreeBSD should be supported to not make 32-bit xz
+worse under 64-bit FreeBSD kernel.
+
+In liblzma, if a new function is added to reduce the thread count based
+on a memory usage limit, a capping the limit to 2 to 3 GiB on 32-bit
+applications could be fine even if there is more available memory. Being
+conservative means fewer threads but it would make it more likely that
+things keep working if the application allocates memory after liblzma
+has already done so.
+
+Oh well. :-( I think I still made this sound like a mess. In any case,
+let's at least try to find some solution to the &quot;xz -T0&quot; case. It would
+be nice to hear if my suggestion makes any sense. Thanks.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet &amp; Freenode
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00411.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00425">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00425">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00428.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00387.html">[xz-devel] [PATCH] xz: Fix setting memory limit ...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00389.html">Re: [xz-devel] [PATCH] xz: Fix setting memo...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00391.html">Re: [xz-devel] [PATCH] xz: Fix setting ...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00399.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00390.html">Re: [xz-devel] [PATCH] xz: Fix setting memo...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00398.html">Re: [xz-devel] [PATCH] xz: Fix setting ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00404.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00410.html">Re: [xz-devel] [PATCH] xz: Fix ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00411.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH] xz: Fix ...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00428.html">Re: [xz-devel] [PATCH] xz:...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00552.html">Re: [xz-devel] [PATCH]...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems">
+<input type="hidden" name="msgid" value="20210118235250.0d157888@tukaani.org">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00425.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Fix+setting+memory+limit+on+32%5C-bit+systems%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00411.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00428.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210118235250.0d157888@tukaani.org</li>
+</ul>
+</div>
+</body>
+</html>

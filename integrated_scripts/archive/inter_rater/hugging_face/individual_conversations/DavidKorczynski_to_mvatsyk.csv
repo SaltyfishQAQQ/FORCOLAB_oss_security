@@ -1,0 +1,28 @@
+from,to,file_name,message,mood,score
+DavidKorczynski,mvatsyk,pr_73.csv,"Thanks for reaching out @mvatsyk-lsg -- I didn't go through the whole discussion here so am trying to give an OSS-Fuzz perspective from a limited understanding of this PR.
+
+Regarding OSS-Fuzz resources, then I think by default it makes sense to not be too concerned about this. OSS-Fuzz relies on [Clusterfuzz](https://github.com/google/clusterfuzz) which has a set of scheduling/prioritisation strategies. A single fuzzer for CRC may be a bit much. However, it's also possible to merge a bunch of simple fuzzers into a single larger function:
+
+```cpp
+int LLVMFuzzerTestOneInput(uint8_t *data, size_t size) {
+
+  if (size < 1) {
+    return 0;
+  }
+  uint8_t decider = data[0];
+  data++;
+  size--;
+  switch decider {
+      case 1: { fuzz_first_entrypoint(data, size); break; }
+      case 2: { fuzz_second_entrypoint(data, size); break; }
+      ...
+      case N
+    }
+}
+```
+
+This is often a common strategy for hitting smaller functions. In fact, you can even do this by throwing the same smaller fuzzers into the larger meaningful fuzzers -- the fuzzer will through it's mutational genetic algorithm start exploring the code where there is more code to explore, so more efforts will be ""put in the right places"".
+
+The scheduling in Clusterfuzz will be responsible for dividing time allocated to each of the targets.
+
+That said, it's often less meaningful to fuzz code which has essentially no data processing, since the code execution will happen independent of the data provided by the fuzzer. Targeting this type of code is probably not the best and I wouldn't recommend fuzzing that sort of code.",positive,0.3505362579599023

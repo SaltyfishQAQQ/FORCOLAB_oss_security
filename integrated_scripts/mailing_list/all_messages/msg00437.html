@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00437" id="c">
+<link rel="index" href="maillist.html#00437" id="i">
+<link rel="prev" href="msg00429.html" id="p">
+<link rel="next" href="msg00445.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00437.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+Compatibility+between+CMake+config+file+and+FindLibLZMA.cmake%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Markus+Rickert%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Markus Rickert</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210123" rel="nofollow">Sat, 23 Jan 2021 12:21:36 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre style="margin: 0em;">
+Hello,
+
+</pre>would it be possible to improve the compatibility between the CMake 
+config file included in liblzma and the FindLibLZMA.cmake module 
+included in CMake?
+<pre style="margin: 0em;"></pre><pre>
+
+</pre>The CMake config file currently only defines a liblzma::liblzma target, 
+while the CMake module defines a LibLZMA::LibLZMA target. On systems 
+with case-insensitive file systems, using 
+CMAKE_FIND_PACKAGE_PREFER_CONFIG (see [1]) to prefer config files over 
+modules results in an error because of this. A find_package(LibLZMA) 
+call now also uses the config file, which however does not define the 
+expected LibLZMA::LibLZMA target.
+<pre style="margin: 0em;">
+
+This could be solved by adding an alias to the config file:
+add_library(LibLZMA::LibLZMA ALIAS liblzma::liblzma)
+
+</pre>An additional improvement would be to enable this on case-sensitive file 
+systems as well. For this, the config file would need to be renamed from 
+liblzmaConfig.cmake to liblzma-config.cmake (and the version file to 
+liblzma-config-version.cmake), see [2]. This would support using both 
+find_package(LibLZMA) and find_package(liblzma), while still preferring 
+the CMake module by default in the first case.
+<pre style="margin: 0em;">
+
+Best regards,
+
+Markus Rickert
+
+</pre>[1] 
+<a  rel="nofollow" href="https://cmake.org/cmake/help/v3.19/variable/CMAKE_FIND_PACKAGE_PREFER_CONFIG.html">https://cmake.org/cmake/help/v3.19/variable/CMAKE_FIND_PACKAGE_PREFER_CONFIG.html</a>
+[2] 
+<a  rel="nofollow" href="https://cmake.org/cmake/help/v3.19/command/find_package.html#full-signature-and-config-mode">https://cmake.org/cmake/help/v3.19/command/find_package.html#full-signature-and-config-mode</a>
+
+<p><strong><a href="msg00437/smime.p7s" ><img src="../attachment.png" alt="Attachment:" width=27 height=28></a>
+<a href="msg00437/smime.p7s" >smime.p7s</a></strong><br>
+<em>Description:</em> S/MIME cryptographic signature</p>
+
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00429.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00437">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00437">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00445.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] Compatibility between CMake config file and Find...</span> <span class="sender italic">Markus Rickert</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00445.html">Re: [xz-devel] Compatibility between CMake config file...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00446.html">Re: [xz-devel] Compatibility between CMake config ...</a></span> <span class="sender italic">Markus Rickert</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00477.html">Re: [xz-devel] Compatibility between CMake con...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00479.html">Re: [xz-devel] Compatibility between CMake...</a></span> <span class="sender italic">Markus Rickert</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake">
+<input type="hidden" name="msgid" value="c9e908a1-a071-4e36-783f-67ad47e3a90b@fortiss.org">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00437.html">
+<input type="submit" value=" Markus Rickert ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+Compatibility+between+CMake+config+file+and+FindLibLZMA.cmake%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00429.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00445.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">c9e908a1-a071-4e36-783f-67ad47e3a90b@fortiss.org</li>
+</ul>
+</div>
+</body>
+</html>

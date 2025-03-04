@@ -1,0 +1,4 @@
+title,message_id,timestamp,author,who_it_is_replying_to,parent_message_id
+No Subject,LocalLinkMissing_0,N/A,Jia Tan,,
+Re: [xz-devel] [PATCH] xz: Multithreaded mode now always uses stream_encoder_mt to ensure reproducible builds,20211130002508.0bf9170e@kaneli,"Mon, 29 Nov 2021 14:25:17 -0800",Lasse Collin,,
+Re: [xz-devel] [PATCH] xz: Multithreaded mode now always uses stream_encoder_mt to ensure reproducible builds,CAMzPPJ9OZ+pjss5_2cOpzkS3uW2jYoddH2puAE7OnpmvP1Tssg@mail.gmail.com,"Tue, 30 Nov 2021 06:16:07 -0800",Jia Tan,Lasse Collin,20211130002508.0bf9170e@kaneli

@@ -1,0 +1,90 @@
+event,from,created_at,body
+thread_started,kostadinsh,2023-07-03T09:13:02Z,"### Describe the bug
+
+When building with the mold linker and -flto added to CFLAGS, this package seems to have some issues in the linking phase regarding symbols not being found. I've turned mold's warnings into errors with `-Wl,--fatal-warnings`, so I can catch them more easily.
+
+GCC version used is gcc (Gentoo 13.1.1_p20230527 p3) 13.1.1 20230527
+Mold is built from git at commit `b04aba89d3a1931470983212925443e7aefca1e1`
+
+Steps to reproduce: 
+1. Clone this repo and cd into the xz folder
+2. run `export CFLAGS=""-O2 -pipe -flto=auto""` and `export LDFLAGS=""-fuse-ld=mold -Wl,--fatal-warnings""`
+3. run `autoreconf -vfi`
+4. run `./configure --enable-threads --prefix=/usr`
+5. build the package with `make V=1`
+
+In the log output I am only going to only add the last few lines of the log as I think the entire log would be way too much, and then add the full logs from `./configure` and `make` as an attachment
+
+[xz-configure.log](https://github.com/tukaani-project/xz/files/11935128/xz-configure.log)
+[xz-make.log](https://github.com/tukaani-project/xz/files/11935130/xz-make.log)
+
+
+### Version
+
+commit 66bdcfa85fef2911cc80f5f30fed3f9610faccb4
+
+### Operating System
+
+Gentoo Linux
+
+### Relevant log output
+
+```shell
+libtool: link: gcc -shared  -fPIC -DPIC  .libs/liblzma_la-tuklib_physmem.o .libs/liblzma_la-tuklib_cpucores.o .libs/liblzma_la-common.o .libs/liblzma_la-block_util.o .libs/liblzma_la-easy_preset.o .libs/liblzma_la-filter_common.o .libs/liblzma_la-hardware_physmem.o .libs/liblzma_la-index.o .libs/liblzma_la-stream_flags_common.o .libs/liblzma_la-string_conversion.o .libs/liblzma_la-vli_size.o .libs/liblzma_la-hardware_cputhreads.o .libs/liblzma_la-outqueue.o .libs/liblzma_la-alone_encoder.o .libs/liblzma_la-block_buffer_encoder.o .libs/liblzma_la-block_encoder.o .libs/liblzma_la-block_header_encoder.o .libs/liblzma_la-easy_buffer_encoder.o .libs/liblzma_la-easy_encoder.o .libs/liblzma_la-easy_encoder_memusage.o .libs/liblzma_la-filter_buffer_encoder.o .libs/liblzma_la-filter_encoder.o .libs/liblzma_la-filter_flags_encoder.o .libs/liblzma_la-index_encoder.o .libs/liblzma_la-stream_buffer_encoder.o .libs/liblzma_la-stream_encoder.o .libs/liblzma_la-stream_flags_encoder.o .libs/liblzma_la-vli_encoder.o .libs/liblzma_la-stream_encoder_mt.o .libs/liblzma_la-microlzma_encoder.o .libs/liblzma_la-alone_decoder.o .libs/liblzma_la-auto_decoder.o .libs/liblzma_la-block_buffer_decoder.o .libs/liblzma_la-block_decoder.o .libs/liblzma_la-block_header_decoder.o .libs/liblzma_la-easy_decoder_memusage.o .libs/liblzma_la-file_info.o .libs/liblzma_la-filter_buffer_decoder.o .libs/liblzma_la-filter_decoder.o .libs/liblzma_la-filter_flags_decoder.o .libs/liblzma_la-index_decoder.o .libs/liblzma_la-index_hash.o .libs/liblzma_la-stream_buffer_decoder.o .libs/liblzma_la-stream_decoder.o .libs/liblzma_la-stream_flags_decoder.o .libs/liblzma_la-vli_decoder.o .libs/liblzma_la-stream_decoder_mt.o .libs/liblzma_la-microlzma_decoder.o .libs/liblzma_la-lzip_decoder.o .libs/liblzma_la-check.o .libs/liblzma_la-crc32_table.o .libs/liblzma_la-crc32_fast.o .libs/liblzma_la-crc64_table.o .libs/liblzma_la-crc64_fast.o .libs/liblzma_la-sha256.o .libs/liblzma_la-lz_encoder.o .libs/liblzma_la-lz_encoder_mf.o .libs/liblzma_la-lz_decoder.o .libs/liblzma_la-lzma_encoder_presets.o .libs/liblzma_la-lzma_encoder.o .libs/liblzma_la-lzma_encoder_optimum_fast.o .libs/liblzma_la-lzma_encoder_optimum_normal.o .libs/liblzma_la-fastpos_table.o .libs/liblzma_la-lzma_decoder.o .libs/liblzma_la-lzma2_encoder.o .libs/liblzma_la-lzma2_decoder.o .libs/liblzma_la-price_table.o .libs/liblzma_la-delta_common.o .libs/liblzma_la-delta_encoder.o .libs/liblzma_la-delta_decoder.o .libs/liblzma_la-simple_coder.o .libs/liblzma_la-simple_encoder.o .libs/liblzma_la-simple_decoder.o .libs/liblzma_la-x86.o .libs/liblzma_la-powerpc.o .libs/liblzma_la-ia64.o .libs/liblzma_la-arm.o .libs/liblzma_la-armthumb.o .libs/liblzma_la-arm64.o .libs/liblzma_la-sparc.o   -lpthread  -O2 -flto=auto -Wl,--version-script=../../src/liblzma/liblzma_linux.map -fuse-ld=mold -Wl,--fatal-warnings   -pthread -Wl,-soname -Wl,liblzma.so.5 -o .libs/liblzma.so.5.5.99
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2` to symbol `lzma_block_uncomp_encode`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2` to symbol `lzma_cputhreads`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2` to symbol `lzma_get_progress`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2` to symbol `lzma_stream_encoder_mt`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2` to symbol `lzma_stream_encoder_mt_memusage`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.1.2alpha` to symbol `lzma_stream_encoder_mt`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.1.2alpha` to symbol `lzma_stream_encoder_mt_memusage`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2.2` to symbol `lzma_block_uncomp_encode`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2.2` to symbol `lzma_cputhreads`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2.2` to symbol `lzma_get_progress`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2.2` to symbol `lzma_stream_encoder_mt`: symbol not found
+mold: error: ../../src/liblzma/liblzma_linux.map: cannot assign version `XZ_5.2.2` to symbol `lzma_stream_encoder_mt_memusage`: symbol not found
+collect2: error: ld returned 1 exit status
+make[4]: *** [Makefile:963: liblzma.la] Error 1
+make[4]: Leaving directory '/home/kostadin/xz/src/liblzma'
+make[3]: *** [Makefile:1747: all-recursive] Error 1
+make[3]: Leaving directory '/home/kostadin/xz/src/liblzma'
+make[2]: *** [Makefile:429: all-recursive] Error 1
+make[2]: Leaving directory '/home/kostadin/xz/src'
+make[1]: *** [Makefile:624: all-recursive] Error 1
+make[1]: Leaving directory '/home/kostadin/xz'
+make: *** [Makefile:493: all] Error 2
+```
+"
+commented,Larhzu,2023-07-03T11:40:18Z,"It works with these:
+  - GCC `-fuse-ld=bfd`
+  - GCC `-fuse-ld=gold`
+  - Clang `-fuse-ld=lld`
+
+In these cases the symbols are there:
+
+```
+$ readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 \
+    | grep lzma_stream_encoder_mt_memusage
+   127: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   128: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   129: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+
+Omitting `-Wl,--fatal-warnings` makes the build succeed with `-fuse-ld=mold` but the symbols are wrong:
+
+```
+$ readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 \
+    | grep lzma_stream_encoder_mt_memusage
+    49: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@@XZ_5.2
+    56: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@XZ_5.2.2@XZ_5.2.2
+   104: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha@XZ_5.1.2alpha
+```
+
+Note how the non-default symbols (the last two) have a duplicated suffix. It happens with both GCC and Clang with `-fuse-ld=mold`, mold version 1.11.0. Disabling LTO makes it work. This makes me wonder if mold has a problem when LTO and symbol versioning are used at the same time.
+
+Can you test a git snapshot of mold and if it still doesn't work then discuss it with the mold developers? As far as I understand it, the symbol versioning in liblzma doesn't do anything weird so the problem may affect many other packages too.
+
+Thanks!
+"
+commented,kostadinsh,2023-07-03T11:52:59Z,"I am testing a git snapshot of mold at the commit mentioned in the original report. And you are indeed right it affects other packages too, I am reporting bugs for those too. Thanks for taking your time and testing this. Going to open a bug on mold's tracker and link it here. "
+commented,kostadinsh,2023-07-05T10:23:42Z,Solved by https://github.com/rui314/mold/commit/4b42f38257068f2a3f0dbb102904519d85c9dcb2

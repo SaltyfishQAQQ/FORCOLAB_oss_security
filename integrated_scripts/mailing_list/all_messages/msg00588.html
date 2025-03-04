@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] VS projects fail to build the resource file</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00588" id="c">
+<link rel="index" href="maillist.html#00588" id="i">
+<link rel="prev" href="msg00587.html" id="p">
+<link rel="next" href="msg00590.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00588.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+VS+projects+fail+to+build+the+resource+file%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] VS projects fail to build the resource file</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Olivier+B.%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Olivier B.</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220818" rel="nofollow">Thu, 18 Aug 2022 07:48:10 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>The cmake windows build in a 5.2.6 git clone seem to build and install
+fine for me!
+As small an improvement to them, I wouldn't mind if the pdbs were
+installed too in the configurations where they are generated (and
+actually also in release builds)</pre><pre>
+
+Le jeu. 18 août 2022 à 16:02, Olivier B.
+&lt;perso.olivier.barthel...@gmail.com&gt; a écrit :
+&gt;
+&gt; I will try the cmake build too. If i can build it on windows and linux
+&gt; with the same commands, good for me! Is it normal that CMakeLists and
+&gt; other files are not in the 5.2.6 (or 5.3.2) tarball, only in the git?
+&gt;
+&gt; Le jeu. 18 août 2022 à 15:12, Olivier B.
+&gt; &lt;perso.olivier.barthel...@gmail.com&gt; a écrit :
+&gt; &gt;
+&gt; &gt; Yes, indeed. I sent the mail after having only fixed one
+&gt; &gt; configuration, but the full solution build needs the six modifications
+&gt; &gt;
+&gt; &gt; Le jeu. 18 août 2022 à 15:09, Lasse Collin &lt;lasse.col...@tukaani.org&gt; a 
+&gt; &gt; écrit :
+&gt; &gt; &gt;
+&gt; &gt; &gt; On 2022-08-18 Olivier B. wrote:
+&gt; &gt; &gt; &gt; I am trying to build 5.2.6 on windows, but, presumably after
+&gt; &gt; &gt; &gt; 352ba2d69af2136bc814aa1df1a132559d445616, he build using the MSVC 2013
+&gt; &gt; &gt; &gt; project file fails.
+&gt; &gt; &gt;
+&gt; &gt; &gt; Thanks! So the fix for one thing broke another situation. :-(
+&gt; &gt; &gt;
+&gt; &gt; &gt; I cannot test but it seems the same addition is needed in six places,
+&gt; &gt; &gt; not just in &quot;Debug|Win32&quot; case, right?
+&gt; &gt; &gt;
+&gt; &gt; &gt; diff --git a/windows/vs2013/liblzma_dll.vcxproj 
+&gt; &gt; &gt; b/windows/vs2013/liblzma_dll.vcxproj
+&gt; &gt; &gt; index 2bf3e41..f24cd6f 100644
+&gt; &gt; &gt; --- a/windows/vs2013/liblzma_dll.vcxproj
+&gt; &gt; &gt; +++ b/windows/vs2013/liblzma_dll.vcxproj
+&gt; &gt; &gt; @@ -137,6 +137,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemDefinitionGroup 
+&gt; &gt; &gt; Condition=&quot;'$(Configuration)|$(Platform)'=='Debug|x64'&quot;&gt;
+&gt; &gt; &gt; @@ -154,6 +155,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemDefinitionGroup 
+&gt; &gt; &gt; Condition=&quot;'$(Configuration)|$(Platform)'=='Release|Win32'&quot;&gt;
+&gt; &gt; &gt; @@ -173,6 +175,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemDefinitionGroup 
+&gt; &gt; &gt; Condition=&quot;'$(Configuration)|$(Platform)'=='Release|x64'&quot;&gt;
+&gt; &gt; &gt; @@ -191,6 +194,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemDefinitionGroup 
+&gt; &gt; &gt; Condition=&quot;'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'&quot;&gt;
+&gt; &gt; &gt; @@ -210,6 +214,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemDefinitionGroup 
+&gt; &gt; &gt; Condition=&quot;'$(Configuration)|$(Platform)'=='ReleaseMT|x64'&quot;&gt;
+&gt; &gt; &gt; @@ -228,6 +233,7 @@
+&gt; &gt; &gt;      &lt;/Link&gt;
+&gt; &gt; &gt;      &lt;ResourceCompile&gt;
+&gt; &gt; &gt;        
+&gt; &gt; &gt; &lt;AdditionalIncludeDirectories&gt;./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;&lt;/AdditionalIncludeDirectories&gt;
+&gt; &gt; &gt; +      &lt;PreprocessorDefinitions&gt;HAVE_CONFIG_H&lt;/PreprocessorDefinitions&gt;
+&gt; &gt; &gt;      &lt;/ResourceCompile&gt;
+&gt; &gt; &gt;    &lt;/ItemDefinitionGroup&gt;
+&gt; &gt; &gt;    &lt;ItemGroup&gt;
+&gt; &gt; &gt;
+&gt; &gt; &gt; I will commit the above to all VS project files if you think it's good.
+&gt; &gt; &gt;
+&gt; &gt; &gt; Does it work with CMake for you? I'm hoping that the VS project files
+&gt; &gt; &gt; can be removed in the near-future and CMake used for building with VS.
+&gt; &gt; &gt; That way there are fewer build files to maintain.
+&gt; &gt; &gt;
+&gt; &gt; &gt; --
+&gt; &gt; &gt; Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00587.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00588">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00588">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00590.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00584.html">[xz-devel] VS projects fail to build the resource file</a></span> <span class="sender italic">Olivier B.</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00585.html">Re: [xz-devel] VS projects fail to build the resource fi...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00586.html">Re: [xz-devel] VS projects fail to build the resourc...</a></span> <span class="sender italic">Olivier B.</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00587.html">Re: [xz-devel] VS projects fail to build the res...</a></span> <span class="sender italic">Olivier B.</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] VS projects fail to build the...</span> <span class="sender italic">Olivier B.</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00590.html">Re: [xz-devel] VS projects fail to buil...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00589.html">Re: [xz-devel] VS projects fail to build the...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] VS projects fail to build the resource file">
+<input type="hidden" name="msgid" value="CA+cSAribCeV6-O5a4CjCD+i-eAcUx=TZdko4jx_gaBcWd_Yogw@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00588.html">
+<input type="submit" value=" Olivier B. ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+VS+projects+fail+to+build+the+resource+file%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00587.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00590.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CA+cSAribCeV6-O5a4CjCD+i-eAcUx=TZdko4jx_gaBcWd_Yogw@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

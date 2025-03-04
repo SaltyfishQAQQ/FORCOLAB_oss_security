@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] Question about using Java API for geospatial data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00578" id="c">
+<link rel="index" href="maillist.html#00578" id="i">
+<link rel="prev" href="msg00577.html" id="p">
+<link rel="next" href="msg00579.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00578.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Question+about+using+Java+API+for+geospatial+data%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] Question about using Java API for geospatial data</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Gary+Lucas%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Gary Lucas</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220710" rel="nofollow">Sun, 10 Jul 2022 15:55:20 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Lasse,
+
+Thanks for the information.  That is just the kind of thing I was
+looking for.  I think it will be very helpful.</pre><pre>
+
+One thing I'd like to clarify is that I do not consider a decompressor
+that takes 18.9 seconds to read 233 million sample values to be slow.
+To me, that's a remarkable accomplishment. My simple-minded Huffman
+decoder takes 5.93 seconds to read the same number of points and does
+not get nearly as good compression ratios as LZMA and XZ.  And 5.93
+seconds is the result of a lot of work trying to optimize the code.
+
+&gt;&gt;&gt; So that is about 12 thousand blocks?
+
+Yes.  That's a fair estimate. There are actually 10800 blocks.  Each
+covers 2 degrees of latitude and 3 degrees of longitude.  I arrived at
+that size specification through trial-and-error. Naturally,
+conventional data compressors work better with larger text sizes. So a
+larger block size might have advantages because it would contain a
+larger symbol set. But, at the same time, a larger block size would
+cover a larger area on the face of the Earth and would lead to more
+statistical variation (heteroskedasticity) in the data. So the
+increase in the entropy of the uncompressed text might lead to worse
+results in terms of data compression.  Before the code uses
+conventional data compression, it runs a set of predictors over the
+data (similar to what the PNG format does).
+
+The other motivation for the block scheme is that the API provides
+random-access to data. Typically, if one is looking at data for
+Finland, one usually doesn't care much about the data from
+Australia.Thus the file is divided into regional blocks. So the choice
+of block size also reflects the way in which I anticipate applications
+would use the data.
+
+Thanks again for your help.
+
+Gary
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00577.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00578">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00578">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00579.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00572.html">[xz-devel] Question about using Java API for geospatial data</a></span> <span class="sender italic">Gary Lucas</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00573.html">Re: [xz-devel] Question about using Java API for geospat...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00574.html">Re: [xz-devel] Question about using Java API for geo...</a></span> <span class="sender italic">Gary Lucas</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00575.html">Re: [xz-devel] Question about using Java API for...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00576.html">Re: [xz-devel] Question about using Java API...</a></span> <span class="sender italic">Gary Lucas</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00577.html">Re: [xz-devel] Question about using Java API for geospat...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] Question about using Java API for geo...</span> <span class="sender italic">Gary Lucas</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00579.html">Re: [xz-devel] Question about using Java API for...</a></span> <span class="sender italic">John Reiser</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00580.html">Re: [xz-devel] Question about using Java API...</a></span> <span class="sender italic">Gary Lucas</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] Question about using Java API for geospatial data">
+<input type="hidden" name="msgid" value="CAAEq8jQmdUt3C_HaLXu7iy3EBiAbcxXQ2ZSiBZSqFLNFDA16HQ@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00578.html">
+<input type="submit" value=" Gary Lucas ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Question+about+using+Java+API+for+geospatial+data%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00577.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00579.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAAEq8jQmdUt3C_HaLXu7iy3EBiAbcxXQ2ZSiBZSqFLNFDA16HQ@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

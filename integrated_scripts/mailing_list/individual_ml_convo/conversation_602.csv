@@ -1,0 +1,144 @@
+timestamp,from,to,body,title,msg_file
+"Thu, 20 Oct 2022 06:26:57 -0700",Jia Tan,,"Hi!
+
+
+
+Thank you for reporting this and for your patches. We made a few minor
+changes to extend your patch to also compile and skip tests if
+encoders, threads, or decoders were disabled, including the script
+tests. These changes have been committed to master, so they will be
+included in the upcoming 5.4.0 release. If we have another alpha or
+beta release prior to 5.4.0, the commits will be included in those
+releases too.
+Thanks again for your help!
+
+Jia Tan
+",Re: [xz-devel] [PATCH 0/2] tests: Disable bits that require the [encoder|threads],msg00602.html
+"Thu, 20 Oct 2022 14:25:54 -0700",Sam James,Jia Tan,"
+
+
+
+
+This definitely improves the situation. However, in Gentoo, we
+allow optionally disabling 'extra-filters', described to users as:
+```
+        <flag name=""extra-filters"">Build additional filters that are not
+                used in any of the default xz presets. This includes delta
+                and BCJ coders, additional match finders and SHA256 
+checks.</flag>
+```
+
+When this flag is disabled (i.e. no extra-filters), we pass the following
+options to configure:
+```
+/var/tmp/portage/app-arch/xz-utils-9999/work/xz-utils-9999/configure 
+--prefix=/usr --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu 
+--mandir=/usr/share/man --infodir=/usr/share/info --datadir=/usr/share 
+--sysconfdir=/etc --localstatedir=/var/lib --disable-dependency-tracking 
+--disable-silent-rules --docdir=/usr/share/doc/xz-utils-9999 
+--htmldir=/usr/share/doc/xz-utils-9999/html --with-sysroot=/ 
+--libdir=/usr/lib64 --enable-threads --enable-nls --disable-static 
+--enable-encoders=lzma1,lzma2 --enable-decoders=lzma1,lzma2 
+--enable-match-finders=hc3,hc4,bt4 --enable-checks=crc32,crc64
+```
+
+This results in the following test failures on master as of today:
+```
+make[2]: Entering directory 
+'/var/tmp/portage/app-arch/xz-utils-9999/work/xz-utils-9999-abi_x86_32.x86/tests'
+make[3]: Entering directory 
+'/var/tmp/portage/app-arch/xz-utils-9999/work/xz-utils-9999-abi_x86_32.x86/tests'
+SKIP: test_files.sh
+SKIP: test_compress_prepared_bcj_x86
+SKIP: test_compress_prepared_bcj_sparc
+SKIP: test_compress_generated_random
+SKIP: test_compress_generated_text
+SKIP: test_compress_generated_abc
+PASS: test_hardware
+PASS: test_check
+PASS: test_filter_flags
+PASS: test_stream_flags
+SKIP: test_block_header
+PASS: test_memlimit
+PASS: test_vli
+FAIL: test_bcj_exact_size
+PASS: test_index
+============================================================================
+Testsuite summary for XZ Utils 5.3.3alpha
+============================================================================
+# TOTAL: 15
+# PASS:  7
+# SKIP:  7
+# XFAIL: 0
+# FAIL:  1
+# XPASS: 0
+# ERROR: 0
+============================================================================
+See tests/test-suite.log
+Please report to lasse.col...@tukaani.org
+============================================================================
+```
+
+From tests/test-suite.log:
+```
+FAIL: test_bcj_exact_size
+=========================
+
+=== test_bcj_exact_size.c ===
+SKIP: test_exact_size [test_bcj_exact_size.c:27] PowerPC BCJ encoder and/or 
+decoder is disabled
+FAIL: test_empty_block [test_bcj_exact_size.c:103] assert_enum_eq: 
+'lzma_stream_buffer_decode(&memlimit, 0, ((void *)0), empty_bcj_lzma2, &in_pos, 
+in_size, out, &out_pos, 0) == LZMA_OPTIONS_ERROR' but expected '... = LZMA_OK'
+---
+# TOTAL: 2
+# PASS:  0
+# SKIP:  1
+# FAIL:  1
+# ERROR: 0
+=== END ===
+FAIL test_bcj_exact_size (exit status: 1)
+```
+
+The tests pass if I turn 'extra-filters' back on.
+
+This is the current build script used:
+https://gitweb.gentoo.org/repo/gentoo.git/tree/app-arch/xz-utils/xz-utils-9999.ebuild?id=5a8ce9b83b02f2b5a2e276e3d02f5436d3dce4ac.
+
+Best,
+sam",Re: [xz-devel] [PATCH 0/2] tests: Disable bits that require the [encoder|threads],msg00603.html
+"Sun, 23 Oct 2022 06:35:22 -0700",Jia Tan,Sam James,"Hi!
+
+
+
+Thanks for reporting this. Can you attach your entire test-suite.log
+file? I am wondering why test_files.sh and test_compress_* skips
+instead of fails on your configuration. Fixing the test_bcj_exact_size
+issue is simple and I already submitted a patch for it to Lasse.
+test_files.sh and test_compress_* deserve a proper rewrite, but that
+probably will not happen before 5.4.0 so the short term solution may
+be to have them skip if the configurations differ to far from the
+default.
+
+Jia Tan
+",Re: [xz-devel] [PATCH 0/2] tests: Disable bits that require the [encoder|threads],msg00604.html
+"Sun, 23 Oct 2022 06:38:51 -0700",Sam James,Jia Tan,"
+
+
+
+Sure!
+
+Let me know if you need any more data.
+
+
+",Re: [xz-devel] [PATCH 0/2] tests: Disable bits that require the [encoder|threads],msg00605.html
+"Sun, 23 Oct 2022 06:57:35 -0700",Jia Tan,Sam James,"
+Thanks! That should be all that I need. It looks like from your
+current build script the multilib_src_configure does not build xz and
+xzdec, so that explains why the script tests are skipped. I see that
+our skip messages from the scripts could be a little more helpful in
+the future...
+
+
+Jia Tan
+",Re: [xz-devel] [PATCH 0/2] tests: Disable bits that require the [encoder|threads],msg00606.html

@@ -1,0 +1,16 @@
+from,to,file_name,message,mood,score
+Kelvin Lee,Lasse Collin,pr_60.csv,"All sounds good and reasonable.
+You branch does build and work.
+I guess I can close this PR.
+P.S. I think you are right that Windows build would need to handle those legacy DOS special filenames like `con`, `prn`, `com1`, etc.",positive,0.986269
+Kelvin Lee,Lasse Collin,pr_60.csv,"As per C11/C17 requirement, as you are already requiring VS2015 or later, that pretty much likes requiring Windows 10 or later.
+However, compiling using a specific Windows SDK version does not necessarily limits the Windows version that the output binaries can run on. That's more depending on what Windows APIs you have used. If say no Windows 10 or later only APIs is used, the binaries could likely work on Windows 8 or before. That's what _WIN32_WINNT can help. Define _WIN32_WINNT to the minimum Windows version you want to support, whatever version Windows SDK you use should expose only APIs available for that targeted Windows version.
+But I think requiring a specific Windows SDK could be annoying for users only having older VS. There could be reasons that newer version of Windows SDK cannot be installed.
+If I am correct, the current cmake build would just use the latest Windows SDK available and that is handy. Especially if you limit _WIN32_WINNT to say Windows 8, that means any Windows 10 SDK should work.
+I have not tried though, cmake might have intelligence to sort things out when you require C11/C17. cmake could just complain if the required SDK does not exist.",positive,0.283703
+Kelvin Lee,Lasse Collin,pr_60.csv,"Except a small bug in ""getopt.in.h"" for MSVC (https://github.com/tukaani-project/xz/pull/63), cmake build for MSVC works for all VS2015, VS2017, VS2019 and VS2022.",neutral,0.0
+Kelvin Lee,Lasse Collin,pr_60.csv,"https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=msvc-170
+In case that can be helpful, you can get the HANDLE behind a file descriptor with function `_get_osfhandle()`.",neutral,0.0
+Kelvin Lee,Lasse Collin,pr_60.csv,"https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfiletype
+A quick search and I find this Windows API that may help to detect special named files on Windows.
+Note: MinGW build can target either msys2 or native-windows. For msys2, special filenames may be less of a problem (inherited cygwin capability). For native-windows, special filenames are indeed problematic.",negative,-0.723254

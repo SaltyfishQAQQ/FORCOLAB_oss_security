@@ -56,7 +56,7 @@ def count_dataset(user_interactions):
     print("Number of messages: " + str(num_messages))
 
 
-def update_sentiment_tracker(sentiment_tracker, source_author, target_in_message, sentiment, sentiment_score, original_message, filename):
+def update_sentiment_tracker(sentiment_tracker, source_author, target_in_message, sentiment, sentiment_score, original_message, filename, date):
     """
     Update sentiment tracking for interactions between authors.
 
@@ -78,18 +78,21 @@ def update_sentiment_tracker(sentiment_tracker, source_author, target_in_message
         sentiment_tracker[(source_author, target_in_message)]['POS'].append({
             'message': original_message,
             'score': sentiment_score,
+            'timestamp': date,
             'file_name': filename
         })
     elif sentiment == 'NEU':
         sentiment_tracker[(source_author, target_in_message)]['NEU'].append({
             'message': original_message,
             'score': sentiment_score,
+            'timestamp': date,
             'file_name': filename
         })
     elif sentiment == 'NEG':
         sentiment_tracker[(source_author, target_in_message)]['NEG'].append({
             'message': original_message,
             'score': sentiment_score,
+            'timestamp': date,
             'file_name': filename
         })
 
@@ -187,7 +190,7 @@ def clean_user_interactions(source_path, sentiment_tracker):
 
     # Step 3: Filter out rows with authors below the contribution threshold
     contribution_df = cleaner.calculate_author_contributions()
-    threshold = contribution_df['count'].describe()['50%']
+    threshold = contribution_df['count'].describe()['25%']
     authors_to_eliminate = contribution_df[contribution_df['count'] < threshold]['from']
     below_threshold_interactions = user_interactions[
         user_interactions['from'].isin(authors_to_eliminate) |
@@ -232,7 +235,7 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
     
     # Initialize the folder path and sentiment tracker
     folder_path = os.path.join(source_path, "individual_issue_PR/")
-    print("Running thread-level sentiment analysis...")
+    print("Running sentiment analysis...")
     count = 0
     
     sentiment_tracker = defaultdict(lambda: {'POS': [], 'NEU': [], 'NEG': []})
@@ -264,6 +267,7 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
                     target_author = [target_author]
                 
                 text = str(row['body'])
+                date = row['created_at']
                 
                 # Analyze sentiment of the text
                 result = analyzer.predict(text)
@@ -274,7 +278,7 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
                 
                 for target in target_author:
                     # Update sentiment tracker with result
-                    update_sentiment_tracker(sentiment_tracker, source_author, target, sentiment, sentiment_score, text, filename)
+                    update_sentiment_tracker(sentiment_tracker, source_author, target, sentiment, sentiment_score, text, filename, date)
 
             sentiment_score_avg = sentiment_score_total / num_messages if num_messages > 0 else 0
             
@@ -286,9 +290,11 @@ def sentiment_analysis(source_path='tukaani-project_xz/'):
                 post_sentiment = "NEU"
             
             # Append post sentiment analysis result to list
+            post_timestamp = df['created_at'].iloc[0]
             post_sentiment_results.append({
                 'name': filename,
                 'type': classify_pr_or_issue(filename),
+                'timestamp': post_timestamp,
                 'sentiment': post_sentiment,
                 'sentiment_score': sentiment_score_avg
             })

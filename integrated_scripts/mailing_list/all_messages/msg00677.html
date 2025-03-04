@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] xz-java and newer java</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="thrd2.html#00677" id="c">
+<link rel="index" href="maillist.html#00677" id="i">
+<link rel="prev" href="msg00676.html" id="p">
+<link rel="next" href="msg00678.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00677.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] xz-java and newer java</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240312" rel="nofollow">Tue, 12 Mar 2024 07:57:46 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>I am still working on digesting your branch. The difference in method
+signature is subtle, but I think a key part of the improvements you are
+getting. Could you add javadoc to more clearly describe how the args are to
+be interpreted and what the return value means?</pre><pre>
+
+I am playing with manually unrolling the java 8 byte-by-byte impl along
+with tests comparing unsafe, var handle, and vector approaches. These tests
+take a long time to run, so it will be a couple days before I have complete
+results. Do you want data as I have it (and it is interesting), or wait for
+summary? I am not sure when I will get opportunity to test out arm64. That
+could be awhile yet.
+
+I do have some things still on jdk 8, but only decompression. Surveys seem
+to indicate quite a bit of jdk 8 still in use, but I have no personal need.
+
+Brett
+
+On Sun, Mar 10, 2024 at 2:49 PM Lasse Collin &lt;lasse.col...@tukaani.org&gt;
+wrote:
+
+&gt; On 2024-03-09 Brett Okken wrote:
+&gt; &gt; When I tested graviton2 (arm64) previously, Arrays.mismatch was
+&gt; &gt; better than comparing longs using a VarHandle.
+&gt;
+&gt; Sounds promising. :-) However, your array_comparison_performance
+&gt; handles the last 1-7 bytes byte-by-byte. My array_compare branch
+&gt; reserves extra 7 bytes at the end of the array so that one can safely
+&gt; read up to 7 bytes more than one actually needs. This way no bounds
+&gt; checks are needed (even with Unsafe). This might affect the comparision
+&gt; between Arrays.mismatch and VarHandle if the results were close before.
+&gt;
+&gt; &gt; I do like Unsafe as an option for jdk 8 users on x86 or arm64.
+&gt;
+&gt; Unsafe seems very slightly faster than VarHandle. If Java 8 uses Unsafe,
+&gt; should newer versions do too? It could be counter-productive if Java 8
+&gt; was faster, even if the difference was tiny.
+&gt;
+&gt; Do you have use cases that are (for now) stuck on Java 8 or is your
+&gt; wish a more generic one?
+&gt;
+&gt; --
+&gt; Lasse Collin
+&gt;
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00676.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="thrd2.html#00677">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00677">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00678.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li><ul>
+<li><ul>
+<li><ul>
+<li><ul>
+<li><ul>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00650.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00654.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00662.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00663.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00664.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00670.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00671.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00674.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00675.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00676.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] xz-java and newer ja...</span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00678.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00679.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00680.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00686.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00689.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00560.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Dennis Ens</span></li>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] xz-java and newer java">
+<input type="hidden" name="msgid" value="CANBJVOHsg6J+JjDGPWFW1dOiV70CP_0a8hgu=ZdVh-9VmaDbCQ@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00677.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00676.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00678.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOHsg6J+JjDGPWFW1dOiV70CP_0a8hgu=ZdVh-9VmaDbCQ@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

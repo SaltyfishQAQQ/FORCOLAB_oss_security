@@ -1,0 +1,323 @@
+timestamp,from,to,body,title,msg_file
+"Sat, 09 Jul 2022 04:31:06 -0700",Gary Lucas,,"Hi,
+
+Would anyone be able to confirm that I am using the Java library
+xz-java-1.9.zip correctly? If not, could you suggest a better way to
+use it? Code snippets are included below.
+
+
+I am using the library to compress a public-domain data product called
+ETOPO1. ETOPO1 provides a global-scale grid of 233 million elevation
+and ocean depth samples as integer meters. My implementation
+compresses the data in separate blocks of about 20 thousand values
+each. Previously, I used Huffman coding and Deflate to reduce the size
+of the data to about 4.39 bits per value. With your library, LZMA
+reduces that to 4.14 bits per value and XZ to 4.16. So both techniques
+represent a substantial improvement in compression compared to the
+Huffman/Deflate methods. That improvement comes with a reasonable
+cost. Decompression using LZMA and XZ is slower than Huffman/Deflate.
+The original implementation requires an average of 4.8 seconds to
+decompress the full set of 233 million points.  The LZMA version
+requires 15.2 seconds, and the XZ version requires 18.9 seconds.
+
+My understanding is that XZ should perform better than LZMA. Since
+that is not the case, could there be something suboptimal with the way
+my code uses the API?
+
+If you would like more detail about the implementation, please visit
+
+        Compression Algorithms for Raster Data:
+https://gwlucastrig.github.io/GridfourDocs/notes/GridfourDataCompressionAlgorithms.html
+        Compression using Lagrange Multipliers for Optimal Predictors:
+https://gwlucastrig.github.io/GridfourDocs/notes/CompressionUsingOptimalPredictors.html
+        GVRS Frequently asked Questions (FAQ):
+https://github.com/gwlucastrig/gridfour/wiki/A-GVRS-FAQ
+
+Thank you for your great data compression library.
+
+Gary
+
+And here are the Code Snippets:
+
+The Gridfour Virtual Raster Store (GVRS) is a wrapper format that
+stores separate blocks of compressed data to provide random-access by
+application code
+
+LZMA ------------------------------------------
+        // byte [] input is input data
+        ByteArrayOutputStream baos = new  ByteArrayOutputStream();
+        lzmaOut = new LZMAOutputStream(baos, new LZMA2Options(), input.length);
+        lzmaOut.write(input, 0, input.length);
+        lzmaOut.finish();
+        lzmaOut.close();
+        return baos.toByteArray();   // return byte[] which is stored to file
+
+
+        // reading the compressed data:
+        ByteArrayInputStream bais = new
+ByteArrayInputStream(compressedInput, 0, compressedInput.length);
+        LZMAInputStream lzmaIn = new LZMAInputStream(bais);
+        byte[] output = new byte[expectedOutputLength];
+        lzmaIn.read(output, 0, output.length);
+
+
+XZ ----------------------------------------------------
+        // byte [] input is input data
+        ByteArrayOutputStream baos = new  ByteArrayOutputStream();
+        xzOut = new XzOutputStream(baos, new LZMA2Options(), input.length);
+        xzOut.write(input, 0, input.length);
+        xzOut.finish();
+        xzOut.close();
+        return baos.toByteArray();   // return byte[] which is stored to file
+
+       // reading the compressed data:
+       ByteArrayInputStream bais = new
+ByteArrayInputStream(compressedInput, 0, compressedInput.length);
+        XzInputStream xzIn = new XzInputStream(bais);
+        byte[] output = new byte[expectedOutputLength];
+        xzIn.read(output, 0, output.length);
+",[xz-devel] Question about using Java API for geospatial data,msg00572.html
+"Sat, 09 Jul 2022 16:58:14 -0700",Brett Okken,Gary Lucas,"What version of xz are you using?
+
+The differences between xz and lzma are a bit more involved. One such
+example is that xz is a framed format which includes checksums on each
+“frame”. I would not expect checksum verification to account for all of
+that difference, but it can be disabled to confirm.
+
+
+On Sat, Jul 9, 2022 at 6:31 AM Gary Lucas <gwluca...@gmail.com> wrote:
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00573.html
+"Sun, 10 Jul 2022 05:31:59 -0700",Gary Lucas,Brett Okken,"Hi Brett,
+
+I'm not sure that this is authoritative. The Java API documentation
+says that it ""aims"" to provide ""Full support for the .xz file format
+specification version 1.0.4""
+
+
+I am using the latest release of the Java library, version 1.19
+
+Gary
+
+On Sat, Jul 9, 2022 at 7:58 PM Brett Okken <brett.okken...@gmail.com> wrote:
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00574.html
+"Sun, 10 Jul 2022 06:10:23 -0700",Brett Okken,Gary Lucas,"
+
+I am not certain which statement you believe is not authoritative.
+There are existing constructors (such as[1]) which allow the disabling of
+checksum verification.
+
+[1] -
+https://tukaani.org/xz/xz-javadoc/org/tukaani/xz/XZInputStream.html#%3Cinit%3E(java.io.InputStream,int,boolean)",Re: [xz-devel] Question about using Java API for geospatial data,msg00575.html
+"Sun, 10 Jul 2022 07:23:47 -0700",Gary Lucas,Brett Okken,"
+
+Sorry.  I didn't mean to challenge the Javadoc...    I meant that I
+was not sure I looked in the right place.
+
+On Sun, Jul 10, 2022 at 9:10 AM Brett Okken <brett.okken...@gmail.com> wrote:
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00576.html
+"Sun, 10 Jul 2022 11:00:27 -0700",Lasse Collin,Gary Lucas,"On 2022-07-09 Gary Lucas wrote:
+
+
+So that is about 12 thousand blocks?
+
+
+Is the compressed size of each block about ten kilobytes?
+
+
+The Deflate implementation in java.util.zip uses zlib (native code). XZ
+for Java is pure Java. LZMA is significantly slower than Deflate and
+being pure Java makes the difference even bigger.
+
+
+The core compression code is the same in both: XZ uses LZMA2 which is
+LZMA with framing. XZ adds a few features like filters, integrity
+checking, and block-based random access reading.
+
+
+The XZ examples don't use XZ for Java directly. This is clear due to
+""Xz"" vs. ""XZ"" difference in the class names and that XZOutputStream has
+no constructor that takes the input size as an argument.
+
+Non-performance notes:
+
+  - Section ""When uncompressed size is known beforehand"" in
+    XZInputStream is worth reading. Basically adding a check
+    that ""xzIn.read() == -1"" is true at the end to verify the integrity
+    check. This at least used to be true (I haven't tested recently)
+    for GZipInputStream too.
+
+  - When compressing, .finish() is redundant. .close() will do it
+    anyway.
+
+  - If XZ data is embedded insize another file format, you may want
+    to use SingleXZInputStream instead of XZInputStream. XZInputStream
+    supports concatenated streams that are possible on standalone .xz
+    files but probably shouldn't occur when embedded inside another
+    format. In your case this likely makes no difference in practice.
+
+Might affect performance:
+
+  - The default LZMA2 dictionary size is 8 MiB. If the uncompressed
+    size is known to be much smaller than this, it's waste of memory to
+    use so big dictionary. In that case pick a value that is at least as
+    big as the largest uncompressed size, possibly round up to 2^n
+    value.
+
+  - Compressing or decompressing multiple streams that use identical
+    settings means creating many compressor or decompressor instances.
+    To reduce garbage collector pressure there is ArrayCache which
+    reuses large array allocations. You can enable this globally with
+    this:
+
+        ArrayCache.setDefaultCache(BasicArrayCache.getInstance());
+
+    However, setting the default like this might not be desired if
+    multiple unrelated things in the application might use XZ for Java.
+
+    Note that ArrayCache can help both LZMA and XZ classes.
+
+Likely will affect performance:
+
+  - Since compression ratio is high, the integrity checking starts to
+    become more significant for performance. To test how much integrity
+    checking slows XZ down, use SingleXZInputStream or XZInputStream
+    constructor that takes ""boolean verifyCheck"" and set it to false.
+
+    You can also compress to XZ without integrity checking at all
+    (using XZ.CHECK_NONE as the third argument in XZOutputStream
+    constructor). Using XZ.CHECK_CRC32 is likely much faster than the
+    default XZ.CHECK_CRC64 because CRC32 comes from java.util.zip which
+    uses native code from zlib.
+
+It's quite possible that XZ provides no value over raw LZMA in this
+application, especially if you don't need integrity checking. Raw LZMA
+instead of .lzma will even avoid the 13-byte .lzma header saving 150
+kilobytes with 12 thousand blocks. If the uncompressed size is stored
+in the container headers then further 4-5 bytes per block can be saved
+by telling the size to the raw LZMA encoder and decoder.
+
+Note that LZMAOutputStream and LZMAInputStream support .lzma and raw
+LZMA: the choise between these is done by picking the right
+constructors.
+
+Finally, it might be worth playing with the lc/lp/pb parameters in
+LZMA/LZMA2. Usually those make only tiny difference but with some data
+types they have a bigger effect. These won't affect performance other
+than that the smaller the compressed file the faster it tends to
+decompress in case of LZMA/LZMA2.
+
+Other compressors might be worth trying too. Zstandard typically
+compresses only slightly worse than XZ/LZMA but it is *a lot* faster to
+decompress.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00577.html
+"Sun, 10 Jul 2022 15:55:20 -0700",Gary Lucas,Lasse Collin,"Lasse,
+
+Thanks for the information.  That is just the kind of thing I was
+looking for.  I think it will be very helpful.
+
+
+One thing I'd like to clarify is that I do not consider a decompressor
+that takes 18.9 seconds to read 233 million sample values to be slow.
+To me, that's a remarkable accomplishment. My simple-minded Huffman
+decoder takes 5.93 seconds to read the same number of points and does
+not get nearly as good compression ratios as LZMA and XZ.  And 5.93
+seconds is the result of a lot of work trying to optimize the code.
+
+
+Yes.  That's a fair estimate. There are actually 10800 blocks.  Each
+covers 2 degrees of latitude and 3 degrees of longitude.  I arrived at
+that size specification through trial-and-error. Naturally,
+conventional data compressors work better with larger text sizes. So a
+larger block size might have advantages because it would contain a
+larger symbol set. But, at the same time, a larger block size would
+cover a larger area on the face of the Earth and would lead to more
+statistical variation (heteroskedasticity) in the data. So the
+increase in the entropy of the uncompressed text might lead to worse
+results in terms of data compression.  Before the code uses
+conventional data compression, it runs a set of predictors over the
+data (similar to what the PNG format does).
+
+The other motivation for the block scheme is that the API provides
+random-access to data. Typically, if one is looking at data for
+Finland, one usually doesn't care much about the data from
+Australia.Thus the file is divided into regional blocks. So the choice
+of block size also reflects the way in which I anticipate applications
+would use the data.
+
+Thanks again for your help.
+
+Gary
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00578.html
+"Sun, 10 Jul 2022 19:07:17 -0700",John Reiser,Gary Lucas,"
+On 7/10/22, Gary Lucas wrote:
+
+
+The other motivation for the block scheme is that the API provides
+random-access to data. Typically, if one is looking at data for
+Finland, one usually doesn't care much about the data from
+Australia.Thus the file is divided into regional blocks. So the choice
+of block size also reflects the way in which I anticipate applications
+would use the data.
+
+
+I hope you are aware that such a system has been in use for about seventy years,
+exactly for this purpose, namely the Universal Traverse Mercator system which
+uses 70 rectangular zones (some of them slightly overlapping).  See
+https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system .
+Most serious public Earth spatial data systems are based on UTM coordinates.
+If your system does not interoperate with UTMs then nobody will talk to you.
+
+Various package delivery corporations have proprietary systems
+that are quite similar.  United Parcel Service (UPS) in North America,
+DHL (a division of Deutsche Post) for much of the world, and others.
+Amazon had a coordinate system that specified points for delivery
+in the first 48 US states using two 16-bit integers.  Google Maps
+identifies locations on Earth using about 7 characters which encode
+a recursive nested quadrant system.
+
+I'm pleased that you consider altitude.  There are places in
+Grand Canyon National Park (Arizona, US) which have the same
+(x, y) coordinates but are several hundred feet apart.
+It takes a few hours to walk from one instance to another ""same""
+(x, y) point.  And if you are delivering ice cream cones to
+someone in a sky-scraper tall building, then it can take minutes
+to travel from the street entrance to an upper floor.
+
+--
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00579.html
+"Mon, 11 Jul 2022 05:39:18 -0700",Gary Lucas,John Reiser,"John,
+
+Thanks for the note.  Map projections are one of my personal
+interests... though I admit to approaching the topic with rather more
+enthusiasm than finesse. I'm going to try to resist the temptation to
+get carried away by a discussion of cartography on this data
+compression mailing list (well, I'm going to try).  I will say that my
+library supports projected coordinate systems and accepts Well-Known
+Text (WKT) specifications as metadata.  But, really, my focus is on
+developing lossless data compression tools for all sorts of raster
+data, including both integer data and real-valued surfaces (fields).
+Geophysical information is a natural topic because so much data is so
+readily available.  Incidentally, with the addition of LZMA for
+high-resolution SRTM elevation data,  compression rates are running
+about 1.9 bits per sample (more or less, depending on the terrain).
+
+
+Gary
+
+P.S. That was an interesting note about UTM being in use for 70 years.
+I had no idea...  The math has been around for a long time (I think
+Lambert invented it and Gauss made important refinements), but the
+transformation is so complex that I wouldn't have expected it to take
+hold until well into the computer era.
+
+P.P.S. The original posting in this thread mentioned the  FAQ
+document. If you'd like to read more about what the GVRS software is
+attempting, it's a good place to start
+https://github.com/gwlucastrig/gridfour/wiki/A-GVRS-FAQ
+
+
+On Sun, Jul 10, 2022 at 10:07 PM John Reiser <jrei...@bitwagon.com> wrote:
+",Re: [xz-devel] Question about using Java API for geospatial data,msg00580.html

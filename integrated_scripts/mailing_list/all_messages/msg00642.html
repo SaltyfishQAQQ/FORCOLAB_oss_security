@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ Utils 5.4.6, 5.5.1alpha, and website changes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00642" id="c">
+<link rel="index" href="maillist.html#00642" id="i">
+<link rel="prev" href="msg00641.html" id="p">
+<link rel="next" href="msg00643.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00642.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.4.6%2C+5.5.1alpha%2C+and+website+changes%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ Utils 5.4.6, 5.5.1alpha, and website changes</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240126" rel="nofollow">Fri, 26 Jan 2024 04:33:48 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>The XZ specific content has been moved from &lt;<a  rel="nofollow" href="https://tukaani.org/xz/">https://tukaani.org/xz/</a>&gt;
+to &lt;<a  rel="nofollow" href="https://xz.tukaani.org/">https://xz.tukaani.org/</a>&gt;. The old links will be kept working via
+redirections.</pre><pre>
+
+Additionally, the official XZ Embedded Git repository is now on GitHub
+&lt;<a  rel="nofollow" href="https://github.com/tukaani-project/xz-embedded">https://github.com/tukaani-project/xz-embedded</a>&gt;. The repository on
+git.tukaani.org will be maintained as a mirror with some delay.
+
+XZ Utils 5.4.6 and 5.5.1alpha are available at
+&lt;<a  rel="nofollow" href="https://xz.tukaani.org/xz-utils/">https://xz.tukaani.org/xz-utils/</a>&gt;.
+
+Here is an extract from the NEWS file:
+
+5.4.6 (2024-01-26)
+
+    * Fixed a bug involving internal function pointers in liblzma not
+      being initialized to NULL. The bug can only be triggered if
+      lzma_filters_update() is called on a LZMA1 encoder, so it does
+      not affect xz or any application known to us that uses liblzma.
+
+    * xz:
+
+        - Fixed a regression introduced in 5.4.2 that caused encoding
+          in the raw format to unnecessarily fail if --suffix was not
+          used. For instance, the following command no longer reports
+          that --suffix must be used:
+
+              echo foo | xz --format=raw --lzma2 | wc -c
+
+        - Fixed an issue on MinGW-w64 builds that prevented reading
+          from or writing to non-terminal character devices like NUL.
+
+    * Added a new test.
+
+
+5.5.1alpha (2024-01-26)
+
+    * Added a new filter for RISC-V binaries. The filter can be used
+      for 32-bit and 64-bit binaries with either little or big
+      endianness. In liblzma, the Filter ID is LZMA_FILTER_RISCV (0x0B)
+      and the xz option is --riscv. liblzma filter string syntax
+      recognizes this filter as &quot;riscv&quot;.
+
+    * liblzma:
+
+        - Added lzma_mt_block_size() to recommend a Block size for
+          multithreaded encoding
+
+        - Added CLMUL-based CRC32 on x86-64 and E2K with runtime
+          processor detection. Similar to CRC64, on 32-bit x86 it
+          isn't available unless --disable-assembler is used.
+
+        - Implemented GNU indirect function (IFUNC) as a runtime
+          function dispatching method for CRC32 and CRC64 fast
+          implementations on x86. Only GNU/Linux (glibc) and FreeBSD
+          builds will use IFUNC, unless --enable-ifunc is specified to
+          configure.
+
+        - Added definitions of mask values like
+          LZMA_INDEX_CHECK_MASK_CRC32 to &lt;lzma/index.h&gt;.
+
+        - The XZ logo is now included in the Doxygen generated
+          documentation. It is licensed under Creative Commons
+          Attribution-ShareAlike 4.0.
+
+    * xz:
+
+        - Multithreaded mode is now the default. This improves
+          compression speed and creates .xz files that can be
+          decompressed multithreaded at the cost of increased memory
+          usage and slightly worse compression ratio.
+
+        - Added new command line option --filters to set the filter
+          chain using liblzma filter string syntax.
+
+        - Added new command line options --filters1 ... --filters9 to
+          set additional filter chains using liblzma filter string
+          syntax. The --block-list option now allows specifying filter
+          chains that were set using these new options.
+
+        - Added support for Linux Landlock as a sandboxing method.
+
+        - xzdec now supports pledge(2), Capsicum, and Linux Landlock as
+          sandboxing methods.
+
+        - Progress indicator time stats remain accurate after pausing
+          xz with SIGTSTP.
+
+        - Ported xz and xzdec to Windows MSVC. Visual Studio 2015 or
+          later is required.
+
+    * CMake Build:
+
+        - Supports pledge(2), Capsicum, and Linux Landlock sandboxing
+          methods.
+
+        - Replacement functions for getopt_long() are used on platforms
+          that do not have it.
+
+    * Enabled unaligned access by default on PowerPC64LE and on RISC-V
+      targets that define __riscv_misaligned_fast.
+
+    * Tests:
+
+        - Added two new fuzz targets to OSS-Fuzz.
+
+        - Implemented Continuous Integration (CI) testing using
+          GitHub Actions.
+
+    * Changed quoting style from `...' to '...' in all messages,
+      scripts, and documentation.
+
+    * Added basic Codespell support to help catch typo errors.
+
+---
+Jia Tan
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00641.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00642">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00642">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00643.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ Utils 5.4.6, 5.5.1alpha, and website changes">
+<input type="hidden" name="msgid" value="CAMzPPJ_0MFgCWuhfUuKnNTY9zAL2WKL4_oe7yeZ2eFFZmdhqbw@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00642.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.4.6%2C+5.5.1alpha%2C+and+website+changes%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00641.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00643.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ_0MFgCWuhfUuKnNTY9zAL2WKL4_oe7yeZ2eFFZmdhqbw@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

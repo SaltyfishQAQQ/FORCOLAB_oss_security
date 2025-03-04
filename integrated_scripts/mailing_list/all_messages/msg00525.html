@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ memory usage limiting for --threads=0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00525" id="c">
+<link rel="index" href="maillist.html#00525" id="i">
+<link rel="prev" href="msg00519.html" id="p">
+<link rel="next" href="msg00527.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00525.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+memory+usage+limiting+for+%5C-%5C-threads%3D0%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ memory usage limiting for --threads=0</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20211221" rel="nofollow">Tue, 21 Dec 2021 05:22:25 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>This patch adds memory limiting in xz when --threads=0 is specified.
+Here is a summary of what I changed:</pre><pre>
+
+-Added tuklib_freemem function to determine the amount of free bytes
+in memory on the system at runtime. Currently supports only Windows
+and Linux, but it should be easy to support more in the future
+-Added lzma_freemem to the lzma API
+-Added lzma_stream_encoder_mt_bytes_per_thread to the lzma API to
+estimate how much memory each thread uses
+-Altered lzma_outq_memusage to only use 1 thread
+-Added use_optimal_threads flag to hardware.h to track if --threads=0
+was specified
+-Adjusted number of threads if necessary in coder.c
+
+Additionally, I made changes to hardware_memlimit_show while I was
+developing the feature. It now displays the available free memory. If
+you don't think this belongs, I have no problem removing it.
+
+I also updated liblzma.map since I updated the API. I assumed our next
+release is 5.3.3, so if that is incorrect I am happy to fix it.
+
+Jia Tan
+</pre><pre>From 6321191ef2950b18c5a292d33e5e39a5ed9fe6bc Mon Sep 17 00:00:00 2001
+From: jiat75 &lt;jiat0...@gmail.com&gt;
+Date: Tue, 21 Dec 2021 20:54:15 +0800
+Subject: [PATCH] Memory usage limiting for --threads=0
+
+---
+ CMakeLists.txt                         |   4 +
+ cmake/tuklib_freemem.cmake             |  76 +++++
+ configure.ac                           |   1 +
+ m4/tuklib_freemem.m4                   |  73 +++++
+ src/Makefile.am                        |   2 +
+ src/common/tuklib_freemem.c            |  65 ++++
+ src/common/tuklib_freemem.h            |  28 ++
+ src/liblzma/Makefile.am                |   1 +
+ src/liblzma/api/lzma/container.h       |  14 +
+ src/liblzma/api/lzma/hardware.h        |  15 +
+ src/liblzma/common/hardware_physmem.c  |   9 +
+ src/liblzma/common/outqueue.c          |   6 +-
+ src/liblzma/common/outqueue.h          | 424 ++++++++++++-------------
+ src/liblzma/common/stream_encoder_mt.c |  70 ++--
+ src/liblzma/liblzma.map                |   9 +-
+ src/xz/coder.c                         |  25 ++
+ src/xz/hardware.c                      |  19 ++
+ src/xz/hardware.h                      |   5 +
+ 18 files changed, 601 insertions(+), 245 deletions(-)
+ create mode 100644 cmake/tuklib_freemem.cmake
+ create mode 100644 m4/tuklib_freemem.m4
+ create mode 100644 src/common/tuklib_freemem.c
+ create mode 100644 src/common/tuklib_freemem.h
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 88bec28..0f9918d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -54,6 +54,7 @@ include(CheckStructHasMember)
+ include(cmake/tuklib_integer.cmake)
+ include(cmake/tuklib_cpucores.cmake)
+ include(cmake/tuklib_physmem.cmake)
++include(cmake/tuklib_freemem.cmake)
+ include(cmake/tuklib_progname.cmake)
+ include(cmake/tuklib_mbstr.cmake)
+ 
+@@ -200,6 +201,8 @@ add_library(liblzma
+     src/common/tuklib_integer.h
+     src/common/tuklib_physmem.c
+     src/common/tuklib_physmem.h
++    src/common/tuklib_freemem.c
++    src/common/tuklib_freemem.h
+     src/liblzma/api/lzma.h
+     src/liblzma/api/lzma/base.h
+     src/liblzma/api/lzma/bcj.h
+@@ -352,6 +355,7 @@ target_link_libraries(liblzma Threads::Threads)
+ target_compile_definitions(liblzma PRIVATE TUKLIB_SYMBOL_PREFIX=lzma_)
+ tuklib_cpucores(liblzma)
+ tuklib_physmem(liblzma)
++tuklib_freemem(liblzma)
+ 
+ # While liblzma can be built without tuklib_cpucores or tuklib_physmem
+ # modules, the liblzma API functions lzma_cputhreads() and lzma_physmem()
+diff --git a/cmake/tuklib_freemem.cmake b/cmake/tuklib_freemem.cmake
+new file mode 100644
+index 0000000..ee9f0ba
+--- /dev/null
++++ b/cmake/tuklib_freemem.cmake
+@@ -0,0 +1,76 @@
++#
++# tuklib_freemem.cmake
++#
++# Author: Jia Tan
++#
++#	TODO - add support for more operating systems
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++
++include(&quot;${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake&quot;)
++include(CheckCSourceCompiles)
++include(CheckIncludeFile)
++
++function(tuklib_freemem_internal_check)
++    # Shortcut on Windows:
++    if(WIN32 OR CYGWIN)
++        # Nothing to do, the tuklib_freemem.c handles it.
++        set(TUKLIB_FREEMEM_DEFINITIONS &quot;&quot; CACHE INTERNAL &quot;&quot;)
++        return()
++    endif()
++
++    # Full check for special cases:
++    check_c_source_compiles(&quot;
++            #if defined(_WIN32) || defined(__CYGWIN__)
++            int main(void) { return 0; }
++            #else
++            compile error
++            #endif
++        &quot;
++        TUKLIB_FREEMEM_SPECIAL)
++    if(TUKLIB_FREEMEM_SPECIAL)
++        set(TUKLIB_FREEMEM_DEFINITIONS &quot;&quot; CACHE INTERNAL &quot;&quot;)
++        return()
++    endif()
++
++    # sysinfo
++    check_c_source_compiles(&quot;
++        #include &lt;sys/sysinfo.h&gt;
++        int
++        main(void)
++        {
++            struct sysinfo si;
++            sysinfo(&amp;si);
++            return si.freeram;
++        }
++    &quot;
++    TUKLIB_FREEMEM_SYSINFO)
++
++    if(TUKLIB_FREEMEM_SYSINFO)
++        set(TUKLIB_FREEMEM_DEFINITIONS &quot;TUKLIB_FREEMEM_SYSINFO&quot;
++            CACHE INTERNAL &quot;&quot;)
++        return()
++    endif()
++endfunction()
++
++function(tuklib_freemem TARGET_OR_ALL)
++    if(NOT DEFINED TUKLIB_FREEMEM_FOUND)
++        message(STATUS &quot;Checking how to detect the amount of free memory&quot;)
++        tuklib_freemem_internal_check()
++
++        if(DEFINED TUKLIB_FREEMEM_DEFINITIONS)
++            set(TUKLIB_FREEMEM_FOUND 1 CACHE INTERNAL &quot;&quot;)
++        else()
++            set(TUKLIB_FREEMEM_FOUND 0 CACHE INTERNAL &quot;&quot;)
++            message(WARNING
++                &quot;No method to detect the amount of free memory was found&quot;)
++        endif()
++    endif()
++
++    if(TUKLIB_FREEMEM_FOUND)
++        tuklib_add_definitions(&quot;${TARGET_OR_ALL}&quot;
++                               &quot;${TUKLIB_FREEMEM_DEFINITIONS}&quot;)
++    endif()
++endfunction()
+diff --git a/configure.ac b/configure.ac
+index 2418e4b..ee8156e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -720,6 +720,7 @@ AC_CHECK_FUNCS([posix_fadvise])
+ TUKLIB_PROGNAME
+ TUKLIB_INTEGER
+ TUKLIB_PHYSMEM
++TUKLIB_FREEMEM
+ TUKLIB_CPUCORES
+ TUKLIB_MBSTR
+ 
+diff --git a/m4/tuklib_freemem.m4 b/m4/tuklib_freemem.m4
+new file mode 100644
+index 0000000..876e987
+--- /dev/null
++++ b/m4/tuklib_freemem.m4
+@@ -0,0 +1,73 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_FREEMEM
++#
++# DESCRIPTION
++#
++#   Check how to get the amount of free memory.
++#   This information is used in tuklib_freemem.c.
++#
++#   Supported methods:
++#
++#     - Windows (including Cygwin)
++#
++#     - sysinfo() works on Linux/dietlibc
++#
++#	TODO - add support for more operating systems
++#
++# COPYING
++#
++#   Author: Jia Tan
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_FREEMEM], [
++AC_REQUIRE([TUKLIB_COMMON])
++
++AC_CACHE_CHECK([how to detect the amount of free memory],
++	[tuklib_cv_freesmem_method], [
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#if defined(_WIN32) || defined(__CYGWIN__)
++int main(void) { return 0; }
++#else
++compile error
++#endif
++]])], [tuklib_cv_freemem_method=special], [
++
++# This version of sysinfo() is Linux-specific. Some non-Linux systems have
++# different sysinfo() so we must check $host_os.
++case $host_os in
++	linux*)
++		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include &lt;sys/sysinfo.h&gt;
++int
++main(void)
++{
++	struct sysinfo si;
++	sysinfo(&amp;si);
++	return 0;
++}
++		]])], [
++			tuklib_cv_freemem_method=sysinfo
++		], [
++			tuklib_cv_freemem_method=unknown
++		])
++		;;
++	*)
++		tuklib_cv_freemem_method=unknown
++		;;
++esac
++])])
++
++case $tuklib_cv_freemem_method in
++	sysinfo)
++		AC_DEFINE([TUKLIB_FREEMEM_SYSINFO], [1],
++			[Define to 1 if the amount of free memory
++			can be detected with Linux sysinfo().])
++		;;
++esac
++])dnl
+diff --git a/src/Makefile.am b/src/Makefile.am
+index d199e85..9c305f2 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -29,6 +29,8 @@ EXTRA_DIST = \
+ 	common/tuklib_cpucores.h \
+ 	common/tuklib_exit.c \
+ 	common/tuklib_exit.h \
++	common/tuklib_freemem.c \
++	common/tuklib_freemem.h \
+ 	common/tuklib_gettext.h \
+ 	common/tuklib_integer.h \
+ 	common/tuklib_mbstr_fw.c \
+diff --git a/src/common/tuklib_freemem.c b/src/common/tuklib_freemem.c
+new file mode 100644
+index 0000000..8464fd9
+--- /dev/null
++++ b/src/common/tuklib_freemem.c
+@@ -0,0 +1,65 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_freemem.c
++/// \brief      Estimate the amount of free memory in the system
++//
++//  Author:     Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include &quot;tuklib_freemem.h&quot;
++
++#if defined(_WIN32) || defined(__CYGWIN__)
++#	ifndef _WIN32_WINNT
++#		define _WIN32_WINNT 0x0500
++#	endif
++#	include &lt;windows.h&gt;
++#elif defined(TUKLIB_FREEMEM_SYSINFO)
++#	include &lt;sys/sysinfo.h&gt;
++#endif
++
++
++extern uint64_t
++tuklib_freemem(void)
++{
++	uint64_t ret = 0;
++#if defined(_WIN32) || defined(__CYGWIN__)
++	if ((GetVersion() &amp; 0xFF) &gt;= 5) {
++		// Windows 2000 and later have GlobalMemoryStatusEx() which
++		// supports reporting values greater than 4 GiB. To keep the
++		// code working also on older Windows versions, use
++		// GlobalMemoryStatusEx() conditionally.
++		HMODULE kernel32 = GetModuleHandle(&quot;kernel32.dll&quot;);
++		if (kernel32 != NULL) {
++			typedef BOOL (WINAPI *gmse_type)(LPMEMORYSTATUSEX);
++			gmse_type gmse = (gmse_type)GetProcAddress(
++					kernel32, &quot;GlobalMemoryStatusEx&quot;);
++			if (gmse != NULL) {
++				MEMORYSTATUSEX meminfo;
++				meminfo.dwLength = sizeof(meminfo);
++				if (gmse(&amp;meminfo))
++					ret = meminfo.ullAvailPhys;
++			}
++		}
++	}
++
++	if (ret == 0) {
++		// GlobalMemoryStatus() is supported by Windows 95 and later,
++		// so it is fine to link against it unconditionally. Note that
++		// GlobalMemoryStatus() has no return value.
++		MEMORYSTATUS meminfo;
++		meminfo.dwLength = sizeof(meminfo);
++		GlobalMemoryStatus(&amp;meminfo);
++		ret = meminfo.dwAvailPhys;
++	}
++#elif defined(TUKLIB_FREEMEM_SYSINFO)
++	struct sysinfo si;
++	if(!sysinfo(&amp;si)){
++		ret = si.freeram;
++	}
++#endif
++	return ret;
++}
+diff --git a/src/common/tuklib_freemem.h b/src/common/tuklib_freemem.h
+new file mode 100644
+index 0000000..8c65cf7
+--- /dev/null
++++ b/src/common/tuklib_freemem.h
+@@ -0,0 +1,28 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_freemem.h
++/// \brief      Estimate the amount of free memory in the system
++//
++//  Author:     Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_FREEMEM_H
++#define TUKLIB_FREEMEM_H
++
++#include &quot;tuklib_common.h&quot;
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_freemem TUKLIB_SYMBOL(tuklib_freemem)
++extern uint64_t tuklib_freemem(void);
++///&lt;
++/// \brief      Get the amount of free memory in bytes
++///
++/// \return     Amount of free memory in bytes. On error, zero is
++///             returned.
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 6323e26..dd3f3d7 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -33,6 +33,7 @@ liblzma_la_LDFLAGS += \
+ endif
+ 
+ liblzma_la_SOURCES += ../common/tuklib_physmem.c
++liblzma_la_SOURCES += ../common/tuklib_freemem.c
+ 
+ if COND_THREADS
+ liblzma_la_SOURCES += ../common/tuklib_cpucores.c
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index cbb37c8..0a7eb70 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -334,6 +334,20 @@ extern LZMA_API(lzma_ret) lzma_stream_encoder(lzma_stream *strm,
+ extern LZMA_API(uint64_t) lzma_stream_encoder_mt_memusage(
+ 		const lzma_mt *options) lzma_nothrow lzma_attr_pure;
+ 
++/**
++ * @brief 	Calculate approximate memory usage of one thread in .xz encoder
++ *
++ * This function is required for xz to determine how many threads it can
++ * use if an optimal number of threads is requested.
++ *
++ * \param	options Compression options
++ *
++ * \return	Number of bytes of memory required for one thread given
++ * 		the options. If an error occurs, UINT64_MAX is returned..
++ */
++extern LZMA_API(uint64_t) lzma_stream_encoder_mt_bytes_per_thread(
++		const lzma_mt *options) lzma_nothrow lzma_attr_pure;
++
+ 
+ /**
+  * \brief       Initialize multithreaded .xz Stream encoder
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index 47481f2..b5494fd 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -49,6 +49,21 @@
+  */
+ extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
+ 
++/**
++ * @brief 	Get the estimated amount of free memory (RAM) in bytes
++ *
++ * This function may be useful when determining a resonable memory
++ * usage limit for multithreaded mode when an optimal number of threads
++ * is requeted.
++ *
++ * \return 	On success, the estimated amount of free memory in bytes
++ * 		is returned. If the amount of free RAM cannot be determined,
++ * 		zero is returned. This can happen if an error occurs or if
++ * 		there is no code in liblzma to detect the free memory on
++ * 		the specific operating system.
++ */
++extern LZMA_API(uint64_t) lzma_freemem(void) lzma_nothrow;
++
+ 
+ /**
+  * \brief       Get the number of processor cores or threads
+diff --git a/src/liblzma/common/hardware_physmem.c b/src/liblzma/common/hardware_physmem.c
+index a2bbbe2..c3b5fac 100644
+--- a/src/liblzma/common/hardware_physmem.c
++++ b/src/liblzma/common/hardware_physmem.c
+@@ -13,6 +13,7 @@
+ #include &quot;common.h&quot;
+ 
+ #include &quot;tuklib_physmem.h&quot;
++#include &quot;tuklib_freemem.h&quot;
+ 
+ 
+ extern LZMA_API(uint64_t)
+@@ -23,3 +24,11 @@ lzma_physmem(void)
+ 	// support for the tuklib modules.
+ 	return tuklib_physmem();
+ }
++
++extern LZMA_API(uint64_t)
++lzma_freemem(void)
++{
++	// Similar to lzma_physmem, it is easiest to simply wrap
++	// tuklib_freemem()
++	return tuklib_freemem();
++}
+diff --git a/src/liblzma/common/outqueue.c b/src/liblzma/common/outqueue.c
+index 6331a50..973e43d 100644
+--- a/src/liblzma/common/outqueue.c
++++ b/src/liblzma/common/outqueue.c
+@@ -21,7 +21,7 @@
+ 
+ 
+ extern uint64_t
+-lzma_outq_memusage(uint64_t buf_size_max, uint32_t threads)
++lzma_outq_memusage_per_thread(uint64_t buf_size_max)
+ {
+ 	// This is to ease integer overflow checking: We may allocate up to
+ 	// GET_BUFS_LIMIT(LZMA_THREADS_MAX) buffers and we need some extra
+@@ -31,10 +31,10 @@ lzma_outq_memusage(uint64_t buf_size_max, uint32_t threads)
+ 	const uint64_t limit
+ 			= UINT64_MAX / GET_BUFS_LIMIT(LZMA_THREADS_MAX) / 2;
+ 
+-	if (threads &gt; LZMA_THREADS_MAX || buf_size_max &gt; limit)
++	if (buf_size_max &gt; limit)
+ 		return UINT64_MAX;
+ 
+-	return GET_BUFS_LIMIT(threads) * (sizeof(lzma_outbuf) + buf_size_max);
++	return GET_BUFS_LIMIT(1) * (sizeof(lzma_outbuf) + buf_size_max);
+ }
+ 
+ 
+diff --git a/src/liblzma/common/outqueue.h b/src/liblzma/common/outqueue.h
+index 355e0ce..c1b1774 100644
+--- a/src/liblzma/common/outqueue.h
++++ b/src/liblzma/common/outqueue.h
+@@ -1,212 +1,212 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       outqueue.h
+-/// \brief      Output queue handling in multithreaded coding
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include &quot;common.h&quot;
+-
+-
+-/// Output buffer for a single thread
+-typedef struct lzma_outbuf_s lzma_outbuf;
+-struct lzma_outbuf_s {
+-	/// Pointer to the next buffer. This is used for the cached buffers.
+-	/// The worker thread must not modify this.
+-	lzma_outbuf *next;
+-
+-	/// This initialized by lzma_outq_get_buf() and
+-	/// is used by lzma_outq_enable_partial_output().
+-	/// The worker thread must not modify this.
+-	void *worker;
+-
+-	/// Amount of memory allocated for buf[].
+-	/// The worker thread must not modify this.
+-	size_t allocated;
+-
+-	/// Writing position in the worker thread or, in other words, the
+-	/// amount of finished data written to buf[] which can be copied out
+-	///
+-	/// \note       This is read by another thread and thus access
+-	///             to this variable needs a mutex.
+-	size_t pos;
+-
+-	/// True when no more data will be written into this buffer.
+-	///
+-	/// \note       This is read by another thread and thus access
+-	///             to this variable needs a mutex.
+-	bool finished;
+-
+-	/// Additional size information. lzma_outq_read() may read these
+-	/// when &quot;finished&quot; is true.
+-	lzma_vli unpadded_size;
+-	lzma_vli uncompressed_size;
+-
+-	/// Buffer of &quot;allocated&quot; bytes
+-	uint8_t buf[];
+-};
+-
+-
+-typedef struct {
+-	/// Linked list of buffers in use. The next output byte will be
+-	/// read from the head and buffers for the next thread will be
+-	/// appended to the tail. tail-&gt;next is always NULL.
+-	lzma_outbuf *head;
+-	lzma_outbuf *tail;
+-
+-	/// Number of bytes read from head-&gt;buf[] in lzma_outq_read()
+-	size_t read_pos;
+-
+-	/// Linked list of allocated buffers that aren't currently used.
+-	/// This way buffers of similar size can be reused and don't
+-	/// need to be reallocated every time. For simplicity, all
+-	/// cached buffers in the list have the same allocated size.
+-	lzma_outbuf *cache;
+-
+-	/// Total amount of memory allocated for buffers
+-	uint64_t memusage;
+-
+-	/// Number of buffers in use in the head...tail list. If and only if
+-	/// this is zero, the pointers head and tail above are NULL.
+-	uint32_t bufs_in_use;
+-
+-	/// Number of buffers allocated (in use + cached)
+-	uint32_t bufs_allocated;
+-
+-	/// Maximum allowed number of allocated buffers
+-	uint32_t bufs_limit;
+-} lzma_outq;
+-
+-
+-/**
+- * \brief       Calculate the memory usage of an output queue
+- *
+- * \return      Approximate memory usage in bytes or UINT64_MAX on error.
+- */
+-extern uint64_t lzma_outq_memusage(uint64_t buf_size_max, uint32_t threads);
+-
+-
+-/// \brief      Initialize an output queue
+-///
+-/// \param      outq            Pointer to an output queue. Before calling
+-///                             this function the first time, *outq should
+-///                             have been zeroed with memzero() so that this
+-///                             function knows that there are no previous
+-///                             allocations to free.
+-/// \param      allocator       Pointer to allocator or NULL
+-/// \param      threads         Number of buffers that may be in use
+-///                             concurrently. Note that more than this number
+-///                             of buffers may actually get allocated to
+-///                             improve performance when buffers finish
+-///                             out of order. The actual maximum number of
+-///                             allocated buffers is derived from the number
+-///                             of threads.
+-///
+-/// \return     - LZMA_OK
+-///             - LZMA_MEM_ERROR
+-///
+-extern lzma_ret lzma_outq_init(lzma_outq *outq,
+-		const lzma_allocator *allocator, uint32_t threads);
+-
+-
+-/// \brief      Free the memory associated with the output queue
+-extern void lzma_outq_end(lzma_outq *outq, const lzma_allocator *allocator);
+-
+-
+-/// \brief      Free all cached buffers that consume memory but aren't in use
+-extern void lzma_outq_clear_cache(
+-		lzma_outq *outq, const lzma_allocator *allocator);
+-
+-
+-/// \brief      Preallocate a new buffer into cache
+-///
+-/// Splitting the buffer allocation into a separate function makes it
+-/// possible to ensure that way lzma_outq_get_buf() cannot fail.
+-/// If the preallocated buffer isn't actually used (for example, some
+-/// other error occurs), the caller has to do nothing as the buffer will
+-/// be used later or cleared from the cache when not needed.
+-///
+-/// \return     LZMA_OK on success, LZMA_MEM_ERROR if allocation fails
+-///
+-extern lzma_ret lzma_outq_prealloc_buf(
+-		lzma_outq *outq, const lzma_allocator *allocator, size_t size);
+-
+-
+-/// \brief      Get a new buffer
+-///
+-/// lzma_outq_prealloc_buf() must be used to ensure that there is a buffer
+-/// available before calling lzma_outq_get_buf().
+-///
+-extern lzma_outbuf *lzma_outq_get_buf(lzma_outq *outq, void *worker);
+-
+-
+-/// \brief      Test if there is data ready to be read
+-///
+-/// Call to this function must be protected with the same mutex that
+-/// is used to protect lzma_outbuf.finished.
+-///
+-extern bool lzma_outq_is_readable(const lzma_outq *outq);
+-
+-
+-/// \brief      Read finished data
+-///
+-/// \param      outq            Pointer to an output queue
+-/// \param      out             Beginning of the output buffer
+-/// \param      out_pos         The next byte will be written to
+-///                             out[*out_pos].
+-/// \param      out_size        Size of the out buffer; the first byte into
+-///                             which no data is written to is out[out_size].
+-/// \param      unpadded_size   Unpadded Size from the Block encoder
+-/// \param      uncompressed_size Uncompressed Size from the Block encoder
+-///
+-/// \return     - LZMA: All OK. Either no data was available or the buffer
+-///               being read didn't become empty yet.
+-///             - LZMA_STREAM_END: The buffer being read was finished.
+-///               *unpadded_size and *uncompressed_size were set if they
+-///               were not NULL.
+-///
+-/// \note       This reads lzma_outbuf.finished and .pos variables and thus
+-///             calls to this function need to be protected with a mutex.
+-///
+-extern lzma_ret lzma_outq_read(lzma_outq *restrict outq,
+-		const lzma_allocator *restrict allocator,
+-		uint8_t *restrict out, size_t *restrict out_pos,
+-		size_t out_size, lzma_vli *restrict unpadded_size,
+-		lzma_vli *restrict uncompressed_size);
+-
+-
+-/// \brief      Enable partial output from a worker thread
+-///
+-/// If the buffer at the head of the output queue isn't finished,
+-/// this will call enable_partial_output on the worker associated with
+-/// that output buffer.
+-///
+-/// \note       This reads a lzma_outbuf.finished variable and thus
+-///             calls to this function need to be protected with a mutex.
+-///
+-extern void lzma_outq_enable_partial_output(lzma_outq *outq,
+-		void (*enable_partial_output)(void *worker));
+-
+-
+-/// \brief      Test if there is at least one buffer free
+-///
+-/// This must be used before getting a new buffer with lzma_outq_get_buf().
+-///
+-static inline bool
+-lzma_outq_has_buf(const lzma_outq *outq)
+-{
+-	return outq-&gt;bufs_in_use &lt; outq-&gt;bufs_limit;
+-}
+-
+-
+-/// \brief      Test if the queue is completely empty
+-static inline bool
+-lzma_outq_is_empty(const lzma_outq *outq)
+-{
+-	return outq-&gt;bufs_in_use == 0;
+-}
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       outqueue.h
++/// \brief      Output queue handling in multithreaded coding
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include &quot;common.h&quot;
++
++
++/// Output buffer for a single thread
++typedef struct lzma_outbuf_s lzma_outbuf;
++struct lzma_outbuf_s {
++	/// Pointer to the next buffer. This is used for the cached buffers.
++	/// The worker thread must not modify this.
++	lzma_outbuf *next;
++
++	/// This initialized by lzma_outq_get_buf() and
++	/// is used by lzma_outq_enable_partial_output().
++	/// The worker thread must not modify this.
++	void *worker;
++
++	/// Amount of memory allocated for buf[].
++	/// The worker thread must not modify this.
++	size_t allocated;
++
++	/// Writing position in the worker thread or, in other words, the
++	/// amount of finished data written to buf[] which can be copied out
++	///
++	/// \note       This is read by another thread and thus access
++	///             to this variable needs a mutex.
++	size_t pos;
++
++	/// True when no more data will be written into this buffer.
++	///
++	/// \note       This is read by another thread and thus access
++	///             to this variable needs a mutex.
++	bool finished;
++
++	/// Additional size information. lzma_outq_read() may read these
++	/// when &quot;finished&quot; is true.
++	lzma_vli unpadded_size;
++	lzma_vli uncompressed_size;
++
++	/// Buffer of &quot;allocated&quot; bytes
++	uint8_t buf[];
++};
++
++
++typedef struct {
++	/// Linked list of buffers in use. The next output byte will be
++	/// read from the head and buffers for the next thread will be
++	/// appended to the tail. tail-&gt;next is always NULL.
++	lzma_outbuf *head;
++	lzma_outbuf *tail;
++
++	/// Number of bytes read from head-&gt;buf[] in lzma_outq_read()
++	size_t read_pos;
++
++	/// Linked list of allocated buffers that aren't currently used.
++	/// This way buffers of similar size can be reused and don't
++	/// need to be reallocated every time. For simplicity, all
++	/// cached buffers in the list have the same allocated size.
++	lzma_outbuf *cache;
++
++	/// Total amount of memory allocated for buffers
++	uint64_t memusage;
++
++	/// Number of buffers in use in the head...tail list. If and only if
++	/// this is zero, the pointers head and tail above are NULL.
++	uint32_t bufs_in_use;
++
++	/// Number of buffers allocated (in use + cached)
++	uint32_t bufs_allocated;
++
++	/// Maximum allowed number of allocated buffers
++	uint32_t bufs_limit;
++} lzma_outq;
++
++
++/**
++ * \brief       Calculate the memory usage of an output queue per thread
++ *
++ * \return      Approximate memory usage in bytes or UINT64_MAX on error.
++ */
++extern uint64_t lzma_outq_memusage_per_thread(uint64_t buf_size_max);
++
++
++/// \brief      Initialize an output queue
++///
++/// \param      outq            Pointer to an output queue. Before calling
++///                             this function the first time, *outq should
++///                             have been zeroed with memzero() so that this
++///                             function knows that there are no previous
++///                             allocations to free.
++/// \param      allocator       Pointer to allocator or NULL
++/// \param      threads         Number of buffers that may be in use
++///                             concurrently. Note that more than this number
++///                             of buffers may actually get allocated to
++///                             improve performance when buffers finish
++///                             out of order. The actual maximum number of
++///                             allocated buffers is derived from the number
++///                             of threads.
++///
++/// \return     - LZMA_OK
++///             - LZMA_MEM_ERROR
++///
++extern lzma_ret lzma_outq_init(lzma_outq *outq,
++		const lzma_allocator *allocator, uint32_t threads);
++
++
++/// \brief      Free the memory associated with the output queue
++extern void lzma_outq_end(lzma_outq *outq, const lzma_allocator *allocator);
++
++
++/// \brief      Free all cached buffers that consume memory but aren't in use
++extern void lzma_outq_clear_cache(
++		lzma_outq *outq, const lzma_allocator *allocator);
++
++
++/// \brief      Preallocate a new buffer into cache
++///
++/// Splitting the buffer allocation into a separate function makes it
++/// possible to ensure that way lzma_outq_get_buf() cannot fail.
++/// If the preallocated buffer isn't actually used (for example, some
++/// other error occurs), the caller has to do nothing as the buffer will
++/// be used later or cleared from the cache when not needed.
++///
++/// \return     LZMA_OK on success, LZMA_MEM_ERROR if allocation fails
++///
++extern lzma_ret lzma_outq_prealloc_buf(
++		lzma_outq *outq, const lzma_allocator *allocator, size_t size);
++
++
++/// \brief      Get a new buffer
++///
++/// lzma_outq_prealloc_buf() must be used to ensure that there is a buffer
++/// available before calling lzma_outq_get_buf().
++///
++extern lzma_outbuf *lzma_outq_get_buf(lzma_outq *outq, void *worker);
++
++
++/// \brief      Test if there is data ready to be read
++///
++/// Call to this function must be protected with the same mutex that
++/// is used to protect lzma_outbuf.finished.
++///
++extern bool lzma_outq_is_readable(const lzma_outq *outq);
++
++
++/// \brief      Read finished data
++///
++/// \param      outq            Pointer to an output queue
++/// \param      out             Beginning of the output buffer
++/// \param      out_pos         The next byte will be written to
++///                             out[*out_pos].
++/// \param      out_size        Size of the out buffer; the first byte into
++///                             which no data is written to is out[out_size].
++/// \param      unpadded_size   Unpadded Size from the Block encoder
++/// \param      uncompressed_size Uncompressed Size from the Block encoder
++///
++/// \return     - LZMA: All OK. Either no data was available or the buffer
++///               being read didn't become empty yet.
++///             - LZMA_STREAM_END: The buffer being read was finished.
++///               *unpadded_size and *uncompressed_size were set if they
++///               were not NULL.
++///
++/// \note       This reads lzma_outbuf.finished and .pos variables and thus
++///             calls to this function need to be protected with a mutex.
++///
++extern lzma_ret lzma_outq_read(lzma_outq *restrict outq,
++		const lzma_allocator *restrict allocator,
++		uint8_t *restrict out, size_t *restrict out_pos,
++		size_t out_size, lzma_vli *restrict unpadded_size,
++		lzma_vli *restrict uncompressed_size);
++
++
++/// \brief      Enable partial output from a worker thread
++///
++/// If the buffer at the head of the output queue isn't finished,
++/// this will call enable_partial_output on the worker associated with
++/// that output buffer.
++///
++/// \note       This reads a lzma_outbuf.finished variable and thus
++///             calls to this function need to be protected with a mutex.
++///
++extern void lzma_outq_enable_partial_output(lzma_outq *outq,
++		void (*enable_partial_output)(void *worker));
++
++
++/// \brief      Test if there is at least one buffer free
++///
++/// This must be used before getting a new buffer with lzma_outq_get_buf().
++///
++static inline bool
++lzma_outq_has_buf(const lzma_outq *outq)
++{
++	return outq-&gt;bufs_in_use &lt; outq-&gt;bufs_limit;
++}
++
++
++/// \brief      Test if the queue is completely empty
++static inline bool
++lzma_outq_is_empty(const lzma_outq *outq)
++{
++	return outq-&gt;bufs_in_use == 0;
++}
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index 91cda99..5bb6983 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -1092,27 +1092,8 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	return LZMA_OK;
+ }
+ 
+-
+-extern LZMA_API(lzma_ret)
+-lzma_stream_encoder_mt(lzma_stream *strm, const lzma_mt *options)
+-{
+-	lzma_next_strm_init(stream_encoder_mt_init, strm, options);
+-
+-	strm-&gt;internal-&gt;supported_actions[LZMA_RUN] = true;
+-// 	strm-&gt;internal-&gt;supported_actions[LZMA_SYNC_FLUSH] = true;
+-	strm-&gt;internal-&gt;supported_actions[LZMA_FULL_FLUSH] = true;
+-	strm-&gt;internal-&gt;supported_actions[LZMA_FULL_BARRIER] = true;
+-	strm-&gt;internal-&gt;supported_actions[LZMA_FINISH] = true;
+-
+-	return LZMA_OK;
+-}
+-
+-
+-// This function name is a monster but it's consistent with the older
+-// monster names. :-( 31 chars is the max that C99 requires so in that
+-// sense it's not too long. ;-)
+ extern LZMA_API(uint64_t)
+-lzma_stream_encoder_mt_memusage(const lzma_mt *options)
++lzma_stream_encoder_mt_bytes_per_thread(const lzma_mt *options)
+ {
+ 	lzma_options_easy easy;
+ 	const lzma_filter *filters;
+@@ -1123,26 +1104,22 @@ lzma_stream_encoder_mt_memusage(const lzma_mt *options)
+ 			&amp;outbuf_size_max) != LZMA_OK)
+ 		return UINT64_MAX;
+ 
+-	// Memory usage of the input buffers
+-	const uint64_t inbuf_memusage = options-&gt;threads * block_size;
++	// Memory usage of the input buffer
++	const uint64_t inbuf_memusage = block_size;
+ 
+ 	// Memory usage of the filter encoders
+ 	uint64_t filters_memusage = lzma_raw_encoder_memusage(filters);
+ 	if (filters_memusage == UINT64_MAX)
+ 		return UINT64_MAX;
+ 
+-	filters_memusage *= options-&gt;threads;
+-
+ 	// Memory usage of the output queue
+-	const uint64_t outq_memusage = lzma_outq_memusage(
+-			outbuf_size_max, options-&gt;threads);
++	const uint64_t outq_memusage =
++			lzma_outq_memusage_per_thread(outbuf_size_max);
+ 	if (outq_memusage == UINT64_MAX)
+ 		return UINT64_MAX;
+ 
+ 	// Sum them with overflow checking.
+-	uint64_t total_memusage = LZMA_MEMUSAGE_BASE
+-			+ sizeof(lzma_stream_coder)
+-			+ options-&gt;threads * sizeof(worker_thread);
++	uint64_t total_memusage = sizeof(worker_thread);
+ 
+ 	if (UINT64_MAX - total_memusage &lt; inbuf_memusage)
+ 		return UINT64_MAX;
+@@ -1159,3 +1136,38 @@ lzma_stream_encoder_mt_memusage(const lzma_mt *options)
+ 
+ 	return total_memusage + outq_memusage;
+ }
++
++extern LZMA_API(lzma_ret)
++lzma_stream_encoder_mt(lzma_stream *strm, const lzma_mt *options)
++{
++	lzma_next_strm_init(stream_encoder_mt_init, strm, options);
++
++	strm-&gt;internal-&gt;supported_actions[LZMA_RUN] = true;
++// 	strm-&gt;internal-&gt;supported_actions[LZMA_SYNC_FLUSH] = true;
++	strm-&gt;internal-&gt;supported_actions[LZMA_FULL_FLUSH] = true;
++	strm-&gt;internal-&gt;supported_actions[LZMA_FULL_BARRIER] = true;
++	strm-&gt;internal-&gt;supported_actions[LZMA_FINISH] = true;
++
++	return LZMA_OK;
++}
++
++
++// This function name is a monster but it's consistent with the older
++// monster names. :-( 31 chars is the max that C99 requires so in that
++// sense it's not too long. ;-)
++extern LZMA_API(uint64_t)
++lzma_stream_encoder_mt_memusage(const lzma_mt *options)
++{
++	uint64_t bytes_per_thread = lzma_stream_encoder_mt_bytes_per_thread(options);
++	if(bytes_per_thread == UINT64_MAX)
++		return UINT64_MAX;
++
++	uint64_t total_memusage = LZMA_MEMUSAGE_BASE
++			+ sizeof(lzma_stream_coder)
++			+ options-&gt;threads * bytes_per_thread;
++
++	if (UINT64_MAX - total_memusage &lt; bytes_per_thread)
++		return UINT64_MAX;
++
++	return total_memusage;
++}
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index 6896a94..4d32622 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -109,7 +109,14 @@ global:
+ 	lzma_microlzma_decoder;
+ 	lzma_microlzma_encoder;
+ 	lzma_file_info_decoder;
+-
+ local:
+ 	*;
+ } XZ_5.2;
++
++XZ_5.3.3 {
++global:
++	lzma_freemem;
++	lzma_stream_encoder_mt_bytes_per_thread;
++local:
++	*;
++} XZ_5.3.2alpha;
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 85f9543..5b3c549 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -132,6 +132,24 @@ memlimit_too_small(uint64_t memory_usage)
+ 	tuklib_exit(E_ERROR, E_ERROR, false);
+ }
+ 
++#if defined(HAVE_ENCODERS) &amp;&amp; defined(MYTHREAD_ENABLED)
++static void
++set_optimal_thread_count()
++{
++	uint64_t free_memory = lzma_freemem();
++	if(free_memory &gt; 0){
++		uint64_t bytes_per_thread =
++			lzma_stream_encoder_mt_bytes_per_thread(&amp;mt_options);
++		if(bytes_per_thread != UINT64_MAX &amp;&amp; bytes_per_thread &gt; 0){
++			uint32_t max_threads =
++				(uint32_t) (free_memory / bytes_per_thread);
++			if(max_threads &lt; mt_options.threads){
++				mt_options.threads = max_threads;
++			}
++		}
++	}
++}
++#endif
+ 
+ extern void
+ coder_set_compression_settings(void)
+@@ -229,6 +247,13 @@ coder_set_compression_settings(void)
+ 			mt_options.threads = hardware_threads_get();
+ 			mt_options.block_size = opt_block_size;
+ 			mt_options.check = check;
++
++			// If --threads=0 is specified, be sure there
++			// is enough free memory to support maximum threads
++			if(hardware_get_use_optimal_threads()){
++				set_optimal_thread_count();
++			}
++
+ 			memory_usage = lzma_stream_encoder_mt_memusage(
+ 					&amp;mt_options);
+ 			if (memory_usage != UINT64_MAX)
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 0ad8c65..7eeb57e 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -17,6 +17,10 @@
+ /// the --threads=NUM command line option.
+ static uint32_t threads_max = 1;
+ 
++/// If --threads=0 is specified, set this flag to use an optimal
++/// number of threads
++static bool use_optimal_threads = false;
++
+ /// Memory usage limit for compression
+ static uint64_t memlimit_compress;
+ 
+@@ -40,6 +44,8 @@ hardware_threads_set(uint32_t n)
+ 		threads_max = lzma_cputhreads();
+ 		if (threads_max == 0)
+ 			threads_max = 1;
++		else
++			hardware_use_optimal_threads(true);
+ #else
+ 		threads_max = 1;
+ #endif
+@@ -57,6 +63,17 @@ hardware_threads_get(void)
+ 	return threads_max;
+ }
+ 
++extern void
++hardware_use_optimal_threads(bool use_optimal)
++{
++	use_optimal_threads = use_optimal;
++}
++
++extern bool
++hardware_get_use_optimal_threads(void)
++{
++	return use_optimal_threads;
++}
+ 
+ extern void
+ hardware_memlimit_set(uint64_t new_memlimit,
+@@ -168,6 +185,7 @@ hardware_memlimit_show(void)
+ 			_(&quot;Amount of physical memory (RAM):&quot;),
+ 			_(&quot;Memory usage limit for compression:&quot;),
+ 			_(&quot;Memory usage limit for decompression:&quot;),
++			_(&quot;Estimated free memory available:&quot;)
+ 		};
+ 
+ 		size_t width_max = 1;
+@@ -188,6 +206,7 @@ hardware_memlimit_show(void)
+ 		memlimit_show(msgs[0], width_max, total_ram);
+ 		memlimit_show(msgs[1], width_max, memlimit_compress);
+ 		memlimit_show(msgs[2], width_max, memlimit_decompress);
++		memlimit_show(msgs[3], width_max, lzma_freemem());
+ 	}
+ 
+ 	tuklib_exit(E_SUCCESS, E_ERROR, message_verbosity_get() != V_SILENT);
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index 4fae618..4b21a18 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -21,6 +21,11 @@ extern void hardware_threads_set(uint32_t threadlimit);
+ /// Get the maximum number of worker threads.
+ extern uint32_t hardware_threads_get(void);
+ 
++/// Set the use of optimal threads flag
++extern void hardware_use_optimal_threads(bool use_optimal);
++
++/// Get the use of optimal threads flag
++extern bool hardware_get_use_optimal_threads(void);
+ 
+ /// Set the memory usage limit. There are separate limits for compression
+ /// and decompression (the latter includes also --list), one or both can
+-- 
+2.25.1
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00519.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00525">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00525">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00527.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ memory usage limiting for --threads=0">
+<input type="hidden" name="msgid" value="CAMzPPJ8u+6oDoE5xfS2wc4pswMS1=VxP5sAO60kJbhLoMDku7g@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00525.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+memory+usage+limiting+for+%5C-%5C-threads%3D0%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00519.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00527.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ8u+6oDoE5xfS2wc4pswMS1=VxP5sAO60kJbhLoMDku7g@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

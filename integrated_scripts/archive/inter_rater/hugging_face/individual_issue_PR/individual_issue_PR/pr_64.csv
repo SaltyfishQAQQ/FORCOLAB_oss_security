@@ -1,0 +1,255 @@
+event,from,created_at,body
+thread_started,hansjans162,2023-09-25T19:53:53Z,"Added an implementation for crc32 that makes use of clmul.
+Code for this implementation was written by Ilya Kurdyukov and can be found here.
+https://github.com/ilyakurdyukov/crc-clmul-sim
+
+Also refactored crc64_clmul to use the new macros created for crc32_clmul.
+As well as moved similar functions to crc_clmul_common to eliminate duplicate code.
+
+I tested this on files doubling in size starting from 1 byte up to 1 Gigabyte.
+During testing I found that crc32_clmul can run up to 70% faster than crc32_generic,
+and has an average speed increase of 58.4% for sizes greater than 16 bytes.
+
+I also used this to test the reworked version of crc64_clmul.
+This version of crc64_clmul is an average of 3.9% faster than the original implementation.
+This speed increase is due to some inline assembly as well as changing around the order of some if statements. 
+
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [X] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [X] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+crc32\_fast currently only uses a generic implementation.
+
+
+## What is the new behavior?
+I added an implementation for crc32 that makes use of clmul in crc32_fast.c 
+Also refactored crc64_clmul implementation to use the same macros as crc32_clmul
+
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+
+## Other information
+
+Here is the output from both tests that gave me the statistics above.
+
+the number of unique files tested on and the number of times the crc is run
+decrease as the bytes get larger so the benchmark does not take too long.
+
+The 64 and 32 spd+ show the percentage speed increase over the generic.
+The percentage on the graph show the combined average for all types.
+For example (50% is twice as fast, 200% is twice as slow)
+```
+64 generic: #		64 clmul: +
+32 generic: =		32 clmul: *
+
+#bytes, #files,   #crc's,  64spd+,  32spd+: 0%          50%          100%        150%         200%
+    16,  30000, 20648881,  39.96%,  24.24%: |           |      +*    | =    #    |            |
+    32,  30000, 12782640,  55.79%,  36.26%: |           |   +*       |  =        #            |
+    64,  30000,  7255012,  72.19%,  50.27%: |           +*           | =         |       #    |
+   128,  30000,  3890368,  82.53%,  69.13%: |       +*  |            |    =      |            |#
+   256,  30000,  2018311,  82.19%,  68.21%: |        +  |            |   =       |            |#
+   512,  30000,  1028488,  79.37%,  63.75%: |         + |            |  =        |            #
+    1K,  30000,   519217,  78.11%,  62.22%: |         + |            |   =       |           #|
+    2K,  30000,   260870,  76.74%,  61.71%: |          +|            |  =        |          # |
+    4K,  30000,   130752,  76.78%,  60.15%: |          +|            |  =        |          # |
+    8K,  30000,    65456,  76.24%,  60.59%: |          +|            |  =        |          # |
+   16K,  30000,    32748,  76.66%,  60.03%: |          +|            |  =        |          # |
+   32K,  30000,    16379,  76.78%,  60.04%: |          +|            |  =        |          # |
+   64K,  16384,     8190,  76.62%,  59.76%: |          +|            |  =        |          # |
+  128K,   8192,     4095,  76.52%,  59.71%: |          +|            |  =        |          # |
+  256K,   4096,     2047,  76.32%,  59.78%: |          +|            |  =        |          # |
+  512K,   2048,     1023,  84.70%,  60.09%: |        +  |         =  |           |            |       #
+    1M,   1024,      511,  76.71%,  60.29%: |          +|            |  =        |          # |
+    2M,    512,      255,  76.47%,  59.96%: |          +|            |  =        |          # |
+    4M,    256,      127,  76.42%,  60.03%: |          +|            |  =        |          # |
+    8M,    128,       63,  76.33%,  60.22%: |          +|            |  =        |          # |
+   16M,     64,       31,  76.55%,  60.23%: |          +|            |  =        |          # |
+   32M,     32,       15,  76.14%,  60.66%: |          +|            |  =        |          # |
+   64M,     16,       10,  76.53%,  59.99%: |          +|            |  =        |          # |
+  128M,      8,       10,  76.27%,  60.28%: |          +|            |  =        |          # |
+  256M,      4,       10,  76.42%,  59.96%: |          +|            |  =        |          # |
+  512M,      2,       10,  76.45%,  60.23%: |          +|            |  =        |          # |
+    1G,      1,       10,  76.64%,  60.19%: |          +|            |  =        |          # |
+total average:             75.13%,  58.44%
+
+```
+
+
+The 64old and 64new spd+ show the percentage speed increase over the generic.
+The percentage on the graph show the combined average for all types.
+```
+64 generic: #     64 clmul old: +     64 clmul new: *
+
+#bytes, #files,   #crc's, old64spd+, new64spd+: 0%          50%          100%        150%         200%
+     1,  30000, 48806446,  -97.328%,  -88.708%, |           | #          | * +       |            |
+     2,  30000, 44739242,  -57.943%,  -48.621%, |           |     #      |* +        |            |
+     4,  30000, 38347922,   -9.964%,   -4.811%, |           |          #*|+          |            |
+     8,  30000, 29826161,   -0.558%,    3.477%, |           |           *+           |            |
+    16,  30000, 20648881,   39.017%,   41.582%, |           |        +   |         # |            |
+    32,  30000, 12782640,   54.057%,   54.848%, |           |      +     |           |    #       |
+    64,  30000,  7255012,   69.551%,   70.777%, |           |  *+        |           |            | #
+   128,  30000,  3890368,   81.047%,   81.603%, |          *+            |           |            |            #
+   256,  30000,  2018311,   81.129%,   81.619%, |          +|            |           |            |           #
+   512,  30000,  1028488,   77.798%,   79.257%, |           *+           |           |            |         #
+    1K,  30000,   519217,   75.448%,   77.138%, |           |*+          |           |            |       #
+    2K,  30000,   260870,   73.763%,   75.518%, |           |*+          |           |            |     #
+    4K,  30000,   130752,   73.392%,   75.773%, |           |* +         |           |            |     #
+    8K,  30000,    65456,   74.341%,   76.026%, |           |*+          |           |            |      #
+   16K,  30000,    32748,   68.951%,   70.712%, |           |  *+        |           |            | #
+   32K,  30000,    16379,   73.761%,   76.129%, |           |*+          |           |            |      #
+   64K,  16384,     8190,   74.789%,   76.561%, |           |*+          |           |            |      #
+  128K,   8192,     4095,   74.834%,   75.900%, |           |*+          |           |            |      #
+  256K,   4096,     2047,   74.508%,   76.488%, |           |*+          |           |            |      #
+  512K,   2048,     1023,   74.781%,   75.998%, |           |*+          |           |            |      #
+    1M,   1024,      511,   74.523%,   76.610%, |           |*+          |           |            |      #
+    2M,    512,      255,   74.871%,   76.690%, |           |*+          |           |            |      #
+    4M,    256,      127,   74.656%,   76.658%, |           |*+          |           |            |      #
+    8M,    128,       63,   74.151%,   76.085%, |           |*+          |           |            |      #
+   16M,     64,       31,   74.802%,   76.263%, |           |*+          |           |            |      #
+   32M,     32,       15,   74.671%,   76.244%, |           |*+          |           |            |      #
+   64M,     16,       10,   74.626%,   76.459%, |           |*+          |           |            |      #
+  128M,      8,       10,   74.738%,   76.497%, |           |*+          |           |            |      #
+  256M,      4,       10,   74.395%,   76.110%, |           |*+          |           |            |      #
+  512M,      2,       10,   74.904%,   76.549%, |           |*+          |           |            |      #
+    1G,      1,       10,   74.709%,   76.477%, |           |*+          |           |            |      #
+total average:              57.949%,   60.255%, 
+speed increase new vs old:  3.979%
+```
+"
+commented,JiaT75,2023-09-26T15:00:43Z,"Hello!
+
+Thanks for the PR, this is something we have wanted to implement since CLMUL was added for CRC64. 70% speed up over the generic method is a great speedup!
+
+If you are willing, can you do some additional benchmarks for us since you already have a framework setup? We are wondering what impact the compiler has, so can you show us differences between using GCC and Clang? This especially matters when it comes to the 3% speed up you mentioned for the inline asm. 3% isn't that significant, especially if its only for CRC32. It adds extra complexity to the code and makes it harder to maintain long-term, so we want to make sure it is worth it. Similarly, can you try making CRC_SIMD_BODY an inline function instead of a macro? This could make it easier to read/maintain. If it has a significant impact on performance then we should stick to a macro.
+
+So in summary, can you benchmark:
+
+- Impact of using GCC versus Clang in general
+- Impact of  removing the inline asm (GCC and Clang both)
+- Impact of replacing CRC_SIMD_BODY macro with inline function (GCC and Clang both)
+
+You don't need to make this change now, but before merging it would be great if you can clean up the commits:
+
+- Label each commit with ""liblzma:"". We do this since it helps keep the commit log consistent and organized.
+- Please squash commits 1, 3, and 5 into a single commit. I understand this is how you developed it and the thought process makes sense. But it will help the commit log stay cleaner if we don't have to create crc_clmul_macros.h just to later rename its variables and rename the file itself.
+
+Feel free to add fix up commits as we go through the review process but at the end we will need these changes."
+commented,hansjans162,2023-09-26T20:40:38Z,"> Hello!
+> 
+> Thanks for the PR, this is something we have wanted to implement since CLMUL was added for CRC64. 70% speed up over the generic method is a great speedup!
+> 
+> If you are willing, can you do some additional benchmarks for us since you already have a framework setup? We are wondering what impact the compiler has, so can you show us differences between using GCC and Clang? This especially matters when it comes to the 3% speed up you mentioned for the inline asm. 3% isn't that significant, especially if its only for CRC32. It adds extra complexity to the code and makes it harder to maintain long-term, so we want to make sure it is worth it. Similarly, can you try making CRC_SIMD_BODY an inline function instead of a macro? This could make it easier to read/maintain. If it has a significant impact on performance then we should stick to a macro.
+> 
+> So in summary, can you benchmark:
+> 
+>     * Impact of using GCC versus Clang in general
+> 
+>     * Impact of  removing the inline asm (GCC and Clang both)
+> 
+>     * Impact of replacing CRC_SIMD_BODY macro with inline function (GCC and Clang both)
+
+I tested the difference that using GCC and Clang made in general and found that when using Clang instead of GCC there was negligible difference.
+
+The difference that using GCC and Clang made on the inline assembly was a 2% increase on GCC and 1% or less for Clang. Since this increase is not very significant I can get rid of the changes if you would like.
+
+Replacing CRC_SIMD_BODY with an inline function had no change to the runtime. Ill upload the Inline function as an extra commit, and squash it once you decide which one you like better."
+commented,hansjans162,2023-09-29T19:16:00Z,I have made all of the changes listed above. I am also planning to work on implementations for arm versions of crc32_clmul and crc64_clmul after this is finished.
+commented,Larhzu,2023-10-05T19:58:55Z,"I'm sorry for the delay. Neither Jia or I have been able to look at this in the past days. :-( We are both happy to see CLMUL version of CRC32 and it's great if you plan to do ARM64 versions too. :-)
+
+The inline function version is definitely nicer when the speed is the same. So those changes should be squashed accordingly, thanks!
+
+For a moment I thought that keeping crc_macros.h as is and adding crc_clmul.h would be nicer but, as Jia has pointed out, crc_common.h defines CRC_GENERIC and such too so I guess it is better this way. Many small bits of code depend on each other in such ways that it seems impossible to make things look very pretty.
+
+In my experience it's nice if file renames are done as separate commits with only the mandatory edits. For example, the `\file` comment at the top would need changing to crc_common.h, and similarly the #include lines in the two .c files, Makefile.inc, and CMakeLists.txt. Any other changes would be in later commit(s).
+
+Small commits in are preferred whenever doing so makes sense.
+
+I wonder if it made sense to have crc_clmul.c with both CRC32 and CRC64 because then the binary wouldn't end up with two copies of is_clmul_supported() and crc_simd_body(). However, it's possible that crc_simd_body() has to be inlined if the function call overhead is too high for tiny input buffers.
+
+I feel it might be good to merge this after the inline function change has been squashed so that we have some good version committed in xz.git. So feel free to try the crc_clmul.c idea if you wish but it's not required for merging.
+
+Have you tested on 32-bit x86? If not, it's fine. :-) If yes: I haven't checked performance on 32-bit x86 in years and wonder if the assembly files still make sense compared to what GCC and Clang can do (for processors that don't support CLMUL). Those files were written in GCC 3.3/3.4 times. It shouldn't be hard to make 32-bit x86 autodetect between the assembly code and CLMUL so I can do it if it is worth it.
+
+Thanks!"
+commented,hansjans162,2023-10-07T12:05:16Z,"I've started work on the changes. Don't worry about the delays, I appreciate that both of you are taking the time to look at this.
+
+I haven't tested on 32-bit x86 yet."
+commented,hansjans162,2023-10-12T19:43:18Z,"> I feel it might be good to merge this after the inline function change has been squashed so that we have some good version committed in xz.git. So feel free to try the crc_clmul.c idea if you wish but it's not required for merging.
+
+I updated the PR with the squashing and comment change. I didn't try the crc_clmul.c idea but I believe it would result in cleaner code. I'll let you all handle it.
+
+> Have you tested on 32-bit x86? If not, it's fine. :-) If yes: I haven't checked performance on 32-bit x86 in years and wonder if the assembly files still make sense compared to what GCC and Clang can do (for processors that don't support CLMUL). Those files were written in GCC 3.3/3.4 times. It shouldn't be hard to make 32-bit x86 autodetect between the assembly code and CLMUL so I can do it if it is worth it.
+
+I hadn't tested the assembly version before so I gave it a try since it seemed interesting. I compiled my test program and liblzma with the -m32 GCC flag and ran the benchmark on my 64-bit machine. I don't have a 32-bit machine to test on. The results were somewhat surprising considering how old the assembly implementation is. I didn't have time to make a pretty graph again, but here is a quick summary of my findings:
+
+| CRC version | Speed difference < 32 bytes | Speed difference > 1024 bytes |
+|------------------|----------------------------------------|------------------------------------------|
+| CRC32 Generic |  50% slower    | 75% slower |
+| CRC32 CLMUL  | 80% slower       | 30% slower |
+| CRC64 Generic | 60% slower |  65% slower |
+| CRC64 CLMUL | 80% slower |  40% faster |
+
+The CRC64 CLMUL version became faster with buffers around 512 bytes. The runtime differences started to change between 32 - 1024 bytes so it was most interesting to categorize them as < 32 bytes and > 1024 bytes. So for CRC32 you are better off using the assembly version but CRC64 depends."
+commented,JiaT75,2023-10-13T12:52:54Z,"> I updated the PR with the squashing and comment change. I didn't try the crc_clmul.c idea but I believe it would result in cleaner code. I'll let you all handle it.
+
+Thanks for the updates!
+
+> The CRC64 CLMUL version became faster with buffers around 512 bytes. The runtime differences started to change between 32 - 1024 bytes so it was most interesting to categorize them as < 32 bytes and > 1024 bytes. So for CRC32 you are better off using the assembly version but CRC64 depends.
+
+Thanks for benchmarking the 32-bit version. I would have expected the CLMUL version to be much better than the assembly or the generic to be fairly close to the assembly. We'll take that into account when deciding how to proceed with 32-bit builds."
+commented,Larhzu,2023-10-13T16:04:28Z,"I'm glad this has been merged. Thanks!
+
+A few thoughts about 32-bit x86: Testing on modern 64-bit processor running 32-bit code was what I had in mind, so that part is fine. The results look strange though.
+
+The 32-bit assembly code implements the same algorithm as the generic C code. The CLMUL version should easily be faster with 1024-byte buffers, even if those were unaligned.
+
+With GCC 3.3/3.4 I remember that GCC couldn't fit all hot variables in registers and the resulting extra stack access was bad for speed. On x86-64 this isn't a problem anymore. My expectation is that the 32-bit x86 assembly code for CRC32 should have similar speed as the generic C code has on x86-64. I don't have clear expectations of the speed of the C code on 32-bit x86.
+
+On 32-bit x86, CRC64 benefits more from CLMUL because 32-bit x86 doesn't have 64-bit general-purpose registers. With the generic method, including the assembly implementation, the 64-bit CRC value needs two registers and updating it needs more instructions.
+
+I wondered if eight xmm registers could be a limiting factor on 32-bit x86. However, on x86-64 exactly eight xmm registers are used by both CRC32 and CRC64 CLMUL implementations with GCC 13.2.1. So I suppose the number of xmm registers shouldn't be a problem.
+
+We (or likely it's mostly Jia) will do a few tests later.
+
+Thanks again!
+"
+commented,JiaT75,2023-10-18T16:13:00Z,"@hansjans162 We committed some changes to reorganize the CLMUL code. We refactored things so all the CLMUL specific code is in a new `crc_clmul.c` file. Also, we created a macro `crc_always_inline` to force inline of `crc_simd_body()` since it was 50% slower on my benchmarks if the function is not properly inlined.
+
+A few small changes were made to `crc_simd_body()` but the speed performance was not affected. I hope if you had already started working on ARM64 versions this does not add much extra work to incorporate the code reorganzation. These changes should make the code much better organized for the future ARM64 optimizations. Thanks for all your contributions and feel free to reply here or reach out over email (the email in the project README will redirect to Lasse and I) if you have comments or questions."
+commented,hansjans162,2023-10-18T19:54:46Z,"> A few small changes were made to `crc_simd_body()` but the speed performance was not affected. I hope if you had already started working on ARM64 versions this does not add much extra work to incorporate the code reorganzation. These changes should make the code much better organized for the future ARM64 optimizations. Thanks for all your contributions and feel free to reply here or reach out over email (the email in the project README will redirect to Lasse and I) if you have comments or questions.
+
+Thank you for the update, and I agree that it should not be much extra work to incorporate the changes into the code I have already written. "
+commented,hansjans162,2023-11-08T16:16:00Z,"While working on implementing arm support for crc_clmul I found that the processor I am using does not have support for PMULL. I am not going to continue work on this at the moment since the devices I have can't test my code, but I might continue later if I get hardware that supports this."
+commented,Larhzu,2023-11-15T14:59:45Z,"Thank you for letting us know. If you are able to continue, please let us know too to ensure that no duplicate work will happen (unlikely but still)."
+commented,abysssdweller,2024-03-29T19:53:59Z,yall can you check this :3 uwu
+commented,prplwtf,2024-03-29T21:08:00Z,"Sounds like a great idea! With the best of intentions, what could possibly go wrong.."
+commented,qwertychouskie,2024-03-29T21:59:43Z,"> yall can you check this :3 uwu
+
+Do you have reason to believe these commits are malicious?  They're from a different author"
+commented,luke-hill,2024-04-16T10:20:06Z,@qwertychouskie - Are they? Everything is open for discussion and it seems there is more and more unravelling each day/week

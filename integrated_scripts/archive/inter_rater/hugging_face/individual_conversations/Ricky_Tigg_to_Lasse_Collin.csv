@@ -1,0 +1,15 @@
+from,to,file_name,message,mood,score
+Ricky Tigg,Lasse Collin,issue_71.csv,"I feel that i am learning something. I have observed that on this platform, with no regard to the date before and after it was acquired by Microsoft, that the _Release_ section, when it contains items In the _Assets_ section, may display a _Source code_-named link, which is the one I referred to and you referred to as well, as downloaded though.
+
+I have always assumed, nonetheless without foundation, that all of the items that are present in this _Assets_ section provide the project's source code equally, however in various file formats. Hence I kept wondering the motivation for displaying a _Source code_-named link, The present project suits as an illustration.
+
+While focusing on the latest release, among the displayed items those ones are present:
+- `<icon> xz-5.4.5.tar.gz      | 2.75 MB | 2 weeks ago`
+- `<icon> Source code (tar.gz) |         | 2 weeks ago`
+
+_Notes:_ 
+1. The icons referred as `<icon> ` differ from each other; I suppose for a reason.
+2. The immediate mentions at the right side of the icons are links to files provided for download.
+
+Those links are **tied to a same named file** - _xz-5.4.5.tar.gz_. That represents a reasonable source of confusion.",positive,0.7616776912473142
+Ricky Tigg,Lasse Collin,issue_72.csv,"I just took care to enter ""_unin_"" in the web browser's search field and indeed it revealed that some targets exist. My bad, I had had to enter in it an irrelevant term at the time I reported. **That's no excuse**. This also means I wasted the time of the participants in this discussion. Not proud of myself. I am sorry.",negative,-0.9530522916465998

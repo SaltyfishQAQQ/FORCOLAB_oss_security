@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00410" id="c">
+<link rel="index" href="maillist.html#00410" id="i">
+<link rel="prev" href="msg00404.html" id="p">
+<link rel="next" href="msg00411.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00410.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Fix+setting+memory+limit+on+32%5C-bit+systems%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210109" rel="nofollow">Sat, 09 Jan 2021 13:29:14 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-01-09 Vitaly Chikunov wrote:
+&gt; Few percent of the people report bugs or misfeatures, most just adapt
+&gt; or abandon usage. For example,
+&gt; 
+&gt; 1. We added -T0 to our rpm building system for xz call, and when it's
+&gt; failed (tests) the change is just reverted. Yes, we didn't gain speed
+&gt; up, but things are working again. How much people did the same?</pre><pre>
+
+Possibly many. In some ways the existence of -T0 may even have been
+counter-productive since it may make people think xz is smart while it
+isn't.
+
+Also worth keeping in mind is that threaded mode in xz tends to produce 
+slightly bigger output than single-threaded mode, so when maximum compression 
+is wanted threading may need to be avoided anyway.
+
+&gt; 2. More important problem is not just with xz tool, but with liblzma
+&gt; xz mt compression.
+
+Yes and it's even harder to fix than xz.
+
+&gt; (I think, they switched to zstd after all.)
+
+I think zstd is nowadays the way to go with package managers unless
+file size is very important or the users' connection speeds are known
+to be somewhat low (under 10 Mbit/s). Package managers usually download
+and decompress as separate steps (not parallel) so zstd's fast
+decompression makes up for the extra time spent to download a slightly
+bigger file. Threaded decompression with xz won't help much because
+most packages are so small that threading doesn't come into play.
+
+&gt; We have to build and test re-build thousands of packages on many
+&gt; architectures every day, some of them got compression failures So,
+&gt; there is new solution - increase memory limit to 512MiB:
+
+Just to clarify, I see you mean 512 MiB as reserved memory so 3.5 GiB as
+the memlimit for liblzma.
+
+&gt; So, this is not like happy careless life out there.
+
+I agree, I don't mean to downplay the severity of the problem.
+
+&gt; Only proper solution, of course, is to make liblzma mt code robust on
+&gt; per-thread memory allocation.
+
+That would help but it's not the final answer *in general*.
+
+It's hard to know how much memory the rest of the application (outside
+liblzma) may need. If liblzma were more robust against memory
+allocation failures, it would still be possible that liblzma manages to
+allocate quite a bit of memory and *then* the non-liblzma part of the
+application needs to allocate some memory but that fails because
+liblzma already grabbed most of the address space. Thus in the end you
+could still need hacks like you described. Obviously this isn't a
+problem if you *know* that the application won't allocate any memory
+during the compression phase.
+
+If 32-bit address space is too limited, one way to is to run the
+compressor in a separate process. It may sound like a hack but there's
+a reason why 64-bit address space got common.
+
+The new lzma_outq doesn't allocate all buffers at once. If the call to
+lzma_block_encoder_init() (and the associated structure
+initializations) were moved to get_thread(), it could be a start to
+make the encoder tolerate allocation failures because then no input
+would be copied to thread-specific buffer before the encoder
+initialization has succeeded. There are some details that complicate
+the idea but perhaps it should be looked at.
+
+&gt; My ugly and dumb hack does not meant to be merged as is, but (RFC)
+&gt; invitation to discussion and would show your attitude to the problem.
+
+Sure. I know I can be stubborn and when memlimits are discussed I may
+be extra defensive. Also, I know I have a problem that if all suggested
+solutions don't look perfect enough I may too easily reject them. But I
+also recognize that the problem you (and others) describe is
+significant, I just don't know how to *properly* solve it.
+
+For the xz tool, in the previous email I wondered if it could help to
+make -T0 set a memlimit if and only if no limit was otherwise
+specified. Then the default memlimit would be specific to the -T0 case
+which is known to be silly even on 64-bit arch if one happens to have a
+lot of hardware threads but relatively small amount of RAM. I wrote a
+rough preliminary patch for this:
+
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 9238fb3..0ad924e 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -29,6 +29,25 @@ bool opt_ignore_check = false;
+ const char stdin_filename[] = &quot;(stdin)&quot;;
+ 
+ 
++/// True if using --threads=0 to autodetect the number of threads.
++static bool threads_are_autodetected = false;
++
++
++static void
++set_memlimits_for_autodetected_threads(void)
++{
++       if (threads_are_autodetected) {
++               if (hardware_memlimit_get(MODE_COMPRESS) == UINT64_MAX)
++                       hardware_memlimit_set(95, true, false, true);
++
++               if (hardware_memlimit_get(MODE_DECOMPRESS) == UINT64_MAX)
++                       hardware_memlimit_set(95, false, true, true);
++       }
++
++       return;
++}
++
++
+ /// Parse and set the memory usage limit for compression and/or decompression.
+ static void
+ parse_memlimit(const char *name, const char *name_percentage, char *str,
+@@ -246,11 +265,14 @@ parse_real(args_info *args, int argc, char **argv)
+                        suffix_set(optarg);
+                        break;
+ 
+-               case 'T':
++               case 'T': {
+                        // The max is from src/liblzma/common/common.h.
+-                       hardware_threads_set(str_to_uint64(&quot;threads&quot;,
+-                                       optarg, 0, 16384));
++                       const uint64_t threads = str_to_uint64(&quot;threads&quot;,
++                                       optarg, 0, 16384);
++                       hardware_threads_set(threads);
++                       threads_are_autodetected = threads == 0;
+                        break;
++               }
+ 
+                // --version
+                case 'V':
+@@ -279,6 +301,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+                // --info-memory
+                case OPT_INFO_MEMORY:
++                       // If --threads=0 was specified, make its effect
++                       // visible in --info-memory.
++                       set_memlimits_for_autodetected_threads();
++
+                        // This doesn't return.
+                        hardware_memlimit_show();
+ 
+@@ -635,6 +661,10 @@ args_parse(args_info *args, int argc, char **argv)
+        // Then from the command line
+        parse_real(args, argc, argv);
+ 
++       // If --threads=0 was used and there's no memory usage limit set,
++       // set a limit now.
++       set_memlimits_for_autodetected_threads();
++
+        // If encoder or decoder support was omitted at build time,
+        // show an error now so that the rest of the code can rely on
+        // that whatever is in opt_mode is also supported.
+
+Obviously it still only works for 32-bit xz running on 64-bit kernel
+because it would set the limit to 4020 MiB if there's a lot of RAM. But
+with this patch it would happen without any extra arguments; using -T0
+would be enough. So it's a hack but a hack that has minimal effect on
+existing behavior outside -T0.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet &amp; Freenode
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00404.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00410">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00410">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00411.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00387.html">[xz-devel] [PATCH] xz: Fix setting memory limit ...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00389.html">Re: [xz-devel] [PATCH] xz: Fix setting memo...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00391.html">Re: [xz-devel] [PATCH] xz: Fix setting ...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00399.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00390.html">Re: [xz-devel] [PATCH] xz: Fix setting memo...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00398.html">Re: [xz-devel] [PATCH] xz: Fix setting ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00404.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Vitaly Chikunov</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH] xz: Fix ...</span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00411.html">Re: [xz-devel] [PATCH] xz: Fix sett...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00425.html">Re: [xz-devel] [PATCH] xz: Fix ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00428.html">Re: [xz-devel] [PATCH] xz:...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00552.html">Re: [xz-devel] [PATCH]...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH] xz: Fix setting memory limit on 32-bit systems">
+<input type="hidden" name="msgid" value="20210109232907.070ca193@tukaani.org">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00410.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Fix+setting+memory+limit+on+32%5C-bit+systems%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00404.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00411.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210109232907.070ca193@tukaani.org</li>
+</ul>
+</div>
+</body>
+</html>

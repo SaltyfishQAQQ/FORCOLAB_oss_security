@@ -1,0 +1,190 @@
+timestamp,from,to,body,title,msg_file
+"Thu, 18 Aug 2022 04:56:31 -0700",Olivier B.,,"I am trying to build 5.2.6 on windows, but, presumably after
+352ba2d69af2136bc814aa1df1a132559d445616, he build using the MSVC 2013
+project file fails.
+
+
+The issue seems to be that HAVE_CONFIG_H, that is now tested in the rc
+file, is defined for the C files compilation, but not for the resource
+file in the VC project options.
+
+The following patch makes it work for me. But this is on the vcxproj
+file AFTER i have upgraded it for VS2015, so the patch might fail on
+the original file, but you can get the idea of what is needed
+
+*** windows/vs2013/liblzma_dll.vcxproj Thu Aug 18 12:10:05 2022
+--- windows/vs2013/liblzma_dll.vcxproj Thu Aug 18 12:11:53 2022
+***************
+*** 137,142 ****
+--- 137,143 ----
+      </Link>
+      <ResourceCompile>
+        
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++       <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+      </ResourceCompile>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup
+Condition=""'$(Configuration)|$(Platform)'=='Debug|x64'"">
+",[xz-devel] VS projects fail to build the resource file,msg00584.html
+"Thu, 18 Aug 2022 06:09:55 -0700",Lasse Collin,Olivier B.,"On 2022-08-18 Olivier B. wrote:
+
+
+Thanks! So the fix for one thing broke another situation. :-(
+
+I cannot test but it seems the same addition is needed in six places,
+not just in ""Debug|Win32"" case, right?
+
+diff --git a/windows/vs2013/liblzma_dll.vcxproj 
+b/windows/vs2013/liblzma_dll.vcxproj
+index 2bf3e41..f24cd6f 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -137,6 +137,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition=""'$(Configuration)|$(Platform)'=='Debug|x64'"">
+@@ -154,6 +155,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup 
+Condition=""'$(Configuration)|$(Platform)'=='Release|Win32'"">
+@@ -173,6 +175,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup 
+Condition=""'$(Configuration)|$(Platform)'=='Release|x64'"">
+@@ -191,6 +194,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup 
+Condition=""'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'"">
+@@ -210,6 +214,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup 
+Condition=""'$(Configuration)|$(Platform)'=='ReleaseMT|x64'"">
+@@ -228,6 +233,7 @@
+     </Link>
+     <ResourceCompile>
+       
+<AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemGroup>
+
+I will commit the above to all VS project files if you think it's good.
+
+Does it work with CMake for you? I'm hoping that the VS project files
+can be removed in the near-future and CMake used for building with VS.
+That way there are fewer build files to maintain.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] VS projects fail to build the resource file,msg00585.html
+"Thu, 18 Aug 2022 06:13:08 -0700",Olivier B.,Lasse Collin,"Yes, indeed. I sent the mail after having only fixed one
+configuration, but the full solution build needs the six modifications
+
+
+Le jeu. 18 août 2022 à 15:09, Lasse Collin <lasse.col...@tukaani.org> a écrit :
+",Re: [xz-devel] VS projects fail to build the resource file,msg00586.html
+"Thu, 18 Aug 2022 07:02:51 -0700",Olivier B.,Olivier B.,"I will try the cmake build too. If i can build it on windows and linux
+with the same commands, good for me! Is it normal that CMakeLists and
+other files are not in the 5.2.6 (or 5.3.2) tarball, only in the git?
+
+
+Le jeu. 18 août 2022 à 15:12, Olivier B.
+<perso.olivier.barthel...@gmail.com> a écrit :
+",Re: [xz-devel] VS projects fail to build the resource file,msg00587.html
+"Thu, 18 Aug 2022 07:48:10 -0700",Olivier B.,Olivier B.,"The cmake windows build in a 5.2.6 git clone seem to build and install
+fine for me!
+As small an improvement to them, I wouldn't mind if the pdbs were
+installed too in the configurations where they are generated (and
+actually also in release builds)
+
+
+Le jeu. 18 août 2022 à 16:02, Olivier B.
+<perso.olivier.barthel...@gmail.com> a écrit :
+",Re: [xz-devel] VS projects fail to build the resource file,msg00588.html
+"Thu, 18 Aug 2022 10:08:17 -0700",Lasse Collin,Olivier B.,"On 2022-08-18 Olivier B. wrote:
+
+
+Good to know, thanks!
+
+
+I see .pdb files are for debug symbols and I see CMake has some
+properties related to them but I don't know much more. Are the .pdb
+files generated by default in the CMake-generated debug targets but not
+by the release targets? Does the following do something good?
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2a88af3..ccfb217 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -499,6 +499,14 @@ install(DIRECTORY src/liblzma/api/
+         DESTINATION ""${CMAKE_INSTALL_INCLUDEDIR}""
+         FILES_MATCHING PATTERN ""*.h"")
+ 
++if(MSVC)
++    # Install MSVC debug symbol file if it was generated.
++    install(FILES $<TARGET_PDB_FILE:liblzma>
++            DESTINATION ""${CMAKE_INSTALL_BINDIR}""
++            COMPONENT liblzma_Development
++            OPTIONAL)
++endif()
++
+ # Install the CMake files that other packages can use to find liblzma.
+ set(liblzma_INSTALL_CMAKEDIR
+     ""${CMAKE_INSTALL_LIBDIR}/cmake/liblzma""
+
+I understood that the above can only work for DLLs. Static library
+would need compiler-generated debug info which CMake supports via
+COMPILE_PDB_NAME property. If .pdb files aren't created for release
+builds by default, there likely is a way to enable it. I cannot test
+MSVC builds now so I won't make many blind guesses.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] VS projects fail to build the resource file,msg00590.html
+"Thu, 18 Aug 2022 07:52:47 -0700",Lasse Collin,Olivier B.,"On 2022-08-18 Olivier B. wrote:
+
+
+OK, thanks! I committed it to vs2013, vs2017, and vs2019 files, also
+to the v5.2 branch.
+
+
+That's not intentional. Seems that I have forgotten to add those to
+Automake's dist target. 5.2.5 was supposed to have experimental CMake
+files already as it was mentioned in the NEWS file.
+
+It has been fixed, also in the v5.2 branch. Thanks!
+
+-- 
+Lasse Collin
+",Re: [xz-devel] VS projects fail to build the resource file,msg00589.html

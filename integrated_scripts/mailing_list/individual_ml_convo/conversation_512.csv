@@ -1,0 +1,162 @@
+timestamp,from,to,body,title,msg_file
+"Fri, 29 Oct 2021 11:29:18 -0700",Jia Tan,,"This patch adds a .editorconfig to the root directory. The
+.editorconfig file integrates into most text editors and IDE's to
+enforce basic styling. I chose the configurations from the project's
+current styling. I am not sure if it is intentional, but the CMake
+related files use spaces instead of tabs, so I reflected that in the
+.editorconfig file. For more information about editorconfig and which
+text editors support it, you can visit https://editorconfig.org
+
+
+---
+.editorconfig | 16 ++++++++++++++++
+1 file changed, 16 insertions(+)
+create mode 100644 .editorconfig
+
+diff --git a/.editorconfig b/.editorconfig
+new file mode 100644
+index 0000000..b36cd67
+--- /dev/null
++++ b/.editorconfig
+@@ -0,0 +1,16 @@
++# To use this config on your editor, follow the instructions at:
++# https://editorconfig.org
++
++root = true
++
++[*]
++insert_final_newline = true
++trim_trailing_whitespace = true
++
++[src/,tests/]
++charset = utf-8
++indent_style = tab
++
++[CMakeLists.txt,*.cmake]
++indent_style = space
++indent_size = 4
+\ No newline at end of file
+--
+2.25.1
+",[xz-devel] [PATCH] xz: Added .editorconfig file for simple style guide encouragement,msg00512.html
+"Wed, 10 Nov 2021 14:56:51 -0800",Lasse Collin,Jia Tan,"Hello!
+
+On 2021-10-30 Jia Tan wrote:
+
+
+Thanks! I hadn't heard about this before but it sounds nice.
+
+
+I think it should be fine to add these:
+
+    charset = utf-8
+    end_of_line = lf
+
+The exception are some files under windows/vs*. Those files will
+hopefully be gone in the future though. They use LF, not CR+LF but have
+BOM:
+
+    [*.vcxproj,xz_win.sln]
+    charset = utf-8-bom
+
+
+If the syntax is similar to gitignore, then src/ will match also
+foo/bar/src/. It doesn't really matter here but I suppose /src/ is a
+tiny bit more correct.
+
+
+I guess it makes sense to set also indent_size = 8 because viewing the
+files with any other setting will look weird when long lines are
+wrapped and can editing can result in wrong word wrapping.
+
+There are multiple indentation styles even under src. Instead of
+specifying directories, how about specifying file suffixes like *.c so
+it won't matter where the files are. There are .sh files with different
+styles but maybe it's not that important.
+
+I ended up with this:
+
+---
+# To use this config on your editor, follow the instructions at:
+# https://editorconfig.org/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.c,*.h,*.S,*.map,*.sh,*.bash,Makefile*,/configure.ac,/po4a/update-po,/src/scripts/{xzless,xzmore}.in]
+indent_style = tab
+indent_size = 8
+
+[/src/scripts/{xzdiff,xzgrep}.in]
+indent_style = space
+indent_size = 2
+
+[CMakeLists.txt,*.cmake]
+indent_style = space
+indent_size = 4
+
+[*.vcxproj,xz_win.sln]
+charset = utf-8-bom
+---
+
+Is it good enough or did I add bad bugs? :-)
+
+-- 
+Lasse Collin
+",Re: [xz-devel] [PATCH] xz: Added .editorconfig file for simple style guide encouragement,msg00516.html
+"Fri, 12 Nov 2021 06:38:12 -0800",Jia Tan,Lasse Collin,"
+
+I wasn't sure how to handle potential issues with utf-8 and
+translations files, compressed test files, and visual studio files,
+but after a bit of research your solution looks great.
+
+
+I apologize for an error in the original patch. I had only used
+editorconfig files in simple projects before, so I didn't know that
+curly braces are required to apply the formatting to two or more
+globs. Here is the adjusted version of the editorconfig file with
+those changes:
+
+# To use this config on your editor, follow the instructions at:
+# https://editorconfig.org/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[**{.{c,h,S,map,sh,bash},Makefile*,configure.ac,po4a/update-po,src/scripts/{xzless,xzmore}.in}]
+indent_style = tab
+indent_size = 8
+
+[/src/scripts/{xzdiff,xzgrep}.in]
+indent_style = space
+indent_size = 2
+
+[{CMakeLists.txt,*.cmake}]
+indent_style = space
+indent_size = 4
+
+[{*.vcxproj,xz_win.sln}]
+charset = utf-8-bom
+
+Two questions I have are:
+1. Why are xzgrep.in and xzdiff.in formatted differently than
+xzless.in and xzmore.in?
+
+
+2. Why do you use tab width 8 for your source files? I have no problem
+with tab width 8, I'm just used to using width 4 since it's nice for
+viewing several files on the same screen or for people with small
+screens. Either way, it's your preference and I will follow your lead.
+
+Jia Tan
+",Re: [xz-devel] [PATCH] xz: Added .editorconfig file for simple style guide encouragement,msg00517.html

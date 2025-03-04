@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] xz-java and newer java</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00423" id="c">
+<link rel="index" href="maillist.html#00423" id="i">
+<link rel="prev" href="msg00421.html" id="p">
+<link rel="next" href="msg00426.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00423.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] xz-java and newer java</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210116" rel="nofollow">Sat, 16 Jan 2021 13:26:26 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Lasse,
+
+I have found a way to use VarHandle byte array access at runtime in
+code which is compile time compatible with jdk 7. So here is an
+updated ArrayUtil class which will use a VarHandle to read long values
+in jdk 9+. If that is not available, it will attempt to use
+sun.misc.Unsafe. If that cannot be found, it falls back to standard
+byte by byte comparison.
+I did add an index bounds check for the unsafe implementation and
+found it had minimal impact on over all performance.
+Using VarHandle (at least on jdk 11) offers very similar performance
+to Unsafe across all 3 files I used for benchmarking.</pre><pre>
+
+--Baseline 1.8
+Benchmark                                 (file)  Mode  Cnt      Score
+    Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    4      9.558
+±   0.239  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    4   6553.304
+± 112.475  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    4  10592.151
+± 291.527  ms/op
+
+--Unsafe
+Benchmark                                 (file)  Mode  Cnt     Score
+   Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    4     7.699
+±   0.058  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    4  6001.170
+± 143.814  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    4  7853.963
+±  83.753  ms/op
+
+--VarHandle
+Benchmark                                 (file)  Mode  Cnt     Score
+   Error  Units
+XZCompressionBenchmark.compress  ihe_ovly_pr.dcm  avgt    4     7.630
+±   0.542  ms/op
+XZCompressionBenchmark.compress       image1.dcm  avgt    4  5872.098
+±  71.185  ms/op
+XZCompressionBenchmark.compress        large.xml  avgt    4  8239.880
+± 346.036  ms/op
+
+I know you said you were not going to be able to work on xz-java for
+awhile, but given these benchmark results, which really exceeded my
+expectations, could this get some priority to release?
+
+
+package org.tukaani.xz.common;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.nio.ByteOrder;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Utilities for optimized array interactions.
+ *
+ * @author Brett Okken
+ */
+public final class ArrayUtil {
+
+    /**
+     * MethodHandle to the actual mismatch method to use at runtime.
+     */
+    private static final MethodHandle MISMATCH;
+
+    /**
+     * If {@code sun.misc.Unsafe} can be loaded, this is MethodHandle
+bound to an instance of Unsafe for method {@code long getLong(Object,
+long)}.
+     */
+    private static final MethodHandle UNSAFE_GET_LONG;
+
+    /**
+     * MethodHandle to either {@link Long#numberOfLeadingZeros(long)}
+or {@link Long#numberOfTrailingZeros(long)} depending on {@link
+ByteOrder#nativeOrder()}.
+     */
+    private static final MethodHandle LEADING_ZEROS;
+
+    /**
+     * Populated from reflected read of {@code
+sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET}.
+     */
+    private static final long ARRAY_BASE_OFFSET;
+
+    /**
+     * {@code MethodHandle} for a jdk 9+ {@code
+byteArrayViewVarHandle} for {@code long[]} using the {@link
+ByteOrder#nativeOrder()}.
+     * The method signature is {@code long get(byte[], int)}.
+     */
+    private static final MethodHandle VAR_HANDLE_GET_LONG;
+
+    static {
+        final Logger logger = Logger.getLogger(ArrayUtil.class.getName());
+        MethodHandle leadingZeros = null;
+        MethodHandle varHandleGetLong = null;
+        MethodHandle unsafeGetLong = null;
+        long arrayBaseOffset = 0;
+        MethodHandle mismatch = null;
+        final MethodHandles.Lookup lookup = MethodHandles.lookup();
+        final MethodType mismatchType =
+MethodType.methodType(int.class, byte[].class, int.class,
+byte[].class, int.class, int.class);
+        try {
+            //getLong interprets in platform byte order. the concept
+of &quot;leading zeros&quot; being bytes
+            //in encounter order is true for big endian
+            //for little endian platform, the trailing zeros gives the
+encounter order result
+            leadingZeros = lookup.findStatic(Long.class,
+                                             ByteOrder.BIG_ENDIAN ==
+ByteOrder.nativeOrder()
+                                                 ?
+&quot;numberOfLeadingZeros&quot; : &quot;numberOfTrailingZeros&quot;,
+
+MethodType.methodType(int.class, long.class));
+
+            //first try to load byteArrayViewVarHandle for a long[]
+            try {
+                final Class&lt;?&gt; varHandleClazz =
+Class.forName(&quot;java.lang.invoke.VarHandle&quot;, true, null);
+                final Method byteArrayViewHandle =
+MethodHandles.class.getDeclaredMethod(&quot;byteArrayViewVarHandle&quot;, new
+Class[] {Class.class, ByteOrder.class});
+                final Object varHandle =
+byteArrayViewHandle.invoke(null, long[].class,
+ByteOrder.nativeOrder());
+                final Class&lt;?&gt; accessModeEnum =
+Class.forName(&quot;java.lang.invoke.VarHandle$AccessMode&quot;, true, null);
+                @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+                final Object getAccessModeEnum =
+Enum.valueOf((Class)accessModeEnum, &quot;GET&quot;);
+                final Method toMethodHandle =
+varHandleClazz.getDeclaredMethod(&quot;toMethodHandle&quot;, accessModeEnum);
+                varHandleGetLong = (MethodHandle)
+toMethodHandle.invoke(varHandle, getAccessModeEnum);
+                mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;varHandleMismatch&quot;, mismatchType);
+                logger.finest(&quot;byte[] comparison using VarHandle&quot;);
+            } catch (Throwable t) {
+                logger.log(Level.FINE, &quot;failed trying to load a
+MethodHandle to invoke get on a byteArrayViewVarHandle for a long[]&quot;,
+t);
+                unsafeGetLong = null;
+                mismatch = null;
+            }
+
+            //if byteArrayViewVarHandle for a long[] could not be
+loaded, then try to load sun.misc.Unsafe
+            if (mismatch == null) {
+                Class&lt;?&gt; unsafeClazz =
+Class.forName(&quot;sun.misc.Unsafe&quot;, true, null);
+                Constructor&lt;?&gt; unsafeConstructor =
+unsafeClazz.getDeclaredConstructor();
+                unsafeConstructor.setAccessible(true);
+                Object unsafe = unsafeConstructor.newInstance();
+
+                arrayBaseOffset =
+unsafeClazz.getField(&quot;ARRAY_BYTE_BASE_OFFSET&quot;).getLong(null);
+
+                MethodHandle virtualGetLong =
+lookup.findVirtual(unsafeClazz, &quot;getLong&quot;,
+MethodType.methodType(long.class, Object.class, long.class));
+                unsafeGetLong = virtualGetLong.bindTo(unsafe);
+
+                // do a test read to confirm unsafe is actually functioning
+                long val = (long) unsafeGetLong.invokeExact((Object)
+new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 }, arrayBaseOffset + 0L);
+                if (val != 0) {
+                    throw new IllegalStateException(&quot;invalid value: &quot; + val);
+                }
+                mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;unsafeMismatch&quot;, mismatchType);
+                logger.finest(&quot;byte[] comparisons using Unsafe&quot;);
+            }
+        } catch (Throwable t) {
+            logger.log(Level.FINE, &quot;failed trying to load means to
+compare byte[] by longs&quot;, t);
+            logger.finest(&quot;byte[] comparisons byte by byte&quot;);
+            varHandleGetLong = null;
+            unsafeGetLong = null;
+            leadingZeros = null;
+            try {
+                mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;legacyMismatch&quot;, mismatchType);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        VAR_HANDLE_GET_LONG = varHandleGetLong;
+        UNSAFE_GET_LONG = unsafeGetLong;
+        ARRAY_BASE_OFFSET = arrayBaseOffset;
+        LEADING_ZEROS = leadingZeros;
+        MISMATCH = mismatch;
+    }
+
+    /**
+     * Compares the values in &lt;i&gt;a&lt;/i&gt; and &lt;i&gt;b&lt;/i&gt; and returns the
+index of the first {@code byte} which differs.
+     * @param a The first {@code byte[]} for comparison.
+     * @param aFromIndex The offset into &lt;i&gt;a&lt;/i&gt; to start reading from.
+     * @param b The second {@code byte[]} for comparison.
+     * @param bFromIndex The offset into &lt;i&gt;b&lt;/i&gt; to start reading from.
+     * @param length The number of bytes to compare.
+     * @return The offset from the starting indexes of the first byte
+which differs. If all match, &lt;i&gt;length&lt;/i&gt; will be returned.
+     */
+    public static int mismatch(byte[] a, int aFromIndex, byte[] b, int
+bFromIndex, int length) {
+       try {
+          return (int) MISMATCH.invokeExact(a, aFromIndex, b,
+bFromIndex, length);
+       } catch (RuntimeException e) {
+           throw e;
+       } catch (Error e) {
+           throw e;
+       } catch (Throwable t) {
+           throw new RuntimeException(t);
+       }
+    }
+
+    /**
+     * Uses {@link #VAR_HANDLE_GET_LONG} to compare 8 bytes at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int varHandleMismatch(byte[] a, int aFromIndex,
+byte[] b, int bFromIndex, int length) throws Throwable {
+        //while we could do an index check, the VarHandle call
+incorporates a check, making any check here duplicative
+        int i=0;
+        for (int j=length - 7; i&lt;j; i+=8) {
+            final long aVal = (long)
+VAR_HANDLE_GET_LONG.invokeExact(a, aFromIndex + i);
+            final long bVal = (long)
+VAR_HANDLE_GET_LONG.invokeExact(b, bFromIndex + i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which differ are 1
+                final long diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs
+tells us which byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return i + (leadingZeros / Byte.SIZE);
+            }
+        }
+        for ( ; i&lt;length; ++i) {
+            if (a[aFromIndex + i] != b[bFromIndex + i]) {
+                return i;
+            }
+        }
+        return length;
+    }
+
+    /**
+     * Uses {@code UNSAFE_GET_LONG} to compare 8 bytes at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int unsafeMismatch(byte[] a, int aFromIndex, byte[]
+b, int bFromIndex, int length) throws Throwable {
+        //it is important to check the indexes prior to making the
+Unsafe calls, as Unsafe does not validate
+        //and could result in SIGSEGV if out of bounds
+        if (aFromIndex &lt; 0 || aFromIndex + length &gt; a.length ||
+bFromIndex &lt; 0 || bFromIndex + length &gt; b.length) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        int i=0;
+        for (int j=length - 7; i&lt;j; i+=8) {
+            final long aVal = (long)
+UNSAFE_GET_LONG.invokeExact((Object) a, ARRAY_BASE_OFFSET + aFromIndex
++ i);
+            final long bVal = (long)
+UNSAFE_GET_LONG.invokeExact((Object) b, ARRAY_BASE_OFFSET + bFromIndex
++ i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which differ are 1
+                final long diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs
+tells us which byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return i + (leadingZeros / Byte.SIZE);
+            }
+        }
+        for ( ; i&lt;length; ++i) {
+            if (a[aFromIndex + i] != b[bFromIndex + i]) {
+                return i;
+            }
+        }
+        return length;
+    }
+
+    /**
+     * Simply loops over all of the bytes, comparing one at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int legacyMismatch(byte[] a, int aFromIndex, byte[]
+b, int bFromIndex, int length) {
+        for (int i=0; i&lt;length; ++i) {
+            if (a[aFromIndex + i] != b[bFromIndex + i]) {
+                return i;
+            }
+        }
+        return length;
+    }
+
+    private ArrayUtil() {
+    }
+}
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00421.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00423">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00423">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00426.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00400.html">[xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00402.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00407.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00408.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00414.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00419.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00420.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00421.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] xz-java and newe...</span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00426.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00433.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00435.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00436.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00439.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00447.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00483.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00484.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00485.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00491.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] xz-java and newer java">
+<input type="hidden" name="msgid" value="CANBJVOEaU0YWbsWDCU_zQqJaVPxoNQe_E=vC0a9cbD6aikazCA@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00423.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00421.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00426.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOEaU0YWbsWDCU_zQqJaVPxoNQe_E=vC0a9cbD6aikazCA@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

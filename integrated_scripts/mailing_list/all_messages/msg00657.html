@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00657" id="c">
+<link rel="index" href="maillist.html#00657" id="i">
+<link rel="prev" href="msg00656.html" id="p">
+<link rel="next" href="msg00658.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00657.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Avoid+warnings+due+to+memlimit+if+threads+are+in+auto+mode.%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240227" rel="nofollow">Tue, 27 Feb 2024 13:08:16 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2024-02-27 19:17:48 [+0200], Lasse Collin wrote:
+&gt; Thanks for the patch! We discussed a bit on IRC and everyone thinks
+&gt; it's on the right track but we are pondering the implementation details
+&gt; still.
+&gt; 
+&gt; The thread count messages are shown in situations which don't affect
+&gt; the compressed output, and thus the importance of these messages isn't
+&gt; so high. Originally they were there to reduce the chance of people
+&gt; asking why xz isn't using as many threads as requested.</pre><pre>
+
+Understood.
+
+&gt; We are considering to simply change those two message() calls to always
+&gt; use V_VERBOSE or V_DEBUG instead of the current V_WARNING. So automatic
+&gt; vs. manual number of threads wouldn't affect it like it does in your
+&gt; patch. Comparing your apporach and this simpler one:
+&gt; 
+&gt;   + There are scripts that take a user-specified number for
+&gt;     parallelization and that number is passed to multiple tools, not
+&gt;     just xz. Keeping xz -T16 silent about thread count reduction can
+&gt;     make sense in this case.
+&gt; 
+&gt;   - The silencing could be done with -q as well though.
+
+Wouldn't -q also shut some legitime warnings?
+
+&gt; There are pros and cons between V_VERBOSE and V_DEBUG.
+&gt; 
+&gt; For (de)compression, a single -v sets V_VERBOSE and actives the
+&gt; progress indicator. If the thread count messages are shown at -v, on
+&gt; some systems progress indicator usage would get the message about
+&gt; reduced thread count as well.
+&gt; 
+&gt;   + It works as a hint that increasing the memory usage limits manually
+&gt;     might allow more threads to be used.
+&gt; 
+&gt;   - If one uses progress indicator frequently, the thread count
+&gt;     reduction message might become slightly annoying as the information
+&gt;     is already known by the user.
+&gt; 
+&gt;   - Progress indicator can be used in non-interactive cases (when
+&gt;     stderr isn't a terminal). Then xz only prints a final summary per
+&gt;     file. This likely is not a common use case but the thread count
+&gt;     messages would be here as well.
+&gt; 
+&gt; V_DEBUG is set when -v is used twice (-vv).
+&gt; 
+&gt;   + Regular progress indicator uses wouldn't get extra messages.
+&gt; 
+&gt;   - A larger number of users might not become aware that they aren't
+&gt;     getting as many threads as they could because the automatic memory
+&gt;     usage limit is too low to allow more threads.
+
+Isn't the automatic memory usage accurate? Because then there is hardly
+something you could do about it. Maybe kill chrome…
+On the other hand if they decompress and they have 32s CPU and xz
+reduces it to 16 threads then there is no &quot;loss&quot; if the file has 16
+blocks or less :)
+Not sure if documenting it in the man-page would help here.
+
+&gt; There are also messages that are shown when memory limit does affect
+&gt; compressed output (switching to single-threaded mode and LZMA2
+&gt; dictionary size adjustment). The verbosity requirement of these messages
+&gt; isn't being changed now.
+
+This sounds like you accept this change in principle but are thinking if
+V_VERBOSE or V_DEBUG is the right thing.
+
+Sebastian
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00656.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00657">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00657">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00658.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00655.html">[xz-devel] [PATCH] xz: Avoid warnings due to mem...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00656.html">Re: [xz-devel] [PATCH] xz: Avoid warnings d...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH] xz: Avoid warnin...</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00658.html">Re: [xz-devel] [PATCH] xz: Avoid wa...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00659.html">Re: [xz-devel] [PATCH] xz: Avoi...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00660.html">Re: [xz-devel] [PATCH] xz:...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00661.html">Re: [xz-devel] [PATCH]...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH] xz: Avoid warnings due to memlimit if threads are in auto mode.">
+<input type="hidden" name="msgid" value="20240227210800.JK_zT6OP@breakpoint.cc">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00657.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Avoid+warnings+due+to+memlimit+if+threads+are+in+auto+mode.%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00656.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00658.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20240227210800.JK_zT6OP@breakpoint.cc</li>
+</ul>
+</div>
+</body>
+</html>

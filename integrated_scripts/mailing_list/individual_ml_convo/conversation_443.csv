@@ -1,0 +1,230 @@
+timestamp,from,to,body,title,msg_file
+"Fri, 29 Jan 2021 12:50:25 -0800",Brett Okken,,"Here are some small improvements when creating new BlockInputStream
+instances. This reduces the size of the byte[] for the block header to
+the actual size and replaces use of ByteArrayInputStream, which has
+synchronized methods, with a ByteBuffer, which provides the same
+functionality without synchronization.
+
+
+diff --git a/src/org/tukaani/xz/BlockInputStream.java
+b/src/org/tukaani/xz/BlockInputStream.java
+index 1931bd6..94342e2 100644
+--- a/src/org/tukaani/xz/BlockInputStream.java
++++ b/src/org/tukaani/xz/BlockInputStream.java
+@@ -9,13 +9,15 @@
+
+ package org.tukaani.xz;
+
+-import java.io.InputStream;
+ import java.io.DataInputStream;
+-import java.io.ByteArrayInputStream;
+ import java.io.IOException;
++import java.io.InputStream;
++import java.nio.BufferUnderflowException;
++import java.nio.ByteBuffer;
+ import java.util.Arrays;
+-import org.tukaani.xz.common.DecoderUtil;
++
+ import org.tukaani.xz.check.Check;
++import org.tukaani.xz.common.DecoderUtil;
+
+ class BlockInputStream extends InputStream {
+     private final DataInputStream inData;
+@@ -44,17 +46,18 @@ class BlockInputStream extends InputStream {
+         this.verifyCheck = verifyCheck;
+         inData = new DataInputStream(in);
+
+-        byte[] buf = new byte[DecoderUtil.BLOCK_HEADER_SIZE_MAX];
+-
+         // Block Header Size or Index Indicator
+-        inData.readFully(buf, 0, 1);
++        int b = inData.readUnsignedByte();
+
+         // See if this begins the Index field.
+-        if (buf[0] == 0x00)
++        if (b == 0x00)
+             throw new IndexIndicatorException();
+
+         // Read the rest of the Block Header.
+-        headerSize = 4 * ((buf[0] & 0xFF) + 1);
++        headerSize = ((b & 0xFF) + 1) << 2;
++
++        final byte[] buf = new byte[headerSize];
++        buf[0] = (byte) b;
+         inData.readFully(buf, 1, headerSize - 1);
+
+         // Validate the CRC32.
+@@ -71,11 +74,9 @@ class BlockInputStream extends InputStream {
+         long[] filterIDs = new long[filterCount];
+         byte[][] filterProps = new byte[filterCount][];
+
+-        // Use a stream to parse the fields after the Block Flags field.
++        // Use a ByteBuffer to parse the fields after the Block Flags field.
+         // Exclude the CRC32 field at the end.
+-        ByteArrayInputStream bufStream = new ByteArrayInputStream(
+-                buf, 2, headerSize - 6);
+-
++        final ByteBuffer bb = ByteBuffer.wrap(buf, 2, headerSize - 6);
+         try {
+             // Set the maximum valid compressed size. This is overriden
+             // by the value from the Compressed Size field if it is present.
+@@ -85,7 +86,7 @@ class BlockInputStream extends InputStream {
+             // Decode and validate Compressed Size if the relevant flag
+             // is set in Block Flags.
+             if ((buf[1] & 0x40) != 0x00) {
+-                compressedSizeInHeader = DecoderUtil.decodeVLI(bufStream);
++                compressedSizeInHeader = DecoderUtil.decodeVLI(bb);
+
+                 if (compressedSizeInHeader == 0
+                         || compressedSizeInHeader > compressedSizeLimit)
+@@ -97,27 +98,27 @@ class BlockInputStream extends InputStream {
+             // Decode Uncompressed Size if the relevant flag is set
+             // in Block Flags.
+             if ((buf[1] & 0x80) != 0x00)
+-                uncompressedSizeInHeader = DecoderUtil.decodeVLI(bufStream);
++                uncompressedSizeInHeader = DecoderUtil.decodeVLI(bb);
+
+             // Decode Filter Flags.
+             for (int i = 0; i < filterCount; ++i) {
+-                filterIDs[i] = DecoderUtil.decodeVLI(bufStream);
++                filterIDs[i] = DecoderUtil.decodeVLI(bb);
+
+-                long filterPropsSize = DecoderUtil.decodeVLI(bufStream);
+-                if (filterPropsSize > bufStream.available())
++                long filterPropsSize = DecoderUtil.decodeVLI(bb);
++                if (filterPropsSize > bb.remaining())
+                     throw new CorruptedInputException();
+
+                 filterProps[i] = new byte[(int)filterPropsSize];
+-                bufStream.read(filterProps[i]);
++                bb.get(filterProps[i]);
+             }
+
+-        } catch (IOException e) {
++        } catch (IOException | BufferUnderflowException e) {
+             throw new CorruptedInputException(""XZ Block Header is corrupt"");
+         }
+
+         // Check that the remaining bytes are zero.
+-        for (int i = bufStream.available(); i > 0; --i)
+-            if (bufStream.read() != 0x00)
++        for (int i = bb.remaining(); i > 0; --i)
++            if (bb.get() != 0x00)
+                 throw new UnsupportedOptionsException(
+                         ""Unsupported options in XZ Block Header"");
+
+
+
+diff --git a/src/org/tukaani/xz/common/DecoderUtil.java
+b/src/org/tukaani/xz/common/DecoderUtil.java
+index 77ba441..c3aa21d 100644
+--- a/src/org/tukaani/xz/common/DecoderUtil.java
++++ b/src/org/tukaani/xz/common/DecoderUtil.java
+@@ -9,14 +9,17 @@
+
+ package org.tukaani.xz.common;
+
+-import java.io.InputStream;
+-import java.io.IOException;
+ import java.io.EOFException;
++import java.io.IOException;
++import java.io.InputStream;
++import java.nio.BufferUnderflowException;
++import java.nio.ByteBuffer;
+ import java.util.zip.CRC32;
+-import org.tukaani.xz.XZ;
+-import org.tukaani.xz.XZFormatException;
++
+ import org.tukaani.xz.CorruptedInputException;
+ import org.tukaani.xz.UnsupportedOptionsException;
++import org.tukaani.xz.XZ;
++import org.tukaani.xz.XZFormatException;
+
+ public class DecoderUtil extends Util {
+     public static boolean isCRC32Valid(byte[] buf, int off, int len,
+@@ -118,4 +121,27 @@ public class DecoderUtil extends Util {
+
+         return num;
+     }
++
++    public static long decodeVLI(ByteBuffer bb) throws IOException {
++        try {
++            int b = bb.get();
++            long num = b & 0x7F;
++            int i = 0;
++
++            while ((b & 0x80) != 0x00) {
++                if (++i >= VLI_SIZE_MAX)
++                    throw new CorruptedInputException();
++
++                b = bb.get();
++                if (b == 0x00)
++                    throw new CorruptedInputException();
++
++                num |= (long)(b & 0x7F) << (i * 7);
++            }
++
++            return num;
++        } catch (BufferUnderflowException e) {
++            throw new EOFException();
++        }
++    }
+ }
+",[xz-devel] xz-java minor read improvements,msg00443.html
+"Tue, 02 Feb 2021 09:33:07 -0800",Lasse Collin,Brett Okken,"On 2021-01-29 Brett Okken wrote:
+
+
+I committed this part. Thanks!
+
+
+Hmm, it sounds good but I don't like that decodeVLI needs to be
+duplicated. The performance of header decoding in BlockInputStream is
+fairly unimportant; the performance bottle necks are elsewhere. Keeping
+the code tidy matters more.
+
+Obviously one could wrap ByteBuffer into an InputStream or one could
+change IndexHash.java and IndexDecoder.java to work with something
+else. Those Index* classes might be reading from an InputStream that has
+high read()-call overhead for reasons other than locking (although in
+such cases the application could then be using BufferedInputStream).
+
+Unless you have a practical situation in mind where these optimizations
+make a measurable difference, it's best to not make them more complex
+than they are.
+
+By the way, I committed module-info.java support as multi-release JAR,
+so multi-release can be used for other things too.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] xz-java minor read improvements,msg00450.html
+"Wed, 03 Feb 2021 07:53:16 -0800",Brett Okken,Lasse Collin,"I have not done any testing of xz specifically, but was motivated by
+https://github.com/openjdk/jdk/pull/542, which showed pretty
+noticeable slowdown when biased locking is removed. The specific
+example there was writing 1 byte at a time being transitioned to
+writing the 2-8 bytes to a byte[] first, then writing that buffer to
+the OutputStream. I suspect that reading would have similar impact.
+
+
+Brett
+",Re: [xz-devel] xz-java minor read improvements,msg00454.html
+"Fri, 05 Feb 2021 08:28:34 -0800",Lasse Collin,Brett Okken,"On 2021-02-03 Brett Okken wrote:
+
+
+I don't doubt that. However, in XZ the uses of ByteArrayInputStream and
+ByteArrayOutputStream are in places where the performance could be
+absolutely horrible and it would still make little difference in
+overall speed. The amounts of data being read or written are so small.
+
+LZMAInputStream reads the whole file one byte at a time (via
+RangeDecoderFromStream.normalize()) and performance suffers compared to
+XZInputStream even if one uses BufferedInputStream. BufferedInputStream
+has synchronized read(). I don't know how much locking matters in this
+case. I'm not curious enough to try with a non-synchronized buffered
+input stream now.
+
+There are related comments in the ""java buffer writes"" thread.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] xz-java minor read improvements,msg00461.html

@@ -1,0 +1,10 @@
+title,message_id,timestamp,author,who_it_is_replying_to,parent_message_id
+No Subject,LocalLinkMissing_0,N/A,Gary Lucas,,
+Re: [xz-devel] Question about using Java API for geospatial data,CANBJVOGRzqYSSwrJmwVwooyrCSkDjOG2GUYqso+WWLYAemdPhQ@mail.gmail.com,"Sat, 09 Jul 2022 16:58:14 -0700",Brett Okken,,
+Re: [xz-devel] Question about using Java API for geospatial data,CAAEq8jQhT=k9KJnwRvjjZervrXMefMQvXrYN5Y9wo5hpK_PezQ@mail.gmail.com,"Sun, 10 Jul 2022 05:31:59 -0700",Gary Lucas,Brett Okken,CANBJVOGRzqYSSwrJmwVwooyrCSkDjOG2GUYqso+WWLYAemdPhQ@mail.gmail.com
+Re: [xz-devel] Question about using Java API for geospatial data,CANBJVOH37Ez=SJ3qX18djZVRTte7JL7bCJSu2QAoDZnu2=EiCA@mail.gmail.com,"Sun, 10 Jul 2022 06:10:23 -0700",Brett Okken,Gary Lucas,CAAEq8jQhT=k9KJnwRvjjZervrXMefMQvXrYN5Y9wo5hpK_PezQ@mail.gmail.com
+Re: [xz-devel] Question about using Java API for geospatial data,CAAEq8jS1__HCWSVjNRjmT+uxSRR9EtBR0pfNOLBXTbkvaDCaUw@mail.gmail.com,"Sun, 10 Jul 2022 07:23:47 -0700",Gary Lucas,Brett Okken,CANBJVOH37Ez=SJ3qX18djZVRTte7JL7bCJSu2QAoDZnu2=EiCA@mail.gmail.com
+Re: [xz-devel] Question about using Java API for geospatial data,20220710210020.40bdd1b9@kaneli,"Sun, 10 Jul 2022 11:00:27 -0700",Lasse Collin,,
+Re: [xz-devel] Question about using Java API for geospatial data,CAAEq8jQmdUt3C_HaLXu7iy3EBiAbcxXQ2ZSiBZSqFLNFDA16HQ@mail.gmail.com,"Sun, 10 Jul 2022 15:55:20 -0700",Gary Lucas,Lasse Collin,20220710210020.40bdd1b9@kaneli
+Re: [xz-devel] Question about using Java API for geospatial data,0df7fd21-32b3-164f-d0dd-8a07894b6172@bitwagon.com,"Sun, 10 Jul 2022 19:07:17 -0700",John Reiser,Gary Lucas,CAAEq8jQmdUt3C_HaLXu7iy3EBiAbcxXQ2ZSiBZSqFLNFDA16HQ@mail.gmail.com
+Re: [xz-devel] Question about using Java API for geospatial data,CAAEq8jQRdW9QmVcpb-+ef5s4_g3PThjb=0e2E5DPX3AQVpoG3g@mail.gmail.com,"Mon, 11 Jul 2022 05:39:18 -0700",Gary Lucas,John Reiser,0df7fd21-32b3-164f-d0dd-8a07894b6172@bitwagon.com

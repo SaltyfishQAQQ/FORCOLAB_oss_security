@@ -1,4 +1,33 @@
 issue_#,state,created_at,updated_at,closed_at,title,body,url,user
+167,open,2025-02-28 08:09:37,2025-02-28 08:33:36,,hexdump text file has better compression than gzip and xz ?,"Hi guys,
+
+I found something curious, it might be a one off, but maybe there is room for improvement. I just wanted you to know about it, so here goes:
+
+I made a backup from a new empty sdcard, cannot remember exactly for what purpose but I'm glad I did because I found this anomaly:
+
+```
+-rw-r--r--  1 test test       1776 Sep 11 07:26 sdcard.img.gz.xz  x2.232.652 time(s)
+-rw-r--r--  1 test test     171692 Sep 11 07:25 sdcard.img.txt       x23.094 time(s)
+-rw-r--r--  1 test test     237568 Sep 11 07:14 sdcard.img.xz        x16.690 time(s)
+-rw-r--r--  1 test test    3854595 Sep 11 07:03 sdcard.img.gz         x1.028 time(s)
+-rw-r--r--  1 test test 3965190144 Sep 11 06:51 sdcard.img                x1 time(s)
+
+```
+Questions that came to mind:
+* How can a text file have better compression than gzip?
+* How can a text file have better compression than xz?
+* How can a combination img.gz.xz top it all?
+
+
+Files:
+[sdcard.txt](https://github.com/user-attachments/files/19024189/sdcard.txt) : original sha256sum directly from device
+[sdcard.img.gz.xz.base64.txt](https://github.com/user-attachments/files/19024227/sdcard.img.gz.xz.base64.txt) : `base64 --decode sdcard.img.gz.xz.base64.txt > sdcard.img.gz.xz`
+[sdcard.img.gz.xz.sha256sum.txt](https://github.com/user-attachments/files/19024654/sdcard.img.gz.xz.sha256sum.txt)
+sdcard.img.txt `xzcat sdcard.img.gz.xz | zcat | hexdump -C > sdcard.img.txt`
+
+I hope its useful,
+
+Thanks for xz, I'm using it daily 😄 ",https://github.com/tukaani-project/xz/issues/167,bigsmile74
 164,open,2025-02-02 15:35:58,2025-02-02 16:01:25,,hard link handling,"I can understand the difficulty handling files with more than 1 hard link.
 
 But consider the case where I have a file with 3 hard links and I ask `xz` to compress all 3 of them rather than just one of them.
@@ -6,11 +35,15 @@ But consider the case where I have a file with 3 hard links and I ask `xz` to co
 It seems that in such a case, it should be safe for `xz` to just compress the (one actual) file and recreate the hard links, yes?
 
 If so, this issue would be an RFE to implement this behaviour.",https://github.com/tukaani-project/xz/issues/164,brianjmurrell
-163,open,2025-02-02 14:39:26,2025-02-02 15:12:43,,Shove xz into linux distro maintainers,We would like to propose taking advantage of linux distro maintainers for continued xz maintenance. Would you be interested in such an arrangement?,https://github.com/tukaani-project/xz/issues/163,SoniEx2
-162,open,2025-02-01 00:33:27,2025-02-01 10:38:05,,xz-5.6.4 scan reports trojans,"Some Virusscanner reported issues and trojans with the current v5.6.4 versions of the  xz package, specially with liblzma.dll
+163,closed,2025-02-02 14:39:26,2025-02-11 16:08:44,2025-02-08 21:06:29,Shove xz into linux distro maintainers,We would like to propose taking advantage of linux distro maintainers for continued xz maintenance. Would you be interested in such an arrangement?,https://github.com/tukaani-project/xz/issues/163,SoniEx2
+162,open,2025-02-01 00:33:27,2025-02-08 11:47:20,,xz-5.6.4 scan reports trojans,"Some Virusscanner reported issues and trojans with the current v5.6.4 versions of the  xz package, specially with liblzma.dll
 
 https://www.virustotal.com/gui/file/a69d83338facb6e9a45147384beb7d7d8ed53b5e2a41e8c059ae0d0260b356ac/relations
-",https://github.com/tukaani-project/xz/issues/162,netmaster4
+
+
+[Larhzu](https://github.com/Larhzu) thanks for the great detail report. 
+
+Windows Defender also declared it as Virus and do not allow it to download. ",https://github.com/tukaani-project/xz/issues/162,netmaster4
 161,open,2025-01-30 07:41:06,2025-01-30 18:53:26,,Compiling with emscripten fails,"Compiling with emscripten fails with:
 
 ```

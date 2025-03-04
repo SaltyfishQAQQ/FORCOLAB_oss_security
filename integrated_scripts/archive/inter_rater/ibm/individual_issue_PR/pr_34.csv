@@ -1,0 +1,64 @@
+event,from,created_at,body,to
+thread_started,arixmkii,2023-02-12T22:06:00Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [X] Tests for the changes have been added (for bug fixes / features)
+- [X] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [X] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+No Windows CI at all.
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: https://github.com/tukaani-project/xz/issues/18
+
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+
+- autotools build set for Windows added
+- build is using msys2 with UCRT64 toolchain
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->
+CMake build part is not provided as part of this PR.
+
+Additional changes:
+* bumped checkout action to v3 (not really critical, but I did while trying to understand build failure)
+* fixed ""false positive"" uninitialized warning with empty in stream_encoder.c
+* fixed missing include in memcmplen.h, because this include is not provided if --disable-threads is requested for build
+
+Windows build run is very slow (comparing to others), but I don't think it could be somehow improved.",arixmkii
+commented,arixmkii,2023-02-12T22:17:22Z,"This is how it looked in my fork.
+
+<img width=""318"" alt=""image"" src=""https://user-images.githubusercontent.com/36887373/218340575-4f9ca3ce-e4a5-4c52-ad8c-eaee4c1ec466.png"">",arixmkii
+commented,arixmkii,2023-02-13T21:52:52Z,Thank you for detailed feedback! 👍  Will rework the changes and group them into logically separated commits.,arixmkii

@@ -1,0 +1,31 @@
+from,to,file_name,message,mood,score
+Hans Jansen,Lasse Collin,pr_64.csv,"I've started work on the changes. Don't worry about the delays, I appreciate that both of you are taking the time to look at this.
+
+I haven't tested on 32-bit x86 yet.",positive,0.33146
+Hans Jansen,Lasse Collin,pr_53.csv,"Thanks for the feedback!
+
+I could make the selection method a three tiered approach where ifunc is preferred, followed by the `__constructor__`, and followed again by the generic method. This way the behavior would remain unchanged on non-GNU/Linux systems. Yes, if `-fsantize=address` is set then you would want to set `--disable-ifunc`.
+
+The performance improvements are helpful if crc64 is called a large amount, e.g. for a large number of small files or a multi-threaded file with many blocks. I'm using the crc64 function a very large amount by itself since I noticed it is very fast for checksumming since the CLMUL update. There is also some benefit with branch prediction and it gave me one less instruction when I compiled it with GCC. Your right though, I was hoping to look into additional optimizations after this one.
+
+In regards to `__cplusplus` I wasn't sure if liblzma was being compiled with a C++ compiler anywhere. I can remove it if you don't think it's useful.",positive,0.655973
+Hans Jansen,Lasse Collin,pr_53.csv,"I have a large number of varying buffer sizes. With the larger buffers it doesn't make much of a difference, but with the smaller ~64B to ~256B buffers I was noticing a 4-5% improvement. I'm also running all of this on older hardware which may be contributing to the speedup. I benchmarked it for the standard .xz case, however the speedup there was within the bounds of being noise.
+
+liblzma works well since it's already present, and we're also locked into the existing checksums.",positive,0.306039
+Hans Jansen,Lasse Collin,pr_53.csv,Thanks for the advice. I made the requested change. I rebased the git commits and updated the commit messages.,positive,0.99091
+Hans Jansen,Lasse Collin,pr_53.csv,I ran it and it looks good. The performance seems to be a little bit better. I didn't notice any other differences. Thanks for taking the time to review everything.,positive,0.479154
+Hans Jansen,Lasse Collin,pr_53.csv,I made all of the requested fixes. Let me know if there are any other concerns.,neutral,0.0
+Hans Jansen,Lasse Collin,pr_64.csv,"
+I updated the PR with the squashing and comment change. I didn't try the crc_clmul.c idea but I believe it would result in cleaner code. I'll let you all handle it.
+
+
+I hadn't tested the assembly version before so I gave it a try since it seemed interesting. I compiled my test program and liblzma with the -m32 GCC flag and ran the benchmark on my 64-bit machine. I don't have a 32-bit machine to test on. The results were somewhat surprising considering how old the assembly implementation is. I didn't have time to make a pretty graph again, but here is a quick summary of my findings:
+
+| CRC version | Speed difference < 32 bytes | Speed difference > 1024 bytes |
+|------------------|----------------------------------------|------------------------------------------|
+| CRC32 Generic |  50% slower    | 75% slower |
+| CRC32 CLMUL  | 80% slower       | 30% slower |
+| CRC64 Generic | 60% slower |  65% slower |
+| CRC64 CLMUL | 80% slower |  40% faster |
+
+The CRC64 CLMUL version became faster with buffers around 512 bytes. The runtime differences started to change between 32 - 1024 bytes so it was most interesting to categorize them as < 32 bytes and > 1024 bytes. So for CRC32 you are better off using the assembly version but CRC64 depends.",negative,-0.298519

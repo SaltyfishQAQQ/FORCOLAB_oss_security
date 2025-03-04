@@ -1,0 +1,38 @@
+timestamp,from,to,body,title,msg_file
+"Fri, 05 Feb 2021 11:20:00 -0800",Brett Okken,,"After recent changes, the LZMA2OutputStream class no longer uses
+DataOutputStream, but the import statement is still present.
+
+
+Now that there is a 6 byte chunkHeader, could the 1 byte tempBuf be removed?
+",[xz-devel] java LZMA2OutputStream changes,msg00464.html
+"Fri, 05 Feb 2021 11:31:39 -0800",Lasse Collin,Brett Okken,"On 2021-02-05 Brett Okken wrote:
+
+
+Fixed. Thanks!
+
+
+It's better to keep it. It would be confusing to use the same buffer in
+write(int) and writeChunk(). At glance it would look like that
+writeChunk() could be overwriting the input.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] java LZMA2OutputStream changes,msg00466.html
+"Fri, 05 Feb 2021 11:51:50 -0800",Brett Okken,Lasse Collin,"
+
+I assumed that lz.fillWindow(buf, off, len); would always process the
+1 byte. It is not a big deal, I am just trying to understand what is
+going on a bit better.
+
+Brett
+",Re: [xz-devel] java LZMA2OutputStream changes,msg00467.html
+"Fri, 05 Feb 2021 11:57:02 -0800",Lasse Collin,Brett Okken,"On 2021-02-05 Brett Okken wrote:
+
+
+Yes, but it's not immediately obvious to a new reader. Also, many other
+classes have tempBuf for identical use so it's good to keep that pattern
+consistent.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] java LZMA2OutputStream changes,msg00469.html

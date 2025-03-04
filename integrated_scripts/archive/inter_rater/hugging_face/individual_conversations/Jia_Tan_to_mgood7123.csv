@@ -1,0 +1,18 @@
+from,to,file_name,message,mood,score
+Jia Tan,mgood7123,issue_70.csv,"@mgood7123 Thanks again for reporting and helping us test this. I would like to add you to our `THANKS` file, but I did not see your name on your GitHub profile. Is there a name you would like us to use for you in our `THANKS` file? Otherwise you may remain anonymous :)",positive,0.8647165603470057
+Jia Tan,mgood7123,issue_70.csv,"
+The default build options need to create a working build on all of our supported platforms. Right now people can just disable ifunc for a working musl build as you discovered with `-DALLOW_ATTR_IFUNC=OFF`. That is only a temporary workaround since we want to make our build systems as easy to use for people as possible.
+
+I have been working a [branch](https://github.com/tukaani-project/xz/tree/ifunc_detect_fix) to address this. The idea is to change the ifunc option for our CMake and Autotools build from ON/OFF or enable/disable to auto/ON/OFF. 'auto' will try to enforce using ifunc with glibc or BSD platforms only. ON will always try to use ifunc and OFF will obviously disable ifunc completely. Both auto and ON will still test the compiler if it supports `__attribute__((__ifunc__()))`.
+
+If you can test the new branch on Alpine that would be very helpful. I tested with `musl-gcc` wrapper and things seemed to work. We haven't decided 100% if this is the approach we want to take but it seems promising so far.
+
+Thanks for all of your help so far!",neutral,0.03344178758561611
+Jia Tan,mgood7123,issue_68.csv,"Our CMake support is considered unstable and is undergoing a lot of improvements. Many of these improvements are already on master but have not made it into a stable release. If you only need `liblzma`, then using a release from the 5.4 branch will work. We will have a new `5.4.5` release later today and that will include a few small CMake changes. We recently ported the command line tools `xz` and `xzdec` to MSVC but that will not be part of any of the 5.4 releases
+
+We are planning to release 5.6.0 this December which may change the default library to being a shared library. We may consider our CMake support stable at that point. So, to be safe you should explicitly set the `BUILD_SHARED_LIBS` option if you do build `liblzma` through CMake since this option's default value specifically might not be stable.
+
+If you can use our Autotools build system on Windows through something like Cygwin or MSYS2, that is recommended over CMake at the moment. If not, our CMake build will likely still work for you, but be careful of minor things changing in the future. We generally don't break things with our CMake build and are usually just adding more features. I hope this answers your question!",neutral,-0.07522428408265114
+Jia Tan,mgood7123,issue_70.csv,"
+I don't think this will work for us since a tool like `musl-gcc` (a GCC wrapper for using musl libc) still outputs `x86_64-linux-gnu` with `-dumpmachine`. So this would fix things for Alpine, but our builds would still be broken for anyone compiling for musl libc using a wrapper like this.
+",negative,-0.8780840779654682

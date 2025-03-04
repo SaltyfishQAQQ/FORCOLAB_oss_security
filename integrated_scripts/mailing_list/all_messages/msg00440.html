@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH v2] liblzma: Add multi-threaded decoder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00440" id="c">
+<link rel="index" href="maillist.html#00440" id="i">
+<link rel="prev" href="msg00438.html" id="p">
+<link rel="next" href="msg00444.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00440.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v2%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH v2] liblzma: Add multi-threaded decoder</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210127" rel="nofollow">Wed, 27 Jan 2021 15:17:27 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-01-24 23:56:15 [+0200], Lasse Collin wrote:
+&gt; Hello!
+Hi,
+
+&gt; I haven't made much progress with this still, I'm sorry. :-( Below are
+&gt; comments about a few small details. It's not much but I will (slowly)
+&gt; keep reading and testing.</pre><pre>
+
+Thank you.
+
+&gt; (1) Segfault due to thr-&gt;outbuf == NULL
+&gt; 
+&gt; I changed CHUNK_SIZE to 1 to test corner cases. I used
+&gt; good-1-block_header-1.xz as the test file. It can segfault in
+&gt; worker_decoder() on the line calling thr-&gt;block_decoder.code(...)
+&gt; because thr-&gt;outbuf is NULL (so the problem was introduced in the outq
+&gt; patch). This happens because of &quot;thr-&gt;outbuf = NULL;&quot; later in the
+&gt; function.
+&gt; 
+&gt; It looks like that it marks the outbuf finished and returns the thread
+&gt; to the pool too early or forgets to set thr-&gt;state = THR_IDLE. As a
+&gt; temporary workaround, I added &quot;thr-&gt;state = THR_IDLE;&quot; after
+&gt; &quot;thr-&gt;outbuf = NULL;&quot;.
+
+I moved the logic to reset the in buffer only after LZMA_STREAM_END.
+
+&gt; (2) Block decoder must return LZMA_STREAM_END on success
+&gt; 
+&gt; Because of end marker and integrity check, the output buffer will be
+&gt; full before the last bytes of input have been processed by the Block
+&gt; decoder. Thus it is not enough to look at the input and output
+&gt; positions to determine when decoding has been finished; only
+&gt; LZMA_STREAM_END should be used to determine that decoding was
+&gt; successful.
+&gt; 
+&gt; In theory it is OK to mark the outbuf as finished once the output is
+&gt; full but for simplicity I suggest doing so (and returning the thread to
+&gt; the pool) only after LZMA_STREAM_END.
+&gt; 
+&gt; I committed a new test file bad-1-check-crc32-2.xz. The last byte in
+&gt; the Block (last byte of Check) is wrong. Change CHUNK_SIZE to 1 and try
+&gt; &quot;xz -t -T2 file bad-1-check-crc32-2.xz&quot;. The file must be detected to
+&gt; be corrupt (LZMA_DATA_ERROR).
+&gt; 
+
+I changed that as suggested.
+
+&gt; (3) Bad input where the whole input or output buffer cannot be used
+&gt; 
+&gt; In the old single-threaded decoding, lzma_code() will eventually return
+&gt; LZMA_BUF_ERROR if the calls to lzma_code() cannot make any progress,
+&gt; that is, no more input is consumed and no more output is produced. This
+&gt; condition can happen with correct code if the input file is corrupt in
+&gt; a certain way, for example, a truncated .xz file.
+&gt; 
+&gt; Since the no-progress detection is centralized in lzma_code(), the
+&gt; internal decoders including Block decoder don't try to detect this
+&gt; situation. Currently this means that worker_decoder() should detect it
+&gt; to catch bad input and prevent hanging on certain malformed Blocks.
+&gt; However, since the Block decoder knows both Compressed Size and
+&gt; Uncompressed Size, I think I will improve Block decoder instead so
+&gt; don't do anything about this for now.
+&gt; 
+&gt; I committed two test files, bad-1-lzma2-9.xz and bad-1-lzma2-10.xz. The
+&gt; -9 may make worker_decoder() not notice that the Block is invalid. The
+&gt; -10 makes the decoder hang. Like I said, I might fix these by changing
+&gt; the Block decoder.
+
+So I updated the logic that if LZMA_OK is returned from the block
+decoder and either the complete in-buffer or out-buffer has been
+consumed then it returns LZMA_DATA_ERROR.
+
+&gt; (4) Usage of partial_update in worker_decoder()
+&gt; 
+&gt; Terminology: main mutex means coder-&gt;mutex alias thr-&gt;coder-&gt;mutex.
+&gt; 
+&gt; In worker_decoder(), the main mutex is locked every time there is new
+&gt; output available in the worker thread. partial_update is only used to
+&gt; determine when to signal thr-&gt;coder-&gt;cond.
+&gt; 
+&gt; To reduce contention on the main mutex, worker_decoder() could lock it
+&gt; only when
+&gt;   - decoding of the Block has been finished (successfully or
+&gt; unsuccessfully, that is, ret != LZMA_OK), or
+&gt;   - there is new output available and partial_update is true; if
+&gt; partial_update is false, thr-&gt;outbuf-&gt;pos is not touched.
+&gt; 
+&gt; This way only one worker will be frequently locking the main mutex.
+&gt; However, I haven't tried it and thus don't know how much this affects
+&gt; performance in practice. One possible problem might be that it may
+&gt; introduce a small delay in output availability when the main thread
+&gt; switches reading from the next outbuf in the list.
+
+I did implement it as described, didn't I?
+
+&gt; (5) Use of mythread_condtime_set()
+&gt; 
+&gt; In the encoder the absolute time is calculated once per lzma_code()
+&gt; call. The comment in wait_for_work() in in stream_encoder_mt.c was
+&gt; wrong. The reason the absolute time is calculated once per lzma_code()
+&gt; call is to ensure that blocking multiple times won't make the timeout
+&gt; ineffective if each blocking takes less than timeout milliseconds. So
+&gt; it should be done similarly in the decoder.
+
+oh, okay. I assumed it as in &quot;waiting is okay but no longer than timeout
+secs&quot;.
+It is possible that at SEQ_INDEX time we wait less than `timeout' copy a
+few bytes and then wait again less than `timeout' until the out-buffer
+is full. But hey, we make progress ;)
+At SEQ_BLOCK_HEADER we would wait only once and return on the second
+iteration because we made progress. But yes, depending on how much has
+been done earlier, we would spent maybe too much time in waiting.
+Good. Let me change that.
+
+&gt; (6) Use of lzma_outq_enable_partial_output()
+&gt; 
+&gt; It should be safe to call it unconditionally:
+&gt; 
+&gt;     if (thr-&gt;outbuf == coder-&gt;outq.head)
+&gt;         lzma_outq_enable_partial_output(&amp;coder-&gt;outq,
+&gt;                                         thr_do_partial_update);
+&gt; 
+&gt; If outq.head is something else, it is either already finished or
+&gt; partial output has already been enabled. In both cases
+&gt; lzma_outq_enable_partial_output() will do nothing.
+
+Yeah, that is true. I tried to avoid a function call since it should
+only be used on the first block since the following once would get
+enabled after previous block was fully consumed. But yeah, let me change
+that.
+
+Let me retest this updated thing tomorrow and see how it goes.
+
+Sebastian
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00438.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00440">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00440">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00444.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00397.html">[xz-devel] [PATCH v2] liblzma: Add multi-threade...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00409.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00413.html">Re: [xz-devel] [PATCH v2] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00424.html">[xz-devel] [PATCH] Use outq</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00438.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH v2] liblzma: Add ...</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00444.html">[xz-devel] [PATCH] partial update, ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00496.html">Re: [xz-devel] [PATCH v2] liblzma: ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00498.html">Re: [xz-devel] [PATCH v2] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH v2] liblzma: Add multi-threaded decoder">
+<input type="hidden" name="msgid" value="20210127231657.pfes6zu64lrwfi6y@flow">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00440.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v2%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00438.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00444.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210127231657.pfes6zu64lrwfi6y@flow</li>
+</ul>
+</div>
+</body>
+</html>

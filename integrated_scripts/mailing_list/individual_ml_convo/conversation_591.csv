@@ -1,0 +1,331 @@
+timestamp,from,to,body,title,msg_file
+"Mon, 22 Aug 2022 09:52:17 -0700",Lasse Collin,,"XZ Utils 5.3.3alpha is available at <https://tukaani.org/xz/>. Here is an
+extract from the NEWS file:
+
+
+    * All fixes from 5.2.6.
+
+    * liblzma:
+
+        - Fixed 32-bit build.
+
+        - Added threaded .xz decompressor lzma_stream_decoder_mt().
+          It can use multiple threads with .xz files that have multiple
+          Blocks with size information in Block Headers. The threaded
+          encoder in xz has always created such files.
+
+          Single-threaded encoder cannot store the size information in
+          Block Headers even if one used LZMA_FULL_FLUSH to create
+          multiple Blocks, so this threaded decoder cannot use multiple
+          threads with such files.
+
+          If there are multiple Streams (concatenated .xz files), one
+          Stream will be decompressed completely before starting the
+          next Stream.
+
+        - A new decoder flag LZMA_FAIL_FAST was added. It makes the
+          threaded decompressor report errors soon instead of first
+          flushing all pending data before the error location.
+
+    * xz:
+
+        - Using -T0 (--threads=0) will now use multi-threaded encoder
+          even on a single-core system. This is to ensure that output
+          from the same xz binary is identical on both single-core and
+          multi-core systems.
+
+        - A default soft memory usage limit is now used for compression
+          when -T0 is used and no explicit limit has been specified.
+          This soft limit is used to restrict the number of threads
+          but if the limit is exceeded with even one thread then xz
+          will continue with one thread using the multi-threaded
+          encoder and this limit is ignored. If the number of threads
+          is specified manually then no default limit will be used;
+          this affects only -T0.
+
+          This change helps on systems that have very many cores and
+          using all of them for xz makes no sense. Previously xz -T0
+          could run out of memory on such systems because it attempted
+          to reserve memory for too many threads.
+
+          This also helps with 32-bit builds which don't have a large
+          amount of address space that would be required for many
+          threads. The default limit is 1400 MiB on all 32-bit
+          platforms with -T0.
+
+          Now xz -T0 should just work. It might use too few threads
+          in some cases but at least it shouldn't easily run out of
+          memory. It's possible that this will be tweaked before 5.4.0.
+
+        - Changes to --memlimit-compress and --no-adjust:
+
+          In single-threaded mode, --memlimit-compress can make xz
+          scale down the LZMA2 dictionary size to meet the memory usage
+          limit. This obviously affects the compressed output. However,
+          if xz was in threaded mode, --memlimit-compress could make xz
+          reduce the number of threads but it wouldn't make xz switch
+          from multi-threaded mode to single-threaded mode or scale
+          down the LZMA2 dictionary size. This seemed illogical.
+
+          Now --memlimit-compress can make xz switch to single-threaded
+          mode if one thread in multi-threaded mode uses too much
+          memory. If memory usage is still too high, then the LZMA2
+          dictionary size can be scaled down too.
+
+          The option --no-adjust was also changed so that it no longer
+          prevents xz from scaling down the number of threads as that
+          doesn't affect compressed output (only performance). After
+          this commit --no-adjust only prevents adjustments that affect
+          compressed output, that is, with --no-adjust xz won't switch
+          from multithreaded mode to single-threaded mode and won't
+          scale down the LZMA2 dictionary size.
+
+        - Added a new option --memlimit-decompress-mt=LIMIT. This is
+          used to limit the number of decompressor threads (possibly
+          falling back to single-threaded mode) but it will never make
+          xz refuse to decompress a file. This has a system-specific
+          default value because without any limit xz could end up
+          allocating memory for the whole compressed input file, the
+          whole uncompressed output file, multiple thread-specific
+          decompressor instances and so on. Basically xz could
+          attempt to use an insane amount of memory even with fairly
+          common files.
+
+          The new option works together with the existing option
+          --memlimit-decompress=LIMIT. The old option sets a hard limit
+          that must not be exceeded (xz will refuse to decompress)
+          while the new option only restricts the number of threads.
+          If the limit set with --memlimit-mt-decompress is greater
+          than the limit set with --memlimit-compress, then the latter
+          value is used also for --memlimit-mt-decompress.
+
+    * Tests:
+
+        - Added a few more tests.
+
+        - Added tests/code_coverage.sh to create a code coverage report
+          of the tests.
+
+    * Build systems:
+
+        - Automake's parallel test harness is now used to make tests
+          finish faster.
+
+        - Added the CMake files to the distribution tarball. These were
+          supposed to be in 5.2.5 already.
+
+        - Added liblzma tests to the CMake build.
+
+        - Windows: Fix building of liblzma.dll with the included
+          Visual Studio project files.
+
+-- 
+Lasse Collin
+",[xz-devel] XZ Utils 5.3.3alpha,msg00591.html
+"Mon, 26 Sep 2022 12:45:05 -0700",Sebastian Andrzej Siewior,Lasse Collin,"On 2022-08-22 19:52:09 [+0300], Lasse Collin wrote:
+
+
+Are there any open issues? If not, what needs to be done before the
+final release can happen?
+
+Sebasttian
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00592.html
+"Tue, 27 Sep 2022 06:29:31 -0700",Jia Tan,Sebastian Andrzej Siewior,"
+
+The 5.4.0 release that will contain the multi threaded decoder is
+planned for December. The list of open issues related to 5..4.0 in
+general that I am tracking are:
+
+- Final tweaks to multi threaded decoder (error handling may need
+improvements since the worker threads stay running in some cases when
+they should not).
+- New ARM64 filter needs to be properly coordinated to other xz
+implementations and documented.
+- Converting tests to the new tuktest framework. Most of the tests
+have been written, but they still need to be reviewed.
+- liblzma and xz functionality to convert a string into a filter
+chain. A draft of this is on the mailing list already, but the syntax
+needs finalizing and the code was not polished.
+- A patch for .lz support needs review.
+- A patch for crc64 optimizations needs review.
+- Misc. minor bug fixes.
+
+This is everything currently planned. Most things are done and just
+needs review and minor improvements. Don't worry, multi threaded
+decompression will be coming to xz in a stable release very soon!
+
+Jia Tan
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00593.html
+"Tue, 27 Sep 2022 08:45:09 -0700",Sam James,Jia Tan,"
+
+
+
+Fantastic news! Thank you! I'm testing out the alpha and all is well so far.
+
+
+Best,
+sam",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00594.html
+"Tue, 27 Sep 2022 12:39:01 -0700",Sebastian Andrzej Siewior,Jia Tan,"On 2022-09-27 21:29:07 [+0800], Jia Tan wrote:
+
+
+Okay, so that is what you are tracking. I remember that there was a
+stall in the decoding but I don't remember how it played out.
+
+I do remember that I had something for memory allocation/ limit but I
+don't remember if we settled on something or if discussion is needed.
+Also how many decoding threads make sense, etc.
+
+
+This reminds me that I once posted a patch to use openssl for the
+sha256. 
+    https://www.mail-archive.com/xz-devel@tukaani.org/msg00429.html
+
+Some distro is using sha256 instead crc64 by default, I don't remember
+which one… Not that I care personally ;)
+
+
+Okay. That is good to hear. I would like to get it in Debian and have
+dpkg support for the upcomming stable release. The earlier the better
+since this affects quite a large part of the system. The toolchain
+freeze is in January and I think that dpkg is part of it (or people will
+probably get very nervous if such a change gets integrated later in the
+cycle).
+
+
+Sebastian
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00595.html
+"Wed, 28 Sep 2022 06:42:38 -0700",Jia Tan,Sebastian Andrzej Siewior,"
+
+We ended up changing xz to use (total_ram / 4) as the default ""soft
+limit"". If the soft limit is reached, xz will decode single threaded.
+The ""hard limit"" shares the same environment variable and xz option
+(--memlimit-decompress).
+
+
+I am unsure if we will have time to include your sha256 patch, but if
+we finish all the tasks with extra time it may be considered.
+
+
+Thank you for notifying us about the January freeze. I hope this is
+the extra bit of motivation needed for us to release 5.4.0 as soon as
+it is ready.
+
+Lasse is confident that we will have the release by December. I will
+see what we can do to make it as early December as possible since I
+understand not wanting to make large changes just before a freeze. The
+interface for liblzma and xz for the multi threaded decoder does not
+have any planned changes, so things could probably be developed and
+tested using 5.3.3. This would actually help us because having people
+test and give us feedback on both performance and the interface would
+help before committing to things in the stable release.
+
+Thanks again Sebastian for your contributions to both xz and Debian's use of xz!
+
+Jia Tan
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00596.html
+"Thu, 29 Sep 2022 01:26:59 -0700",Guillem Jover,Jia Tan,"On Wed, 2022-09-28 at 21:41:59 +0800, Jia Tan wrote:
+
+
+Ah, thanks, that's reassuring then. It's one of the things I was
+worried about when having to decide whether to merge the patch I've got
+implementing this support into dpkg. So, once the alpha version has been
+packaged for Debian experimental, I'll test the patch and commit it.
+
+
+Given that this will be disabled at configure time (until the support
+is in Debian unstable), I'm not sure we'll have many people testing
+this, but I guess it will make it possible for people wanting to test
+it to do it more easily. And there's always the option to do that over
+the entire Debian archive or similar.
+
+Thanks,
+Guillem
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00597.html
+"Fri, 30 Sep 2022 10:23:17 -0700",Lasse Collin,Guillem Jover,"On 2022-09-29 Guillem Jover wrote:
+
+
+There are no planned changes but that isn't a *promise* that there won't
+be any changes before 5.4.0.
+
+I don't track API or ABI compatibility within development releases and
+thus binaries linked against shared liblzma from one alpha/beta release
+won't run with liblzma from the next alpha/beta *if* they depend on
+unstable symbols (symbol versioning stops it). This includes the xz
+binary itself and would include dpkg too if it uses the threaded
+decoder.
+
+Sometimes it can be worked around with distro-specific patches but
+that's extra hassle and can go wrong too. Please don't end up with a
+similar result that happened with RHEL/CentOS 7 which ended up
+affecting users of other distributions too (this is included in 5.2.7):
+
+    
+https://git.tukaani.org/?p=xz.git;a=commitdiff;h=913ddc5572b9455fa0cf299be2e35c708840e922
+
+So while I encourage testing, one needs to be careful when it can
+affect critical tools in the operating system. :-)
+
+-- 
+Lasse Collin
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00600.html
+"Mon, 03 Oct 2022 02:17:02 -0700",Sebastian Andrzej Siewior,Lasse Collin,"On 2022-09-30 20:23:06 [+0300], Lasse Collin wrote:
+
+
+That should be no problem. The last alpha version has been uploaded to
+debian experimental and it is exactly the place for such things. So dpkg
+could be linked against that version in experimental and will never
+enter an official release.
+
+Sebastian
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00601.html
+"Fri, 30 Sep 2022 10:23:12 -0700",Lasse Collin,Jia Tan,"On 2022-09-28 Jia Tan wrote:
+
+
+There is also the 1400 MiB cap for 32-bit executables.
+
+The memory limiting in threaded decompression (two separate limits in
+parallel) is one thing where feedback would be important as after the
+liblzma API, ABI and xz tool syntax are in a stable release, backward
+compatibility has to be maintained.
+
+Another thing needing feedback is the new behavior of -T0 when no
+memlimit has been specified. Now it has a default soft limit. I hope it
+is an improvement but quite possibly it could be improved. Your
+suggestion to use MemAvailable on Linux is one thing that could be
+included if people think it is a good way to go as a Linux-specific
+behavior (having more benefits than downsides).
+
+These are documented on the xz man page. I hope it is clear enough. It
+feels a bit complicated, which is a bad sign but on the other hand I
+feel the underlying problem isn't as trivial as it seems on the surface.
+
+So far Jia Tan and I have received no feedback about these things at
+all. I would prefer to hear the complaints before 5.4.0 is out. :-)
+
+
+There's more to this than available time. 5.1.2alpha added support for
+using SHA-256 from the OS base libraries (not OpenSSL) but starting with
+5.2.3 it is disabled by default. Some OS libs use (or used to use) the
+same symbol names for SHA-256 functions as OpenSSL while having
+incompatible ABI. This lead to weird problems when an application
+needed both liblzma and OpenSSL as liblzma ended up calling OpenSSL
+functions. Plus, some of the OS-specific implementations were slower
+than the C code in liblzma (OpenSSL would be faster).
+
+OpenSSL's license has compatibility questions with GNU GPL. If I
+remember correctly, some distributions consider OpenSSL to be part of
+the core operating system and thus avoid the compatibility problem with
+the GPL. I'm not up to date how distros handle it in 2022 but perhaps
+it should be taken into account so that apps depending on liblzma won't
+get legally unacceptable OpenSSL linkage. So if OpenSSL support is
+added it likely should be disabled by default in configure.ac.
+
+
+Translations need to be updated too once the strings and man pages are
+close to final. A development release needs to be sent to the
+Translation Project at some point. If people want to translate the man
+pages too, they will need quite a bit of time.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] XZ Utils 5.3.3alpha,msg00599.html

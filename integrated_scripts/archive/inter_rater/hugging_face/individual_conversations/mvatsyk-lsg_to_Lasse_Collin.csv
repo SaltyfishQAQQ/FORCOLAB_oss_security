@@ -1,0 +1,19 @@
+from,to,file_name,message,mood,score
+mvatsyk-lsg,Lasse Collin,pr_73.csv,"Hi @Larhzu !
+
+
+In the existing setup, the corpora are generated dynamically in a [build.sh](https://github.com/google/oss-fuzz/pull/11279/commits/97ba2c05158912b2c8a5a2dd6c721fa31f2ed819) file. So, any modifications have to be done in a separate [pull request](https://github.com/google/oss-fuzz/pull/11279). After we merge this pull request, I will go ahead and update the latter one to properly reflect all the changes. 
+
+
+I did not find any hard cap of the execution time for the OSS Fuzz itself. However, their CI integration, CIFuzz will divide the [shared fuzzing time of 10 minutes](https://google.github.io/oss-fuzz/getting-started/continuous-integration/#how-it-works) between all fuzz targets in the project. 
+
+Getting back to the OSS Fuzz, each fuzz target will be run on [a dedicated machine](https://google.github.io/oss-fuzz/faq/#what-are-the-specs-on-your-machines) with 1 CPU and a cap of ~ 2GB RAM. 
+
+Since the fuzzers are written in C/C++, I doubt that introducing new fuzzers, at least for now, will decrease the overall quality of the fuzzing output. On my test setup inside a VM with similar hardware parameters, the fuzzing and the generation of an introspector report took around 5 minutes.
+
+
+This absolutely makes sense. However, current fuzzing setup is very limited and covers only half of the lib (since `--disable-encoders` flag is used during the compilation). Its runtime coverage is 116/162 functions. The setup proposed in this pull request extends the fuzzing coverage to all common encoders and decoders to increase the runtime coverage to 270/360 functions.
+
+
+
+We can remove those, however this decreases the runtime fuzzing coverage from 270/360 to 249/360 functions. Should we proceed with deleting the fuzz targets?",neutral,-0.01851526089012623

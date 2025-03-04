@@ -1,0 +1,10 @@
+from,to,file_name,message,mood,score
+mgood7123,Lasse Collin,issue_70.csv,"
+an ifunc WILL compile and link successfully in a dynamically built program, but musl does not implement ifunc (GNU glibc only extension)",neutral,0.0
+mgood7123,Lasse Collin,issue_70.csv,a crude hack to detect musl is to detect /lib/ld-musl-*,negative,-0.647258
+mgood7123,Lasse Collin,issue_70.csv,"we could extract the triple on gcc/clang via `-dumpmachine`
+
+```
+$ clang -dumpmachine
+x86_64-alpine-linux-musl
+```",negative,-0.697239

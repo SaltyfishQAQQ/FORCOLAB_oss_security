@@ -1,0 +1,278 @@
+timestamp,from,to,body,title,msg_file
+"Sat, 23 Jan 2021 12:21:36 -0800",Markus Rickert,,"
+Hello,
+
+
+
+
+
+This could be solved by adding an alias to the config file:
+add_library(LibLZMA::LibLZMA ALIAS liblzma::liblzma)
+
+
+
+Best regards,
+
+Markus Rickert
+",[xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,msg00437.html
+"Sat, 30 Jan 2021 08:41:22 -0800",Lasse Collin,Markus Rickert,"On 2021-01-23 Markus Rickert wrote:
+
+
+I have committed both of your suggestions (hopefully correctly). Thanks!
+
+Some extra thoughts: There are some differences between FindLibLZMA and
+the config file:
+
+  - FindLibLZMA doesn't #define LZMA_API_STATIC when building against
+    static liblzma. LZMA_API_STATIC omits __declspec(dllimport) from
+    liblzma function declarations on Windows.
+
+  - FindLibLZMA sets a few CMake cache variables that the config file
+    doesn't, for example, LIBLZMA_HAS_EASY_ENCODER. I have no idea if
+    there are packages that care about this.
+
+  - The config file has find_dependency(Threads) while FindLibLZMA
+    doesn't. This can affect the linker flags.
+
+Perhaps there are other details affecting compatiblity. I just wonder
+how big mistake it was to use liblzma::liblzma in the config file. I
+guess it's too late to change it now.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,msg00445.html
+"Sun, 31 Jan 2021 08:18:47 -0800",Markus Rickert,Lasse Collin,"
+I have committed both of your suggestions (hopefully correctly). Thanks!
+
+
+
+
+
+
+
+add_library(LibLZMA::LibLZMA INTERFACE IMPORTED)
+
+
+
+   - FindLibLZMA doesn't #define LZMA_API_STATIC when building against
+     static liblzma. LZMA_API_STATIC omits __declspec(dllimport) from
+     liblzma function declarations on Windows.
+
+
+
+
+
+
+
+   - FindLibLZMA sets a few CMake cache variables that the config file
+     doesn't, for example, LIBLZMA_HAS_EASY_ENCODER. I have no idea if
+     there are packages that care about this.
+
+
+
+set(LIBLZMA_HAS_AUTO_DECODER ON)
+set(LIBLZMA_HAS_EASY_ENCODER ON)
+set(LIBLZMA_HAS_LZMA_PRESET ON)
+
+
+set(LIBLZMA_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(LIBLZMA_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(LIBLZMA_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(LIBLZMA_VERSION_STRING \""${PROJECT_VERSION}\"")
+
+
+   - The config file has find_dependency(Threads) while FindLibLZMA
+     doesn't. This can affect the linker flags.
+
+
+
+
+
+Perhaps there are other details affecting compatiblity. I just wonder
+how big mistake it was to use liblzma::liblzma in the config file. I
+guess it's too late to change it now.
+
+
+
+
+
+add_library(LibLZMA::LibLZMA ALIAS LibLZMA)
+add_library(liblzma ALIAS LibLZMA::LibLZMA)
+add_library(liblzma::liblzma ALIAS LibLZMA::LibLZMA)
+
+
+if(NOT CMAKE_VERSION VERSION_LESS 3.17)
+
+endif()
+
+Best regards,
+
+Markus Rickert
+
+[1] https://gitlab.kitware.com/cmake/cmake/-/issues/18564",Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,msg00446.html
+"Sat, 13 Feb 2021 13:44:30 -0800",Lasse Collin,Markus Rickert,"On 2021-01-31 Markus Rickert wrote:
+
+
+I'm afraid I didn't I fully understand the exact situation when this
+problem occurs. I trust that it's real and that you tested it, thus
+I committed this change. Thanks! I assume it has no significant
+downsides compared to the ALIAS method.
+
+Can something go wrong in the opposite direction: CMakeLists.txt
+recommends that one uses ""find_package(liblzma 5.2.5 REQUIRED CONFIG)""
+to ensure that FindLibLZMA isn't used. If one does so and then
+something else in the project uses FindLibLZMA anyway, does the
+interface library (or previously the alias) cause a problem? Or is this
+situation unlikely to happen?
+
+
+Autotools options being the reason sounds reasonable, although all
+normal builds of liblzma always have all features enabled. However, I
+might add CMake options to disable encoder or decoder because there are
+use cases where encoder support isn't needed. Then those compatibility
+variables would need to be set conditionally too.
+
+If liblzma is built with some features disabled and then something
+breaks, I'm not sure if I should care. With Autotools-based builds
+no help is provided: if one wants to disable features to reduce the
+library size, one must be careful to do it without breaking anything.
+
+In the CMake world, perhaps it could matter when two things are able to
+use liblzma but only one of them needs encoding support. Then those
+variables could help to keep the build working. However, it wouldn't
+suprise me if most packages don't check those variables and simply
+assume that all features are available if liblzma is found (which I
+think is reasonable behavior). I didn't try to verify this though so I
+may be wrong.
+
+
+This can be done too, although first it should be decided if full
+compatibility with FindLibLZMA is desirable. I guess FindLibLZMA won't
+see major changes so maintaining compatibility wouldn't need frequent
+changes in the liblzma config file.
+
+FindLibLZMA also sets LIBLZMA_LIBRARIES and LIBLZMA_INCLUDE_DIRS. Is it
+OK to not care about these in context of FindLibLZMA compatibility?
+
+
+I was thinking if the naming should have been such that it doesn't
+overlap or conflict with FindLibLZMA module at all. However, that would
+mean that if one thing depends on, for example, xz_liblzma::xz_liblzma
+and another thing on LibLZMA::LibLZMA, then two different targets would
+refer to the same library and so the compiler and linker flags would be
+duplicated. I'm not sure if that could become a problem.
+
+I have always written liblzma in lower case so changing the primary
+target name to LibLZMA::LibLZMA would look a bit funny to me. Of
+course, I'm fine with it still if it means that things work better
+overall.
+
+
+CMakeLists.txt and friends were included in XZ Utils 5.2.5 (with the
+bug that shared library doesn't build on Windows). It's described as
+experimental so in that sense it could be OK to change things.
+
+
+If I change the main add_library(liblzma <files>) to add_library(LibLZMA
+<files>) then the filename will be LibLZMA.something too. That isn't
+good because then one cannot replace a CMake-built shared liblzma with
+an Autotools-built one on operating systems where file and library
+names are case sensitive.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,msg00477.html
+"Sun, 14 Feb 2021 07:39:34 -0800",Markus Rickert,Lasse Collin,"
+I'm afraid I didn't I fully understand the exact situation when this
+problem occurs. I trust that it's real and that you tested it, thus
+I committed this change. Thanks! I assume it has no significant
+downsides compared to the ALIAS method.
+
+
+
+
+
+Can something go wrong in the opposite direction: CMakeLists.txt
+recommends that one uses ""find_package(liblzma 5.2.5 REQUIRED CONFIG)""
+to ensure that FindLibLZMA isn't used. If one does so and then
+something else in the project uses FindLibLZMA anyway, does the
+interface library (or previously the alias) cause a problem? Or is this
+situation unlikely to happen?
+
+
+
+
+
+In the CMake world, perhaps it could matter when two things are able to
+use liblzma but only one of them needs encoding support. Then those
+variables could help to keep the build working. However, it wouldn't
+suprise me if most packages don't check those variables and simply
+assume that all features are available if liblzma is found (which I
+think is reasonable behavior). I didn't try to verify this though so I
+may be wrong.
+
+
+
+
+
+This can be done too, although first it should be decided if full
+compatibility with FindLibLZMA is desirable. I guess FindLibLZMA won't
+see major changes so maintaining compatibility wouldn't need frequent
+changes in the liblzma config file.
+
+
+
+
+
+FindLibLZMA also sets LIBLZMA_LIBRARIES and LIBLZMA_INCLUDE_DIRS. Is it > OK to 
+not care about these in context of FindLibLZMA compatibility?
+
+
+
+
+
+https://gitlab.gnome.org/GNOME/libxml2/-/blob/cbe1212db6e22fa92c33242c3ce089476585f872/libxml2-config.cmake.cmake.in#L33-58
+https://gitlab.gnome.org/GNOME/libxml2/-/blob/cbe1212db6e22fa92c33242c3ce089476585f872/libxml2-config.cmake.cmake.in#L79
+
+
+I was thinking if the naming should have been such that it doesn't
+overlap or conflict with FindLibLZMA module at all. However, that would
+mean that if one thing depends on, for example, xz_liblzma::xz_liblzma
+and another thing on LibLZMA::LibLZMA, then two different targets would
+refer to the same library and so the compiler and linker flags would be
+duplicated. I'm not sure if that could become a problem.
+
+
+
+
+
+
+
+I have always written liblzma in lower case so changing the primary
+target name to LibLZMA::LibLZMA would look a bit funny to me. Of
+course, I'm fine with it still if it means that things work better
+overall.
+
+
+
+
+
+
+
+If I change the main add_library(liblzma <files>) to add_library(LibLZMA
+<files>) then the filename will be LibLZMA.something too. That isn't
+good because then one cannot replace a CMake-built shared liblzma with
+an Autotools-built one on operating systems where file and library
+names are case sensitive.
+
+
+
+
+https://gitlab.gnome.org/GNOME/libxml2/-/blob/cbe1212db6e22fa92c33242c3ce089476585f872/CMakeLists.txt#L489-497
+
+
+https://github.com/roboticslibrary/zlib/blob/da865819a4f29045f66e5e0024f7082d25630928/CMakeLists.txt#L191
+
+Best regards,
+
+Markus Rickert",Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,msg00479.html

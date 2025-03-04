@@ -1,0 +1,7 @@
+from,to,file_name,message,mood,score
+Jia Tan,mvatsyk,pr_73.csv,"@mvatsyk-lsg Thanks! Things are looking pretty good now. I created a separate [branch](https://github.com/tukaani-project/xz/tree/oss_fuzz) with all of your commits plus a minor cleanup commit. Can you test this branch to be sure I didn't break anything during my changes?
+
+As I'm sure you know, the draft PR in OSS-Fuzz needs updating from all the changes we made here. I want to do a quick local test before merging but it will be easier if the OSS-Fuzz changes are updated on that PR.",positive,0.717294
+Jia Tan,mvatsyk,pr_73.csv,"@mvatsyk-lsg Thanks for the commands to use for a local test. You caught my mistake but testing locally also highlighted it. I just merged your commits into master.
+
+Great work with this! Thanks for being so flexible and responsive with all the changes.",positive,0.807145

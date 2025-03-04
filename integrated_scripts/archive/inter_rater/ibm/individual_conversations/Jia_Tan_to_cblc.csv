@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+Jia Tan,cblc,issue_54.csv,Thanks @cblc for reporting this! We had a similar report recently (mentioned by @thesamesam) so we made a much needed update to the INSTALL file. I hope this update helps you and future users with similar questions.,positive,0.904109

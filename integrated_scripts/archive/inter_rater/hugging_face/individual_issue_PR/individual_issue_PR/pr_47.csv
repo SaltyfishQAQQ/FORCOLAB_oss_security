@@ -1,0 +1,59 @@
+event,from,created_at,body
+thread_started,gabibguti,2023-04-05T17:09:54Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [x] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [x] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [x] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+Not having a Security Policy file.
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: Resolves https://github.com/tukaani-project/xz/issues/46
+
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+- Add Security Policy file
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->
+I've tried to keep the timelines of confirming a vulnerability report and fixing a vulnerability as open as possible. Let me know what you think and if this seems reasonable for maintainence."
+commented,gabibguti,2023-04-05T17:15:35Z,"I see you also have GitHub's Security Advisories feature enabled. So we could put 2 reporting options in the Security Policy, email and the [security advisory report link](https://github.com/tukaani-project/xz/security/advisories/new). Does it make sense?"
+commented,JiaT75,2023-04-06T13:17:30Z,"Thanks for the PR! I recently enabled GitHub's Security Advisories feature so we should list that as a reporting option. Email is the preferred option, so we should list that option first. 
+
+Can you move the SECURITY.md to the .github folder? Since this is a GitHub specific file and the rest of our documentation is .txt files, this would fit better.
+
+The 90 day timeline to fix security reports is plenty of time for us, so I think that is very reasonable for us to adhere to."
+commented,gabibguti,2023-04-06T21:01:35Z,@JiaT75 Can you take a look to see if all your comments were addressed?
+commented,JiaT75,2023-04-07T12:05:56Z,Looks great. Thanks for the contribution!

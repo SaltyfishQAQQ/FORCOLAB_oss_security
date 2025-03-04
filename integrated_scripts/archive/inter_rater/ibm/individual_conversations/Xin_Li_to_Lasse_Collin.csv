@@ -1,0 +1,11 @@
+from,to,file_name,message,mood,score
+Xin Li,Lasse Collin,pr_43.csv," @Larhzu yeah I like the [capsicum_improvements](https://github.com/tukaani-project/xz/commits/capsicum_improvements) changes better.  And `message_warning` did change the exit code so it would cause breakage in some scenarios, in our case it would still break gettext-tools build (as make is expecting xz to return 0).
+
+Regarding ""[cap_enter(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_enter&apropos=0&sektion=0&manpath=FreeBSD+14.0-CURRENT&arch=default&format=html) mentions ENOSYS but [cap_rights_limit(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_rights_limit&sektion=2&apropos=0&manpath=FreeBSD+14.0-CURRENT) doesn't."" -- yes, this is definitely a documentation issue and I'll fix it ASAP.
+
+For capsicum_helpers(3) -- I think it's totally dependent on whether the code would be used on other operating systems that have capsicum support; they are FreeBSD specific.  FreeBSD 10 / 11 is not really a concern as they are pretty old nowadays.",negative,-0.477448
+Xin Li,Lasse Collin,pr_43.csv,"@Larhzu Regarding warning message -- it doesn't matter much as long as the return value is zero.  Personally, I'd prefer not having the warning message, because 1) Capsicum is enabled by default and user has to deliberately disable it with a custom built kernel; we are discussing about remove the option and make it mandatory, but right now for those who disabled it it can be quite annoying to see the message every invocation of xz, and 2) this behavior (no warning when capsicum is not supported) is what everyone else does currently, the preferred (capsicum_helper) wrapper even handled it for the developer.
+
+I've updated the manual page for other `cap_*` system calls for FreeBSD in https://github.com/freebsd/freebsd-src/commit/75798f9b01055261881938326a5c77e55f79c7f7 to reflect the fact that they do return `ENOSYS`.
+
+(Maybe we should close this PR and move the discussion somewhere else? :) )",negative,-0.488778

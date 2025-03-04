@@ -1,0 +1,16 @@
+from,to,file_name,message,mood,score
+mgood7123,Jia Tan,issue_70.csv,"
+Tested on alpine, it works ^^",positive,0.7953601968474686
+mgood7123,Jia Tan,issue_70.csv,"
+Matthew Good",positive,0.759919754229486
+mgood7123,Jia Tan,issue_70.csv,"
+Hmmm",neutral,0.0871739462018013
+mgood7123,Jia Tan,issue_70.csv,"Maybe we could just add a define for musl
+
+make -D MUSL=1
+
+and trust the builder to pass this define when building on a musl distro",neutral,0.00892435759305954
+mgood7123,Jia Tan,issue_70.csv,"Alright
+
+On Mon, 27 Nov 2023, 11:04 pm Jia Tan, ***@***.***> wrote:
+",neutral,0.025654830504208803

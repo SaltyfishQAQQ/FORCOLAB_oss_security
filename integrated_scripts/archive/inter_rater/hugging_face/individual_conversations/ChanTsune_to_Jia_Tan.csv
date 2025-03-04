@@ -1,0 +1,61 @@
+from,to,file_name,message,mood,score
+ChanTsune,Jia Tan,pr_57.csv,"Thank you for your kind review!
+
+I am honored to contribute to your project!",positive,0.99075969948899
+ChanTsune,Jia Tan,pr_57.csv,Thank you! I updated my profile name. I would appreciate it if you could add this name to the THANKS file!,positive,0.9822469583014026
+ChanTsune,Jia Tan,pr_56.csv,"Thanks for review!
+
+Sorry. The error message I pasted was the wrong one
+
+This is correct
+```
+  running: ""clang"" ""-O0"" ""-ffunction-sections"" ""-fdata-sections"" ""-fPIC"" ""-g"" ""-fno-omit-frame-pointer"" ""--target=wasm32-wasi"" ""--sysroot"" ""/wasi-sdk-20.0/share/wasi-sysroot"" ""-D_WASI_EMULATED_SIGNAL"" ""-I"" ""xz-5.2/src/liblzma/api"" ""-I"" ""xz-5.2/src/liblzma/lzma"" ""-I"" ""xz-5.2/src/liblzma/lz"" ""-I"" ""xz-5.2/src/liblzma/check"" ""-I"" ""xz-5.2/src/liblzma/simple"" ""-I"" ""xz-5.2/src/liblzma/delta"" ""-I"" ""xz-5.2/src/liblzma/common"" ""-I"" ""xz-5.2/src/liblzma/rangecoder"" ""-I"" ""xz-5.2/src/common"" ""-I"" ""/xz2-rs/lzma-sys"" ""-std=c99"" ""-pthread"" ""-DHAVE_CONFIG_H=1"" ""-o"" ""/xz2-rs/target/wasm32-wasi/debug/build/lzma-sys-7bbeecf3b4119da3/out/xz-5.2/src/liblzma/check/check.o"" ""-c"" ""xz-5.2/src/liblzma/check/check.c""
+  cargo:warning=In file included from xz-5.2/src/liblzma/check/check.c:13:
+  cargo:warning=In file included from xz-5.2/src/liblzma/check/check.h:16:
+  cargo:warning=In file included from xz-5.2/src/liblzma/common/common.h:17:
+  cargo:warning=xz-5.2/src/common/mythread.h:87:33: error: unknown type name 'sigset_t'
+  cargo:warning=mythread_sigmask(int how, const sigset_t *restrict set,
+  cargo:warning=                                ^
+  cargo:warning=xz-5.2/src/common/mythread.h:88:3: error: unknown type name 'sigset_t'
+  cargo:warning=                sigset_t *restrict oset)
+  cargo:warning=                ^
+  cargo:warning=xz-5.2/src/common/mythread.h:90:12: warning: call to undeclared function 'sigprocmask'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  cargo:warning=        int ret = sigprocmask(how, set, oset);
+  cargo:warning=                  ^
+  cargo:warning=1 warning and 2 errors generated.
+  exit status: 1
+```",neutral,-0.007666073739528656
+ChanTsune,Jia Tan,pr_56.csv,"I am using the latest WASI-SDK.
+WASI is trying to provide a project that provides a POSIX compatible API as WASIX but it seems it's not perfect yet.
+
+There is no deep meaning in using it via Rust, so if you can use Docker, I think you can reproduce the equivalent environment with the following `Dockerfile`
+
+```dockerfile
+FROM ghcr.io/webassembly/wasi-sdk:latest
+
+RUN apt update && apt install -y git
+
+RUN git clone https://github.com/tukaani-project/xz.git
+
+RUN ./xz/build-aux/ci_build.sh -b cmake -d threads,shared -p all
+
+```
+
+```sh
+$ docker build -t xz .
+```
+
+WASI-SDK can download from https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-20",neutral,-0.13463479280471802
+ChanTsune,Jia Tan,pr_56.csv,"It's a little redundant description, but how about adding the following changes
+
+`common.h`
+```diff
+-#include ""mythread.h""
++// If any type of threading is enabled, #include ""mythread.h"".
++#if defined(MYTHREAD_POSIX) || defined(MYTHREAD_WIN95) \
++		|| defined(MYTHREAD_VISTA)
++#	include ""mythread.h""
++#endif
+```
+
+I think this will solve 2.",neutral,0.04207394504919648

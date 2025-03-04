@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00610" id="c">
+<link rel="index" href="maillist.html#00610" id="i">
+<link rel="prev" href="msg00608.html" id="p">
+<link rel="next" href="msg00611.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00610.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+RHEL7+ABI+patch+%5C%28913ddc5%5C%29+breaks+linking+on+ia64%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22John+Paul+Adrian+Glaubitz%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">John Paul Adrian Glaubitz</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20221122" rel="nofollow">Tue, 22 Nov 2022 09:52:04 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre style="margin: 0em;">
+Hello!
+
+Since recently, several packages started to fail to build on Debian unstable 
+ia64
+when linking against liblzma. There error was always the same and indicates a 
+problem
+with the symbols exported by liblzma:</pre><pre>
+
+[ 36%] Linking CXX shared module ha_archive.so
+cd /&lt;&lt;PKGBUILDDIR&gt;&gt;/builddir/storage/archive &amp;&amp; /usr/bin/cmake -E 
+cmake_link_script CMakeFiles/archive.dir/link.txt --verbose=1
+/usr/bin/c++ -fPIC -g -O2 -ffile-prefix-map=/&lt;&lt;PKGBUILDDIR&gt;&gt;=. 
+-specs=/usr/share/dpkg/pie-compile.specs -Wformat -Werror=format-security -Wdate-time 
+-D_FORTIFY_SOURCE=2 -Wdate-time -D_FORTIFY_SOURCE=2 -pie -fPIC -fstack-protector 
+--param=ssp-buffer-size=4 -O2 -g -static-libgcc -fno-omit-frame-pointer 
+-fno-strict-aliasing -Wno-uninitialized -fno-omit-frame-pointer -D_FORTIFY_SOURCE=2 
+-DDBUG_OFF -Wall -Wenum-compare -Wenum-conversion -Wextra -Wformat-security 
+-Wmissing-braces -Wno-format-truncation -Wno-init-self -Wno-nonnull-compare 
+-Wno-unused-parameter -Woverloaded-virtual -Wnon-virtual-dtor -Wvla -Wwrite-strings 
+-specs=/usr/share/dpkg/pie-link.specs -Wl,-z,relro,-z,now -shared  -o ha_archive.so 
+CMakeFiles/archive.dir/azio.c.o CMakeFiles/archive.dir/ha_archive.cc.o  
+../../libservices/libmysqlservices.a -lz
+/usr/bin/ld: warning: -z relro ignored
+/usr/bin/ld: ha_archive.so: version node not found for symbol 
+lzma_get_progress@@XZ_5.2
+/usr/bin/ld: failed to set dynamic section sizes: bad value
+collect2: error: ld returned 1 exit status
+make[4]: *** [storage/archive/CMakeFiles/archive.dir/build.make:118: 
+storage/archive/ha_archive.so] Error 1
+make[4]: Leaving directory '/&lt;&lt;PKGBUILDDIR&gt;&gt;/builddir'
+make[3]: *** [CMakeFiles/Makefile2:4913: 
+storage/archive/CMakeFiles/archive.dir/all] Error 2
+
+Upon closer inspection, I noticed that the change 913ddc5 looked very 
+suspicious and indeed
+reverting the following change fixes the issue so that linking against liblzma 
+works again
+on Debian unstable ia64:
+
+commit 913ddc5572b9455fa0cf299be2e35c708840e922
+Author: Lasse Collin &lt;lasse.col...@tukaani.org&gt;
+Date:   Sun Sep 4 23:23:00 2022 +0300
+
+    liblzma: Vaccinate against an ill patch from RHEL/CentOS 7.
+
+The relevant bug report in Debian is #1024516 [2].
+
+Does anyone have a clue why this particular change may have broken the linking 
+on ia64?
+
+Thanks,
+Adrian
+
+</pre><blockquote style="border-left: #5555EE solid 0.2em; margin: 0em; padding-left: 0.85em"><pre style="margin: 0em;">
+[1] 
+<a  rel="nofollow" href="https://buildd.debian.org/status/fetch.php?pkg=mariadb-10.6&amp;arch=ia64&amp;ver=1%3A10.6.11-1&amp;stamp=1669022458&amp;raw=0">https://buildd.debian.org/status/fetch.php?pkg=mariadb-10.6&amp;arch=ia64&amp;ver=1%3A10.6.11-1&amp;stamp=1669022458&amp;raw=0</a>
+[2] <a  rel="nofollow" href="https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1024516">https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1024516</a>
+</pre></blockquote><pre style="margin: 0em;">
+
+--
+ .''`.  John Paul Adrian Glaubitz
+: :' :  Debian Developer
+`. `'   Physicist
+  `-    GPG: 62FF 8A75 84E0 2956 9546  0006 7426 3B37 F5B5 F913
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00608.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00610">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00610">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00611.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] RHEL7 ABI patch (913ddc5) breaks link...</span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00611.html">Re: [xz-devel] RHEL7 ABI patch (913ddc5) br...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00613.html">Re: [xz-devel] RHEL7 ABI patch (913ddc5...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00614.html">Re: [xz-devel] RHEL7 ABI patch (913...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00615.html">Re: [xz-devel] RHEL7 ABI patch (913...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00616.html">Re: [xz-devel] RHEL7 ABI patch ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00617.html">Re: [xz-devel] RHEL7 ABI p...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00618.html">Re: [xz-devel] RHEL7 A...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00624.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00627.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00626.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64">
+<input type="hidden" name="msgid" value="f2d33345-102e-2c6d-5d72-5861dd33b149@physik.fu-berlin.de">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00610.html">
+<input type="submit" value=" John Paul Adrian Glaubitz ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+RHEL7+ABI+patch+%5C%28913ddc5%5C%29+breaks+linking+on+ia64%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00608.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00611.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">f2d33345-102e-2c6d-5d72-5861dd33b149@physik.fu-berlin.de</li>
+</ul>
+</div>
+</body>
+</html>

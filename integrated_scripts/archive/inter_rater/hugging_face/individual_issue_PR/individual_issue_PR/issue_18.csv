@@ -1,0 +1,234 @@
+event,from,created_at,body
+thread_started,JiaT75,2023-01-12T16:27:27Z,"### Describe the Feature
+
+Both MinGw and CMake Windows builds should be tested.
+
+### Expected Complications
+
+Downloading the correct build environment dependencies could be tricky. GitHub might have some reusable components to help with this.
+
+### Will I try to implement this new feature?
+
+Yes"
+commented,arixmkii,2023-01-22T11:23:13Z,"@JiaT75 Could you specify which flavors of msys2 would you like to support?
+
+There are different combinations of arch, compiler, c standard library: https://www.msys2.org/docs/environments/
+
+I had recent experience of setting GitHub workflows for Windows builds and msys2, I might be able to help.
+
+Update 1: ""MinGw and CMake"", ok, I see that `MinGw` might mean that you are not using msys2 version of toolchain yet.
+
+Update 2: Here is GH Action to setup msys2 https://github.com/msys2/setup-msys2 with pretty detailed README."
+commented,JiaT75,2023-01-23T13:25:32Z,"@arixmkii Eventually, I would like to support the MSYS, UCRT64, and MINGW64 flavors in CI runners. Along with MSVC CMake of course. The other ones either don't run on x86-64 (which is what the GitHub-hosted runners support), or are the same but just use clang. The clang build is already tested by the MacOS runner, so its probably not necessary to test it on Windows. 
+
+I don't develop or use xz or liblzma on Windows, but we have a few users who do. My note about MinGw and CMake was more about testing the autotool and CMake builds on Windows. So, I think using msys2 makes sense since it is likely many of our users do so.
+
+To start, I think just picking one environment would be great. I feel the most useful one would be MINGW64 (msvcrt) if we also have CMake testing ucrt. Our README-Windows.txt suggests that we only support msvcrt, but this is likely outdated. Since we already have a lot of runners and configurations, maybe the other environments could be in a separate Workflow that we run manually pre-release or if we are addressing a Windows specific bug.
+
+Thanks for offering to help with this! I was planning on working on this soon, but I kept delaying it to work on other things. Your help would be greatly appreciated if you have the time to do it :)"
+commented,arixmkii,2023-02-12T22:09:03Z,"@JiaT75 I did something. At least it runs full autotools set on Windows host. I don't yet understand CMake part and also VisualStudio parts, but might be able to take another look some time later. Any additional context, what you think could help is highly appreciated."
+commented,JiaT75,2023-02-13T15:18:38Z,">  Any additional context, what you think could help is highly appreciated.
+
+I am not sure how experienced you are with CMake, but we shouldn't need anything too complicated. I haven't fully thought through it, but here are a few ideas I have had so far:
+- The GitHub Windows runner comes with CMake by default. You will not need to install it manually (https://github.com/actions/runner-images/blob/main/images/win/Windows2022-Readme.md)
+- It's probably a good idea to make most of the work be done in a separate script in the build-aux folder, similar to the concept of build-aux/ci_build.sh. The reason to do this is because the GitHub Workflow .yml files are harder to test/debug since you cannot run them locally. It's a lot easier to develop the script and then use the GitHub Workflow to wrap around it.
+- In the script, you should be able to specify the Visual Studios build with the -g option (https://cmake.org/cmake/help/latest/generator/Visual%20Studio%2017%202022.html).
+- After the generating step, `cmake --build` should compile and project
+- As of right now, CMake should not build the xz command line tool, just liblzma. The same number of tests should still build and pass, but I have not run these tests personally on MSVC so I cannot guarantee they will work as expected. If any of them fail unexpectedly, send us the log and we will fix it :)
+
+I hope this helps! Thanks again for your contributions so far. Let me know what other questions you may have.
+
+"
+commented,JiaT75,2023-06-10T11:51:51Z,"@arixmkii Are you still working on this? If you don't have time to finish it, no need to worry. I can finish up the last few changes and close this out. "
+commented,ashish-2022,2023-10-19T11:01:29Z,"Hi @arixmkii , @JiaT75 ,
+
+I was trying to compile XZ with cmake(included in Visual Studio 2022) and below was my observation:
+
+**Step 1: Set build environment**
+
+```
+D:\build>""C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat""
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.6.4
+** Copyright (c) 2022 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+
+D:\build>
+```
+
+**Step 2: Configure build environment:**
+
+`D:\build>cmake -S xz-master -B xz-build`
+
+**Setp 3: Start build:**
+`D:\build>cmake --build xz-build --config Release`
+
+**Result:**
+```
+D:\build>dir xz-build\Release
+ Volume in drive D is New Volume
+ Volume Serial Number is DE48-AF3E
+
+ Directory of D:\build\xz-build\Release
+
+10/19/2023  03:22 AM    <DIR>          .
+10/19/2023  03:22 AM    <DIR>          ..
+10/19/2023  03:21 AM           498,446 liblzma.lib
+10/19/2023  03:22 AM           230,912 xz.exe
+10/19/2023  03:22 AM            86,016 xzdec.exe
+               3 File(s)        815,374 bytes
+               2 Dir(s)  214,589,665,280 bytes free
+
+D:\build>
+```
+
+I found **liblzma.dll** is not getting generated.
+
+Then I configured using:
+`D:\build>cmake -S xz-master -B xz-build -D BUILD_SHARED_LIBS=ON`
+
+And the **liblzma.dll** was generated.
+
+Looks like you need to put following in CMakeLists.txt:
+`option(BUILD_SHARED_LIBS ""Build shared libraries"" ON)`
+Most opensource libs like **libxml2** have this ON by default. And before cmake when I compiled XZ it was generating liblzma.dll by default.
+
+"
+commented,JiaT75,2023-10-19T12:28:54Z,"Hi! This question doesn't exactly belong on this issue. This issue is for discussing changes to our Continuous Integration scripts for improving Windows support (which I still need to improve/finish). Anyways, I will still answer your question here.
+
+> Looks like you need to put following in CMakeLists.txt: `option(BUILD_SHARED_LIBS ""Build shared libraries"" ON)` Most opensource libs like **libxml2** have this ON by default. And before cmake when I compiled XZ it was generating liblzma.dll by default.
+
+We have always had the `BUILD_SHARED_LIBS` option defined in `CMakeLists.txt` since we first supported a CMake build. You can search for the line `option(BUILD_SHARED_LIBS ""Build liblzma as a shared library instead of static"")` if you are curious. In general, CMake defaults to `BUILD_SHARED_LIBS` not being set. Other projects can choose to override this by default but since we have always had it OFF by default it is difficult to change. Applications may be relying on this default behavior if they only want the static library to be built. So changing the default to instead build the shared library could cause their build pipelines to fail.
+
+Thank you for this report, but we will not be changing this."
+commented,ashish-2022,2023-10-19T12:34:38Z,"> Hi! This question doesn't exactly belong on this issue. This issue is for discussing changes to our Continuous Integration scripts for improving Windows support (which I still need to improve/finish). Anyways, I will still answer your question here.
+> 
+> > Looks like you need to put following in CMakeLists.txt: `option(BUILD_SHARED_LIBS ""Build shared libraries"" ON)` Most opensource libs like **libxml2** have this ON by default. And before cmake when I compiled XZ it was generating liblzma.dll by default.
+> 
+> We have always had the `BUILD_SHARED_LIBS` option defined in `CMakeLists.txt` since we first supported a CMake build. You can search for the line `option(BUILD_SHARED_LIBS ""Build liblzma as a shared library instead of static"")` if you are curious. In general, CMake defaults to `BUILD_SHARED_LIBS` not being set. Other projects can choose to override this by default but since we have always had it OFF by default it is difficult to change. Applications may be relying on this default behavior if they only want the static library to be built. So changing the default to instead build the shared library could cause their build pipelines to fail.
+> 
+> Thank you for this report, but we will not be changing this.
+
+Ok, Thanks."
+commented,arixmkii,2023-10-19T13:24:01Z,Hi @JiaT75  Thank you for the ping. Got it out of my focus. I will revisit the topic this weekend and update. I hope to get Windows part done.
+commented,JiaT75,2023-10-19T15:06:39Z,"@arixmkii I ended up making the Windows-CI work with MSYS2, but it would be great if things worked with MSVC (which is why I left the Issue open). If you have experience working with MSVC that is great.
+
+I imagine this would require writing a Windows PowerShell or Batch script to do things similar to what ci_build.sh does, and then refactoring windows-ci.yml to utilize the script. We need to use CMake to generate Windows Visual Studio files (using CMake's `-G` option to select the generator) and then compile everything and run the tests from Windows PowerShell or Command Prompt.
+
+Recently we ported the xz command line tool to work with MSVC so making sure we can continue to build on MSVC as the codebase changes is certianly valuable. "
+commented,ndu2,2024-03-08T23:45:03Z,"Hi @JiaT75 
+
+I had no problems compiling with MSVC only (cmake and tools shipped by Visual Studio 2022). Thanks a lot for setting the cmake files up for this.
+
+Are there any plans adding MSVC CI Builds (including binary releases) to the CI pipeline?
+There is a demo for VS2022/x64 build+artifacts on the ndu2/xz fork . Testing, etc is missing but this could be a start.
+
+I can help out on this, if there is any interest.
+
+Best
+ndu
+
+Link to the mentioned CI action: https://github.com/ndu2/xz/actions/runs/8224685611 (see also the files windows/build-with-vs2022.bat, .github/workflows/windows-vs2022-ci.yml)
+"
+commented,Larhzu,2024-03-09T09:05:19Z,"Would Visual Studio + Clang-cl be worth trying too? The inline x86-64
+assembly code in 5.6.x is compatible with GCC and Clang, so I hope that
+compiling with Clang-cl would result in better decompression speed than
+compiling with MSVC. (LZMA SDK has MSVC compatible assembly but then
+one needs to use LZMA SDK's C code and APIs too.)
+"
+commented,ndu2,2024-03-09T11:21:51Z,"Good point, I wasn't aware of that assembly code. I did a quick test on a virtual windows 10:
+
+MSVC against clang-cl (needed ~~a couple of code adaptions~~ one include for _get_osfhandle).
+
+1. uncompressable 40MB input 
+2. compressable 214MB input (compressed =24.3MB)
+
+using xz with all default settings (xz.exe -z raw, xz.exe -d raw.xz) and took the timings:
+
+1: almost identical (differences <2%)
+2: compressing is similar (<2%), decompressing: clang-cl is 10% to 15% faster
+
+I will bench with a ""real"" windows later and update here
+
+update: i see a performance increase of up to 25% on windows 11 AMD Ryzen 7 PRO 7840U. "
+commented,JiaT75,2024-03-09T12:00:45Z,"Thanks @ndu2 for doing some benchmarking and the demo pipeline! I hadn't forgotten about this but we had higher priority things to work on instead. MSVC support for xz is still fairly recent, so adding it to the CI pipeline would be great. I'll take a look at your demo pipeline hopefully soon :)
+
+The existing CI tests likely need a bit of a clean up anyway, some parts were written hastily by me. They have proven to be great for catching bugs though. We don't have plans for using CI for releases.
+
+The assembly code is only for decoding so that explains your results. Using larger test files may help be sure that the results aren't due to noise."
+commented,ndu2,2024-03-10T13:17:37Z,"Thank you @JiaT75  and @Larhzu for the quick feedback.
+
+
+> Would Visual Studio + Clang-cl be worth trying too?
+
+Yes, I think so. I added Clang-cl builds. There is just one include missing (Originally I required more patches due to my inability to properly generate the vsxproj with cmake)
+
+Patch: https://github.com/ndu2/xz/commit/5fb2ace8369ca30c17e772ce3d4a3d6fd99e2bf1
+
+
+
+
+> adding it to the CI pipeline would be great. I'll take a look at your demo pipeline hopefully soon :)
+
+I just updated the demo pipeline to ""somewhat complete"" state that suffices my own purposes:
+
+ * 4 Build Configuration with Visual Studio 2022 (x64 MSVC, x86 MSVC, x64 Clang-cl, x86 Clang-cl)
+ * execution of the test executables
+ * publishing of xz.exe and co (disabled per default)
+
+Well, I'm neither familiar with github actions nor with windows batch (nor powershell). But I stuck to the ""out of the box"" tools for better compatibility with VS2022/Windows only setups.
+
+You'll find the implementation it those 2 files:
+
+ * windows/build-with-vs2022.bat
+ * .github/workflows/windows-vs2022-ci.yml
+
+> The existing CI tests likely need a bit of a clean up anyway
+
+I found 13 test-executables (test_*.exe). I added calls to those in `build-with-vs2022.bat` and to the pipeline. Not sure if there is a way to standardise test-execution over all platforms w/o rewriting the tests to some test-framework?
+
+
+> We don't have plans for using CI for releases.
+
+OK. To be honest, Windows releases for v5.6.x is what brought me here at the first place :-)
+
+Please let me know if any of this work is of your interest and how to proceed.
+
+I'm more than happy to create PRs, adapt the scripts to the projects needs and clean things up as required. Feel also free to grab what you need.
+
+
+Best
+ndu2
+
+"
+commented,JiaT75,2024-03-13T16:12:28Z,"> I just updated the demo pipeline to ""somewhat complete"" state that suffices my own purposes:
+> 
+> * 4 Build Configuration with Visual Studio 2022 (x64 MSVC, x86 MSVC, x64 Clang-cl, x86 Clang-cl)
+> * execution of the test executables
+> * publishing of xz.exe and co (disabled per default)
+
+This will be really helpful to include since for now I just test things locally on a VM with x64 MSVC. Automating this plus extending coverage will save me some effort :)
+
+> Well, I'm neither familiar with github actions nor with windows batch (nor powershell). But I stuck to the ""out of the box"" tools for better compatibility with VS2022/Windows only setups.
+
+I haven't worked much with Windows Batch scripting or PowerShell either :/
+At a glance what you have makes sense but I will play around with it a bit.
+
+> > The existing CI tests likely need a bit of a clean up anyway
+> 
+> I found 13 test-executables (test_*.exe). I added calls to those in `build-with-vs2022.bat` and to the pipeline. Not sure if there is a way to standardise test-execution over all platforms w/o rewriting the tests to some test-framework?
+
+We currently just use the built-in test harnesses for our Autotools and CMake builds. The way you have it now seems logical, to just loop through the test executables and run them, although the best way to report the errors may need to be looked at. Maybe this is something we could add to `tuktest.h`, but at the moment I'm not sure how it would fit in.
+
+> > We don't have plans for using CI for releases.
+> 
+> OK. To be honest, Windows releases for v5.6.x is what brought me here at the first place :-)
+
+We had another recent request for Windows binaries, so we will more seriously consider this. We need to verify there are no license restrictions preventing us from distributing Windows binaries with the compiler we choose to use (MinGW-w64, MSVC, Clang-cl, etc.). Also, I would probably want to generate the Windows binaries locally instead of relying on GitHub runners. The GitHub CI runners are a common attack surface these days so it could be an extra risk. Currently, we only use CI for testing so if the GitHub runners are compromised then its not a security threat. 
+
+> I'm more than happy to create PRs, adapt the scripts to the projects needs and clean things up as required. Feel also free to grab what you need.
+
+I cloned your fork already, so no need to make a PR unless you want to. I suppose it could be helpful to keep the conversation focused on various parts of the code. We usually don't merge PRs directly anyway. Instead we usually take commits we like and adapt the other parts as needed. Don't worry, you'll still be the Author on any commits that are mostly unchanged :)
+"
+commented,furiousdroid,2024-04-16T16:31:03Z,they was gonna backdoor NT aswell bruh 🤦😂
