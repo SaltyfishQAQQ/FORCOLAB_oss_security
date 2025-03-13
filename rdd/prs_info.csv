@@ -1,4 +1,18 @@
 pr_#,state,created_at,updated_at,closed_at,merged_at,title,body,url,issue_url,merge_sha,user
+168,closed,2025-03-10 02:18:51,2025-03-10 21:51:32,2025-03-10 13:57:16,,tuklib_physmem: Silence -Wsign-conversion on AIX.,"On AIX:
+
+```
+$ ./configure && make
+[...]
+../common/tuklib_physmem.c:151:8: warning: conversion to 'uint64_t' {aka 'long long unsigned int'} from 'long long int' may change the sign of the result [-Wsign-conversion]
+  151 |  ret = _system_configuration.physmem;
+      |        ^~~~~~~~~~~~~~~~~~~~~
+mv -f .deps/liblzma_la-tuklib_physmem.Tpo .deps/liblzma_la-tuklib_physmem.Plo
+```
+
+This is harmless, but since the warning is enabled by ./configure if available I figured you would want it fixed.
+
+",https://github.com/tukaani-project/xz/pull/168,https://api.github.com/repos/tukaani-project/xz/issues/168,edd4cc2e64b0fb138cd5ab99fe17868f161dd3b5,collinfunk
 166,closed,2025-02-16 17:28:42,2025-02-19 14:24:33,2025-02-17 16:48:16,,Build: Add support for `gl_REPLACE_GETOPT_ALWAYS` in getopt.m4,"Gnulib supports forcing the replacement of getopt & getopt_long, but that was removed from the in-tree simplified getopt.m4. This is useful for building for targets with broken getopt_long implementations.",https://github.com/tukaani-project/xz/pull/166,https://api.github.com/repos/tukaani-project/xz/issues/166,7df1dfcbaed53defa71d578c27fc21fc1e5fbcaa,lzcunt
 165,closed,2025-02-03 23:07:45,2025-02-06 04:38:14,2025-02-06 04:37:38,,Fixed typos and improved Polish translation clarity.,Fixed typos and improved Polish translation clarity.,https://github.com/tukaani-project/xz/pull/165,https://api.github.com/repos/tukaani-project/xz/issues/165,883b5b46293af4f689a649c15ef5a972caa482e1,majevva
 160,closed,2025-01-30 03:05:48,2025-01-30 18:27:58,2025-01-30 18:25:12,,update fr.po,"I added some translation so I was sure of the translation (I am a French speaker)
@@ -88,8 +102,8 @@ Clearly these MB values are wrong.",https://github.com/tukaani-project/xz/pull/1
 It's not available in xzdec.",https://github.com/tukaani-project/xz/pull/143,https://api.github.com/repos/tukaani-project/xz/issues/143,ebcab831defcae438cd4875923400b5e84977ff3,stoeckmann
 141,closed,2024-09-10 09:30:42,2024-09-10 11:14:13,2024-09-10 11:14:12,,Fix typo in autogen.sh,,https://github.com/tukaani-project/xz/pull/141,https://api.github.com/repos/tukaani-project/xz/issues/141,fa6d598b90c1a049969a972dcb8f046719dfdee8,firasuke
 140,closed,2024-09-08 01:25:49,2024-09-22 13:32:30,2024-09-22 13:32:30,,Translations: Fix improper expressions in Chinese (simplified) translation.,,https://github.com/tukaani-project/xz/pull/140,https://api.github.com/repos/tukaani-project/xz/issues/140,5d012fc194a1947e2788b4314cbcf171245c9506,ChenPi12
-137,open,2024-09-02 19:17:24,2024-09-26 08:39:32,,,Add support for Large Memory  Model on AIX 32-bit,"32-bit executables on AIX need to increase the address space to allow more than 256MB RAM.
-It would be nice if this was available out of box.",https://github.com/tukaani-project/xz/pull/137,https://api.github.com/repos/tukaani-project/xz/issues/137,e12e149ccc1c142d04c78c186b5b0cc784c5688f,vchaves123
+137,closed,2024-09-02 19:17:24,2025-03-10 13:57:17,2025-03-10 13:57:17,,Add support for Large Memory  Model on AIX 32-bit,"32-bit executables on AIX need to increase the address space to allow more than 256MB RAM.
+It would be nice if this was available out of box.",https://github.com/tukaani-project/xz/pull/137,https://api.github.com/repos/tukaani-project/xz/issues/137,59f8679d24763d40af288e38beab592019d5319f,vchaves123
 136,closed,2024-08-22 02:40:49,2024-08-22 09:53:22,2024-08-22 09:53:22,,"liblzma: fix movzw compatibility in range_decoder.h, close #121.","Support for instruction `movzw` without suffix in ""GNU as"" was added in commit [1] and stabilized in binutils 2.27, released in August 2016. Earlier systems don't accept this instruction without a suffix, making range_decoder.h's inline assembly unable to build on old systems such as Ubuntu 16.04, creating error messages like:
 
     lzma_decoder.c: Assembler messages:
@@ -130,7 +144,7 @@ This fixes building with GCC 4.2.",https://github.com/tukaani-project/xz/pull/12
 125,closed,2024-06-07 01:56:55,2024-06-10 08:26:40,2024-06-07 13:17:32,,liblzma: ARM64 CRC32: Add support for OpenBSD CPU feature detection,,https://github.com/tukaani-project/xz/pull/125,https://api.github.com/repos/tukaani-project/xz/issues/125,cf6345ba6780aeffaa4d1cf1aaaf22828064f831,brad0
 124,closed,2024-06-05 22:22:19,2024-06-07 13:18:01,2024-06-07 13:17:33,,fix typos,,https://github.com/tukaani-project/xz/pull/124,https://api.github.com/repos/tukaani-project/xz/issues/124,75e8b48c002ee1ec209dd560418ded3332fc8b02,RainRat
 123,closed,2024-06-03 05:22:44,2024-06-03 05:34:30,2024-06-03 05:23:50,,For lasse,,https://github.com/tukaani-project/xz/pull/123,https://api.github.com/repos/tukaani-project/xz/issues/123,c9dd55b55607fac5a41d6654510a4fc4c3184511,thesamesam
-120,open,2024-05-02 04:06:00,2024-05-30 10:06:52,,,WIP: meson build,,https://github.com/tukaani-project/xz/pull/120,https://api.github.com/repos/tukaani-project/xz/issues/120,2d07b22e99f12ce83fcd1a825ca07ee977997254,vtorri
+120,open,2024-05-02 04:06:00,2024-05-30 10:06:52,,,WIP: meson build,,https://github.com/tukaani-project/xz/pull/120,https://api.github.com/repos/tukaani-project/xz/issues/120,98e5df5db7a5b934efccf46e9f1f547f23700feb,vtorri
 118,closed,2024-05-01 21:13:14,2024-12-22 18:04:36,2024-12-18 15:32:01,,Mask control characters in filenames,"The command line tools print filenames and some other user-specified strings to standard output or standard error. Malicious strings, for example, from filenames could contain control characters that affect the state of the terminal.
 
 These commits add a function to replace the single-byte control characters with question marks. This is simple but hopefully good enough in practice.",https://github.com/tukaani-project/xz/pull/118,https://api.github.com/repos/tukaani-project/xz/issues/118,,Larhzu
