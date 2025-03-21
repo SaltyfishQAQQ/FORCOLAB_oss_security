@@ -1,0 +1,13 @@
+event,from,created_at,body,to
+thread_started,mgood7123,2023-10-31T15:42:14Z,"how stable is cmake support in xz ?
+
+as i plan to build for windows via cmake and add xz as a library in my project",['mgood7123']
+commented,JiaT75,2023-10-31T16:05:35Z,"Our CMake support is considered unstable and is undergoing a lot of improvements. Many of these improvements are already on master but have not made it into a stable release. If you only need `liblzma`, then using a release from the 5.4 branch will work. We will have a new `5.4.5` release later today and that will include a few small CMake changes. We recently ported the command line tools `xz` and `xzdec` to MSVC but that will not be part of any of the 5.4 releases
+
+We are planning to release 5.6.0 this December which may change the default library to being a shared library. We may consider our CMake support stable at that point. So, to be safe you should explicitly set the `BUILD_SHARED_LIBS` option if you do build `liblzma` through CMake since this option's default value specifically might not be stable.
+
+If you can use our Autotools build system on Windows through something like Cygwin or MSYS2, that is recommended over CMake at the moment. If not, our CMake build will likely still work for you, but be careful of minor things changing in the future. We generally don't break things with our CMake build and are usually just adding more features. I hope this answers your question!",['mgood7123']
+commented,Larhzu,2024-06-25T12:02:46Z,"Quite a few changes have been made to CMake support in the `master` branch in the past week. For example, configuration variables have been renamed and added. A few changes are pending still.
+
+Question: How old CMake version should be supported? Currently 3.14 is the minimum except that 3.20 is required to support message and man page translations and to create a relocatable `liblzma.pc`. **Is it OK to require CMake 3.20** in XZ Utils 5.8.0 (and 5.7.1alpha)?",['JiaT75']
+commented,Larhzu,2024-06-27T19:14:50Z,"@dg0yt @Neumann-A @teo-tsirpanis: There are quite a few changes to CMake support in the `master` branch now, including renaming most of the options to use `XZ_` prefix. Hopefully it's possible to implement vcpkg's `BUILD_TOOLS` on top of the `XZ_TOOL_foo` options. I suppose these are too big changes for 5.6.x so they won't be in a stable release until 5.8.0. I'm highlighting you just in case you wish to give feedback now when it's easy to change things instead of when these are already in a stable release. Thanks!",dg0yt

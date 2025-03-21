@@ -1,0 +1,66 @@
+event,from,created_at,body,to
+thread_started,abysssdweller,2024-03-29T19:33:21Z,"### Describe the bug
+
+Recently, changes were made to the error handling code in the xz utility's libarchive project (reference to the specific MR or commit). While the intention behind these changes may have been to improve error reporting, there are concerns about potential security implications, especially in light of the recent discovery of a backdoor in the xz utility.
+
+Upon reviewing the changes, it appears that safe fprintf calls were replaced with unsafe fprintf calls in the error handling code. This alteration raises concerns about the possibility of introducing vulnerabilities, particularly if terminal escape sequences or other forms of exploitation are inadvertently included in error messages.
+
+Given the sensitivity of the situation and the potential for similar vulnerabilities, I believe it's crucial for the project maintainers to thoroughly assess these changes and ensure that they do not inadvertently introduce security risks. Additionally, considering the recent backdoor discovery, it's important to prioritize the security and integrity of the xz utility.
+
+Proposed Actions:
+
+    Revert the changes made to the error handling code, restoring the use of safe fprintf calls.
+    Use archive_errno instead of errno for error handling to mitigate potential risks associated with including terminal escape sequences in error messages.
+    Conduct a thorough review of the codebase to identify and address any other potential security concerns.
+
+Additional Context:
+
+    Link to the relevant MR or commit where the changes were made.
+    Reference to any discussions or concerns raised by other contributors or community members.
+    Any other relevant information or insights that could aid in understanding the issue and its implications.
+
+Request for Response:
+I kindly request a response from the project maintainers regarding these security concerns and proposed actions. Transparency and collaboration are essential in addressing potential security vulnerabilities and ensuring the continued trust and reliability of the xz utility.
+
+Thank you for your attention to this matter.
+
+### Version
+
+5.6.0/5.6.1
+
+### Operating System
+
+Linux
+
+### Relevant log output
+
+_No response_",['abysssdweller']
+commented,abysssdweller,2024-03-29T19:35:01Z,"also tarballs 
+![image](https://github.com/tukaani-project/xz/assets/107694411/9ac0cc74-83e4-460b-9dc8-44d85192e0a6)",['abysssdweller']
+commented,mcatanzaro,2024-03-29T19:54:44Z,"Why didn't you link to the commits that you're concerned about? How is anybody to know what to do with this issue report if you don't provide any specifics?
+
+I guess you're referring to https://github.com/libarchive/libarchive/pull/1609. I'm not amazingly familiar with xz and libarchive, but pretty sure they're entirely separate. So this is just not the right issue tracker. You could report to libarchive instead, but even then, first consider whether there is really anything wrong with the changes. Certainly attackers cannot control the output of `strerror()` so there's nothing wrong there. Haven't checked `archive_error_string()`; looks like that could maybe contain attacker-controlled filesystem paths?",['abysssdweller']
+commented,pandaninjas,2024-03-29T19:56:47Z,"
+There is no commit in this repo that is malicious, but the tarballs that are being distributed in this repo are malicious. See the Red Hat security advisory at https://www.redhat.com/en/blog/urgent-security-alert-fedora-41-and-rawhide-users",['mcatanzaro']
+commented,TuxRobotics,2024-03-29T19:57:37Z,Another great summary: https://www.openwall.com/lists/oss-security/2024/03/29/4,['pandaninjas']
+commented,BillyONeal,2024-03-29T20:02:32Z,"
+This is not true. Several commits are malicious but are disabled until activated by modifications in the tarballs, according to the thread linked by @TuxRobotics ",TuxRobotics
+commented,mcatanzaro,2024-03-29T20:10:00Z,"
+Sure, but that serious problem is unrelated to fprintf changes in libarchive. This bug report is effectively just spam.",['BillyONeal']
+commented,mcatanzaro,2024-03-29T20:10:41Z,https://github.com/tukaani-project/xz/issues/92 already exists for discussing that issue.,['BillyONeal']
+commented,quat1024,2024-03-29T21:07:22Z,"
+
+[chatgpt](https://daniel.haxx.se/blog/2024/01/02/the-i-in-llm-stands-for-intelligence/)? these sound like directions to the bug *reporter* not to the receiver of the report",['mcatanzaro']
+commented,therealmate,2024-03-29T21:12:12Z,Wrong issue tracker @abysssdweller ,abysssdweller
+commented,thesamesam,2024-04-07T17:00:25Z,"I think this is too vague and based on a misunderstanding about libarchive vs xz-utils.
+
+--
+With regard to libarchive:
+
+The original PR, with lots of new discussion, was https://github.com/libarchive/libarchive/pull/1609.
+
+The initial fix for this was https://github.com/libarchive/libarchive/pull/2101 (https://github.com/libarchive/libarchive/commit/6110e9c82d8ba830c3440f36b990483ceaaea52c).
+
+https://github.com/libarchive/libarchive/issues/2103 coordinates the general review effort for libarchive in the wake of this.
+
+One of the libarchive maintainers has filed https://github.com/libarchive/libarchive/issues/2107 to discuss a better fix as well.",['therealmate']

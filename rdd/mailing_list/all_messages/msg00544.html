@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00544" id="c">
+<link rel="index" href="maillist.html#00544" id="i">
+<link rel="prev" href="msg00543.html" id="p">
+<link rel="next" href="msg00545.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00544.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220314" rel="nofollow">Mon, 14 Mar 2022 06:14:32 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>&gt; &gt; &gt; This:
+&gt; &gt; &gt;
+&gt; &gt; &gt; diff --git a/src/liblzma/common/stream_decoder_mt.c 
+&gt; &gt; &gt; b/src/liblzma/common/stream_decoder_mt.c
+&gt; &gt; &gt; --- a/src/liblzma/common/stream_decoder_mt.c
+&gt; &gt; &gt; +++ b/src/liblzma/common/stream_decoder_mt.c
+&gt; &gt; &gt; @@ -786,7 +786,7 @@ read_output_and_wait(struct lzma_stream_coder *coder,
+&gt; &gt; &gt;                                 if (mythread_cond_timedwait(&amp;coder-&gt;cond,
+&gt; &gt; &gt;                                                 &amp;coder-&gt;mutex,
+&gt; &gt; &gt;                                                 wait_abs) != 0) {
+&gt; &gt; &gt; -                                       ret = LZMA_TIMED_OUT;
+&gt; &gt; &gt; +                                       ret = LZMA_OK;
+&gt; &gt; &gt;                                         break;
+&gt; &gt; &gt;                                 }
+&gt; &gt; &gt;                         } else {
+&gt; &gt; &gt;
+&gt; &gt; &gt; Should &quot;fixes&quot; it. At some point the main thread needs to check if the
+&gt; &gt; &gt; next thread is able to make progress or not and then return LZMA_OK so
+&gt; &gt; &gt; that the upper layer can figure out that no progress is made. Otherwise
+&gt; &gt; &gt; it stucks in the LZMA_TIMED_OUT loop.
+&gt; &gt;
+&gt; &gt; This fixes it just for xz, but if no timeout is specified it will
+&gt; &gt; still deadlock.
+&gt; &gt; I haven't looked at the code enough to understand how to fix it for both,
+&gt; &gt; but I will start to look into that.
+&gt;
+&gt; No, it is for everyone. In the timeout case we need to check if the
+&gt; first thread in line can make progress. If we don't provide data new
+&gt; data to the thread and the thread consumed everything it had then the
+&gt; thread won't make progress. If the function gets invoked with 0 new data
+&gt; then we should return LZMA_OK at which point the upper layer (between XZ
+&gt; binary and the library) will notice that no progress is made and return
+&gt; an error to xz.</pre><pre>
+
+I tested this locally by setting the timeout for xz to 0 on line 57 of
+src/xz/coder.c and it deadlocks on a truncated xz file. It seems like a
+race condition because it deadlocks ~90% of the time in my liblzma tests.
+When debugging, I can see that the main thread does not return from
+lzma_code when the LZMA_FINISH action is given. When the decoder receives
+LZMA_FINISH, it should probably signal to the worker threads that no more
+input is coming and to exit with error if they are in the middle of a
+block. Even if LZMA_FINISH is not given, we still need to avoid deadlock at
+all costs. I will come up with a patch for this since it sounds like
+a fun problem :)
+
+&gt; The above patch is not correct because if you do it as I suggeted then
+&gt; it is possible that an error is returned because the thread is slow and
+&gt; did not yet make progress.
+
+I agree that the above patch only &quot;fixes&quot; the problem. Small timeouts and
+slow threads will result in false positive deadlock detections.
+
+&gt; &gt; I was following the conversation about the soft and hard memory limiting.
+&gt; &gt; If a user wanted decoding to fail if it can't be done multithreaded and 
+&gt; &gt; update
+&gt; &gt; the memory limit as needed, that can't be done right now. It's a minor issue
+&gt; &gt; that only matters for liblzma, but it would be nice to be able to update 
+&gt; &gt; both
+&gt; &gt; limits after decoding has started. I don't consider this a bug, more like
+&gt; &gt; missing a nice to have feature. One easy solution is to add a new API
+&gt; &gt; function to liblzma to update the soft memory limit for the multithreaded
+&gt; &gt; decoder and do nothing / return an error on all other coders. I will add
+&gt; &gt; a patch for this if you guys think it is a good idea.
+&gt;
+&gt; Maybe I missundertand you. But if you set memlimit_stop to the same
+&gt; value as memlimit_threading then you have either multi threaded
+&gt; decompression or none at all right?
+
+I understand that setting memlimit_stop = memlimit_threading will result in
+either threaded decoding or no decoding. The problem is only the
+memlimit_stop can be updated. There is no way to update memlimit_threading
+after initialization to ensure the &quot;give me threaded decoding or none
+at all&quot; is still true. I don't think most users will care about
+this, but it would be nice to provide the flexibility for those that do.
+
+Jia Tan
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00543.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00544">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00544">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00545.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00524.html">Re: [xz-devel] [PATCH v3] liblzma: Add multi-thr...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00526.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00528.html">Re: [xz-devel] [PATCH v3] liblzma: Add ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00530.html">Re: [xz-devel] [PATCH v3] liblzma: ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00538.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00539.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00540.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00541.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00542.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00543.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH v3] liblz...</span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00545.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00547.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00548.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00550.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00546.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder">
+<input type="hidden" name="msgid" value="CAMzPPJ9hsh+QpG6LzqST20Jr5pOGJG_FgB84eL2jz9Z_1cMgow@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00544.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00543.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00545.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ9hsh+QpG6LzqST20Jr5pOGJG_FgB84eL2jz9Z_1cMgow@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

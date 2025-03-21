@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] Re: java LZDecoder small improvement</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00460" id="c">
+<link rel="index" href="maillist.html#00460" id="i">
+<link rel="prev" href="msg00457.html" id="p">
+<link rel="next" href="msg00462.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00460.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Re%5C%3A+java+LZDecoder+small+improvement%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] Re: java LZDecoder small improvement</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210205" rel="nofollow">Fri, 05 Feb 2021 08:28:28 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-02-03 Brett Okken wrote:
+&gt; On Wed, Feb 3, 2021 at 2:56 PM Lasse Collin
+&gt; &lt;lasse.col...@tukaani.org&gt; wrote:
+&gt; &gt; It seems to regress horribly if dist is zero. A file with a very
+&gt; &gt; long sequence of the same byte is good for testing.
+&gt; 
+&gt; Would this be a valid test of what you are describing?
+[...]
+&gt; The source is effectively 160MB of the same byte value.</pre><pre>
+
+Yes, it's fine.
+
+&gt; I found a strange bit of behavior with this case in the compression.
+&gt; In LZMAEncoderNormal.calcLongRepPrices, I am seeing a case where
+&gt; 
+&gt;             int len2Limit = Math.min(niceLen, avail - len - 1);
+&gt; 
+&gt; results in -1, (avail and len are both 8). This results in calling
+&gt; LZEncoder.getMatchLen with a lenLimit of -1. Is that expected?
+
+I didn't check in detail now, but I think it's expected. There are two
+such places. A speed optimization was forgotten in liblzma from these
+two places because of this detail. I finally remembered to add the
+optimization in 5.2.5.
+
+On 2021-02-03 Brett Okken wrote:
+&gt; I still need to do more testing across jdk 8 and 15, but initial
+&gt; returns on this are pretty positive. The repeating byte file is
+&gt; meaningfully faster than baseline. One of my test files (image1.dcm)
+&gt; does not improve much from baseline, but the other 2 files do.
+
+The repeating byte is indeed much faster than the baseline. With normal
+files the speed seems to be about the same as the version I posted, so
+a minor improvement over the baseline.
+
+With a file with two-byte repeat (&quot;ababababababab&quot;...) it's 50 % slower
+than the baseline. Calling arraycopy in a loop, copying two bytes at a
+time, is not efficient. I didn't try look how big the copy needs to be
+to make the overhead of arraycopy smaller than the benefit but clearly
+it needs to be bigger than two bytes.
+
+The use of Arrays.fill to optimize the case of one repeating byte looks
+useful especially if it won't hurt performance in other situations.
+Still, I'm not sure yet if the LZDecoder optimizations should go in 1.9.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet &amp; Freenode
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00457.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00460">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00460">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00462.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00401.html">[xz-devel] java LZDecoder small improvement</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00448.html">[xz-devel] Re: java LZDecoder small improvement</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00455.html">Re: [xz-devel] Re: java LZDecoder small improvement</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00456.html">Re: [xz-devel] Re: java LZDecoder small improvem...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00457.html">Re: [xz-devel] Re: java LZDecoder small impr...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] Re: java LZDecoder small...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00462.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00471.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00473.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00475.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00487.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00488.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00489.html">Re: [xz-devel] Re: java LZDecod...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] Re: java LZDecoder small improvement">
+<input type="hidden" name="msgid" value="20210205182819.12e2b89d@tukaani.org">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00460.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Re%5C%3A+java+LZDecoder+small+improvement%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00457.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00462.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210205182819.12e2b89d@tukaani.org</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00528" id="c">
+<link rel="index" href="maillist.html#00528" id="i">
+<link rel="prev" href="msg00526.html" id="p">
+<link rel="next" href="msg00530.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00528.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220206" rel="nofollow">Sun, 06 Feb 2022 15:46:40 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-12-31 Sebastian Andrzej Siewior wrote:
+&gt; On 2021-12-15 23:33:58 [+0200], Lasse Collin wrote:
+&gt; &gt; Yes. It's fairly simple from implementation point of view but is it
+&gt; &gt; clear enough for the users, I'm not sure.
+&gt; &gt; 
+&gt; &gt; I suppose the alternative is having just one limit value and a flag
+&gt; &gt; to tell if it is a soft limit (so no limit for single-threaded
+&gt; &gt; case) or a hard limit (return LZMA_MEM_ERROR if too low for even
+&gt; &gt; single thread). Having separate soft and hard limits instead can
+&gt; &gt; achieve the same and a little more, so I think I'll choose the
+&gt; &gt; two-value approach and hope it's clear enough for users.  
+&gt; 
+&gt; The value approach might work. I'm not sure if the term `soft' and
+&gt; `hard' are good here. Using `memlimit' and `memlimit_threaded' (or so)
+&gt; might make more obvious and easier to understand.
+&gt; But then this just some documentation that needs to be read and
+&gt; understood so maybe `softlimit' and `hardlimit' will work just fine.</pre><pre>
+
+I now plan to use memlimit_threading and memlimit_stop in the lzma_mt
+structure. Documentation is still needed but hopefully those are a bit
+more obvious.
+
+&gt; &gt; I was hoping to get this finished by Christmas but due to a recent
+&gt; &gt; sad event, late January is my target for the next alpha release
+&gt; &gt; now.
+
+And I'm late again. :-(
+
+This is more work than I had expected because there unfortunately are a
+few problems in the code and fixing them all requires quite significant
+changes (and I'm slow). As a bonus, working on this made me notice a few
+small bugs in the old liblzma code too (not yet committed).
+
+The following tries to explain some of the problems and what I have
+done locally. I don't have code to show yet because it still contains
+too many small FIXMEs but, as unbelievable as it might sound, this will
+get done. I need a few more days; I have other things I must do too.
+
+
+The biggest issue is handling of memory usage and threaded vs. direct
+mode. The memory usage limiting code makes assumptions that are true
+with the most common files but there are situations where these
+assumptions fail:
+
+(1) If a non-first Block requires a lot more memory than the first
+    Block and so the memory limit would be exceeded in threaded mode,
+    the decoder will not switch to direct mode even with
+    LZMA_MEMLIMIT_COMPLETE. Instead the decoder proceeds with one
+    thread and uses as much memory as that needs.
+
+(2) If a non-first Block lacks size info in its Block Header, the
+    decoder won't switch to direct mode. It returns LZMA_PROG_ERROR
+    instead.
+
+(3) The per-thread input buffers can grow as bigger Blocks are seen but
+    the buffers cannot shrink. This has pros and cons. It's a problem if
+    a single Block is very big and others are not.
+
+I thought it's better to first decode the Block Header to
+coder-&gt;block_options and then, based on the facts from that Block
+Header, determine memory usage and how to proceed (including switching
+to/from direct mode). This way there is no need to assume or expect
+anything. (coder-&gt;block_options need to be copied to a thread-specific
+structure before initializing the decoder.)
+
+For direct mode, I added separate SEQ states for it. This also helps
+making the code more similar to the single-threaded decoder in both
+looks and behavior. I hope that with memlimit_threading = 0 the
+threaded version can have identical externally-visible behavior as the
+original single-threaded version. This way xz doesn't need both
+functions (the single-threaded function is still needed if built with
+--disable-threads).
+
+
+Corner cases of the buffer-to-buffer API:
+
+(4) In some use cases there might be long pauses where no new input is
+    available (for example, sending a live log file over network with
+    compression). It is essential that the decoder will still provide
+    all output that is easily possible from the input so far. That is,
+    if the decoder was called without providing any new input, it might
+    need to be handled specially.
+
+    SEQ_BLOCK_HEADER and SEQ_INDEX return immediately if the application
+    isn't providing any new input data, and so eventually lzma_code()
+    will return LZMA_BUF_ERROR even when there would be output
+    available from the worker threads. try_copy_decoded() could be
+    called earlier but there is more to fix (see (5) and (6)).
+
+    (Also remember my comment above that I changed the code so that
+    Block Header is decoded first before getting a thread. That adds
+    one more SEQ point where waiting for output is needed.)
+
+(5) The decoder must work when the application provides an output
+    buffer whose size is exactly the uncompressed size of the file.
+    This means that one cannot simply use *out_pos == out_size to
+    determine when to return LZMA_OK. Perhaps the decoder hasn't marked
+    its lzma_outbuf as finished but no more output will be coming, or
+    there is an empty Block (empty Blocks perhaps shouldn't have been
+    allowed in the format at all but it's too late for that).
+
+    In short, instead of *out_pos == out_size one has to check
+    !lzma_outq_is_empty() &amp;&amp; lzma_outq_is_readable() after the call
+    to lzma_outq_read() to determine if more output space is truly
+    required.
+
+    try_copy_decoded() and SEQ_INDEX have this problem but fixing is not
+    complicated.
+
+
+Race condition in SEQ_BLOCK_HEADER:
+
+        ret = get_thread(coder, allocator);
+        if (ret != LZMA_OK)
+                return ret;
+
+        if (!coder-&gt;thr_write) {
+                // No out buffer but making progress?
+                if (start_out_pos != *out_pos)
+                        return LZMA_OK;
+
+                mythread_mutex_lock(&amp;coder-&gt;mutex);
+                if (!lzma_outq_is_readable(&amp;coder-&gt;outq))
+                        ret = wait_cond_progress(coder, &amp;wait_abs);
+
+                mythread_mutex_unlock(&amp;coder-&gt;mutex);
+
+The call to get_thread() locks coder-&gt;mutex for a while. If getting a
+thread fails and no output has been produced, the mutex is locked again
+to wait on coder-&gt;cond if no output is currently readable from the
+output queue.
+
+It is possible that a thread finishes and puts itself to
+coder-&gt;threads_free after the call to get_thread() fails but before the
+mutex is locked again. Thus, it's possible that get_thread() would now
+succeed but the code will wait on coder-&gt;cond anyway. In practice this
+is only a minor issue as there will likely be output fairly soon, but
+it may sometimes add a small unneeded delay.
+
+To fix it, it should check for all conditions that would allow
+continuing. I did it by creating a function that contains the
+functionality of try_copy_decoded() and checking for the conditions to
+start a Block, all while keeping coder-&gt;mutex locked. This way the
+conditions to start a new Block need to be checked in one place only.
+This helper function also made it easy to fix (4) and (5).
+
+
+The sizes from Block Header are untrusted so one has to be paranoid
+with them. This means checking for integer overflows when doing
+addition. Also, since the sizes are 63-bit (lzma_vli is uint64_t but
+valid known values fit into 63 bits), assigning these to a size_t needs
+care to avoid truncation on 32-bit systems. These are easy to forget
+but forgetting can cause security issues.
+
+I added support for lzma_get_progress(). It is needed to make xz -v
+progress indicator useful.
+
+Other news: Gitweb on git.tukaani.org is currently broken. I'll get it
+fixed in a few days. The repositories still work.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00526.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00528">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00528">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00530.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00458.html">[xz-devel] [PATCH v3] liblzma: Add multi-threade...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00504.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Guillem Jover</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00505.html">Re: [xz-devel] [PATCH v3] liblzma: Add ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00506.html">Re: [xz-devel] [PATCH v3] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00520.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00523.html">Re: [xz-devel] [PATCH v3] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00524.html">Re: [xz-devel] [PATCH v3] liblzma: ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00526.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH v3] ...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00530.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00538.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00539.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00540.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00541.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00542.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00543.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00544.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00545.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00547.html">Re: [xz-devel] [PA...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder">
+<input type="hidden" name="msgid" value="20220207014632.6e94924a@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00528.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00526.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00530.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20220207014632.6e94924a@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

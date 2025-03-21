@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Jia Tan,Tuukka Rouhiainen,issue_46.csv,"Hi Gabriela! This seems like a great idea, thanks for the suggestion. At the moment, users are expected to report security reports to our project's email address (xz@tukaani.org). Since we moved to GitHub, it is probably less clear that is our expectation, especially for users who find the project through GitHub. So setting up a SECURITY.md file will be helpful.
+
+You are welcome to suggest an initial version for the Security Policy through a PR. Thanks for the help!",positive,0.9300766853848472

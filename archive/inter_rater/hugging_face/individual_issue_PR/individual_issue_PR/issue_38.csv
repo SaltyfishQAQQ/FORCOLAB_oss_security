@@ -1,0 +1,25 @@
+event,from,created_at,body
+thread_started,gabibguti,2023-02-22T17:44:58Z,"### Describe the Feature
+
+Restrict access in your workflow jobs to your repository. This is preventive action to keep your workflows safe. The `ci.yml` workflow jobs need just minimum permissions `contents: read`, and the default GitHub permissions are higher.
+
+This is considered good-practice and is recommended by [GitHub](https://docs.github.com/en/actions/security-guides/automatic-token-authentication) itself and other security tools, such as [Scorecards](https://docs.github.com/en/actions/security-guides/automatic-token-authentication) and [StepSecurity](https://docs.github.com/en/actions/security-guides/automatic-token-authentication).
+
+##### Additional Context
+I'm Gabriela and I work on behalf of Google and the OpenSSF suggesting supply-chain security changes :)
+
+### Expected Complications
+
+No.
+
+### Will I try to implement this new feature?
+
+Yes"
+commented,JiaT75,2023-02-23T12:13:31Z,"Hi Gabriela!
+
+Thank you for notifying us about this important security practice. I had not set the more restrictive Workflow permissions, so I have just updated the default to be read-only. Our CI tests are quite simple, so read-only is enough permissions for us.
+
+Specifying the permissions explicitly in the ci.yml file probably isn't needed now that the default permissions have been updated, but it also doesn't hurt. I suppose it will keep us safe in case GitHub updates their default permission policy. If you submit a PR to update it, I will be happy to review and accept it :)
+
+XZ Utils is still new to GitHub, so if you have any other security recommendations for us, please notify us."
+commented,gabibguti,2023-02-23T18:18:01Z,@JiaT75 Perfect! You are absolutely right. Changing to the restrictive workflow settings is enough. No need to make it explicit in the workflow :) I hope I can come back soon with other security recommendations!

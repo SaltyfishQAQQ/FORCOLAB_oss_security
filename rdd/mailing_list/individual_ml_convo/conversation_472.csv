@@ -1,0 +1,278 @@
+timestamp,from,to,body,title,msg_file
+"Sat, 06 Feb 2021 09:00:32 -0800",Brett Okken,,"Since it is quite easy to read an int from a byte[] in jdk 9, the
+CRC64 implementation can be optimized to operate on an int rather than
+byte by byte as part of a multi-release jar. This shows to be 5-7%
+faster in a microbenchmark of just the crc64 calculation. In jdk 11 it
+speeds up the decompression of the repeating single byte by ~1%.
+
+
+/*
+ * CRC64
+ *
+ * Authors: Brett Okken <brett.okken...@gmail.com>
+ *          Lasse Collin <lasse.col...@tukaani.org>
+ *
+ * This file has been put into the public domain.
+ * You can do whatever you want with this file.
+ */
+
+package org.tukaani.xz.check;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+
+public class CRC64 extends Check {
+    private static final VarHandle LE_INT_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(int[].class,
+ByteOrder.LITTLE_ENDIAN);
+    private static final VarHandle LE_LONG_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(long[].class,
+ByteOrder.LITTLE_ENDIAN);
+    private static final long[][] TABLE = new long[4][256];
+
+    static {
+        final long poly64 = 0xC96C5795D7870F42L;
+
+        for (int s = 0; s < 4; ++s) {
+            for (int b = 0; b < 256; ++b) {
+                long r = s == 0 ? b : TABLE[s - 1][b];
+                for (int i = 0; i < 8; ++i) {
+                    if ((r & 1) == 1) {
+                        r = (r >>> 1) ^ poly64;
+                    } else {
+                        r >>>= 1;
+                    }
+                }
+                TABLE[s][b] = r;
+            }
+        }
+    }
+
+    private long crc = -1;
+
+    public CRC64() {
+        size = 8;
+        name = ""CRC64"";
+    }
+
+    @Override
+    public void update(byte[] buf, int off, int len) {
+        final int end = off + len;
+        int i=off;
+        if (len > 7) {
+            while ((i & 3) != 0) {
+                crc = TABLE[0][(buf[i++] & 0xFF) ^ ((int)crc & 0xFF)]
+^ (crc >>> 8);
+            }
+            for (int j = end - 3; i < j; i += 4) {
+                int tmp = ((int)crc) ^ (int) LE_INT_HANDLE.get(buf, i);
+                crc = TABLE[3][tmp & 0xFF] ^
+                      TABLE[2][(tmp >>> 8) & 0xFF] ^
+                      (crc >>> 32) ^
+                      TABLE[1][(tmp >>> 16) & 0xFF] ^
+                      TABLE[0][(tmp >>> 24) & 0xFF];
+            }
+        }
+        while (i < end) {
+             crc = TABLE[0][(buf[i++] & 0xFF) ^ ((int)crc & 0xFF)] ^
+(crc >>> 8);
+        }
+    }
+
+    @Override
+    public byte[] finish() {
+        long value = ~crc;
+        crc = -1;
+
+        byte[] buf = new byte[8];
+        LE_LONG_HANDLE.set(buf, 0, value);
+
+        return buf;
+    }
+}
+",[xz-devel] jdk9+ CRC64,msg00472.html
+"Thu, 11 Feb 2021 10:51:25 -0800",Lasse Collin,Brett Okken,"On 2021-02-06 Brett Okken wrote:
+
+
+To avoid byte swapping in the main loop on big endian systems, the
+lookup table would need to be big endian and operations need to be
+bitwise-mirrored too just like in liblzma. I'm not convinced yet that
+it's worth the extra effort and complexity for such a small speed gain.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] jdk9+ CRC64,msg00474.html
+"Sat, 13 Feb 2021 12:36:02 -0800",Brett Okken,Lasse Collin,"We can make it look even more like liblzma :)
+In my benchmark I observe no negative impact of using the functions.
+Which is to say that this is still 5-7% faster than the byte-by-byte
+approach.
+
+
+
+public class CRC64 extends Check {
+
+    private static final VarHandle INT_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(int[].class,
+ByteOrder.nativeOrder());
+    private static final VarHandle LONG_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(long[].class,
+ByteOrder.nativeOrder());
+    private static final long[][] TABLE = new long[4][256];
+
+    private static final LongToIntFunction A1;
+    private static final IntUnaryOperator A;
+    private static final IntUnaryOperator B;
+    private static final IntUnaryOperator C;
+    private static final IntUnaryOperator D;
+    private static final LongUnaryOperator S8;
+    private static final LongUnaryOperator S32;
+    private static final LongToIntFunction INT_OP;
+
+    static {
+        final long poly64 = 0xC96C5795D7870F42L;
+
+        for (int s = 0; s < 4; ++s) {
+            for (int b = 0; b < 256; ++b) {
+                long r = s == 0 ? b : TABLE[s - 1][b];
+                for (int i = 0; i < 8; ++i) {
+                    if ((r & 1) == 1) {
+                        r = (r >>> 1) ^ poly64;
+                    } else {
+                        r >>>= 1;
+                    }
+                }
+                TABLE[s][b] = r;
+            }
+        }
+
+        if (ByteOrder.BIG_ENDIAN == ByteOrder.nativeOrder()) {
+            for (int s = 0; s < 4; ++s)
+                for (int b = 0; b < 256; ++b)
+                    TABLE[s][b] = Long.reverseBytes(TABLE[s][b]);
+
+            A1 = x -> ((int) (x >>> 56)) & 0xFF;
+            A = x -> x >>> 24;
+            B = x -> (x >>> 16) & 0xFF;
+            C = x -> (x >>> 8) & 0xFF;
+            D = x -> x & 0xFF;
+            S8 = x -> x << 8;
+            S32 = x -> x << 32;
+            INT_OP = x -> (int) (x >>> 32);
+        } else {
+            A1 = x -> ((int) x) & 0xFF;
+            A = x -> x & 0xFF;
+            B = x -> (x >>> 8) & 0xFF;
+            C = x -> (x >>> 16) & 0xFF;
+            D = x -> x >>> 24;
+            S8 = x -> x >>> 8;
+            S32 = x -> x >>> 32;
+            INT_OP = x -> (int) x;
+        }
+    }
+
+    private long crc = -1;
+
+    public CRC64() {
+        size = 8;
+        name = ""CRC64"";
+    }
+
+    @Override
+    public void update(byte[] buf, int off, int len) {
+        final int end = off + len;
+        int i=off;
+        if (len > 7) {
+            //get things aligned
+            //no need to check length, as the most this can loop is 3 times
+            //and the if check above guarantees at least length of 7
+            while ((i & 3) != 0) {
+                crc = TABLE[0][(buf[i++] & 0xFF) ^ A1.applyAsInt(crc)]
+^ S8.applyAsLong(crc);
+            }
+            for (int j = end - 3; i < j; i += 4) {
+                int tmp = INT_OP.applyAsInt(crc) ^ (int) INT_HANDLE.get(buf, i);
+                crc = TABLE[3][A.applyAsInt(tmp)] ^
+                      TABLE[2][B.applyAsInt(tmp)] ^
+                      S32.applyAsLong(crc) ^
+                      TABLE[1][C.applyAsInt(tmp)] ^
+                      TABLE[0][D.applyAsInt(tmp)];
+            }
+        }
+        while (i<end) {
+            crc = TABLE[0][(buf[i++] & 0xFF) ^ A1.applyAsInt(crc)] ^
+S8.applyAsLong(crc);
+        }
+    }
+
+    @Override
+    public byte[] finish() {
+        long value = ~crc;
+        crc = -1;
+
+        byte[] buf = new byte[8];
+        LONG_HANDLE.set(buf, 0, value);
+
+        return buf;
+    }
+}
+",Re: [xz-devel] jdk9+ CRC64,msg00476.html
+"Sun, 14 Feb 2021 07:30:52 -0800",Lasse Collin,Brett Okken,"On 2021-02-13 Brett Okken wrote:
+
+
+It can be done but I'm not sure yet if it should be done. Your
+implementation looks very neat though. :-)
+
+
+With a dumb test with XZDecDemo, it seems faster than the current code
+(8.5 s vs. 7.9 s). However, if I misalign the buffer in XZDecDemo.java
+like this
+
+    int size;
+    while ((size = in.read(buf, 1, 8191)) != -1)
+        System.out.write(buf, 1, size);
+
+then both versions are about as fast (7.9 s). The weird behavior with
+misaligned buffers was discussed earlier.
+
+My point is that if tiny things like buffer alignment can make as big a
+difference as supposedly better code, perhaps the explanation for the
+speed difference isn't the code being better but some side-effect that
+I don't understand.
+
+On your systems the results might differ significantly and more
+information is welcome. With the current information I think the
+possible benefit of the fancier code isn't worth it (bigger xz.jar,
+more code to maintain). In any case, any further CRC64 improvements
+will need to wait past the 1.9 release.
+
+The test file I used contains a repeating 257-byte pattern where each
+8-bit value occurs at least once. It is extremely compressible and thus
+makes the differences in CRC64 speed as big as they can be with LZMA2.
+With real files the differences are smaller.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] jdk9+ CRC64,msg00478.html
+"Sun, 14 Feb 2021 08:09:04 -0800",Brett Okken,Lasse Collin,"On Sun, Feb 14, 2021 at 9:30 AM Lasse Collin <lasse.col...@tukaani.org>
+wrote:
+
+
+
+
+While it is odd that this seems to speed up the byte-by-byte approach, it
+is not necessarily surprising that less differences with int processing is
+observed. The byte-by-byte impl does not have to align prior entering the
+optimized 4 byte processing loop.
+In my benchmark I test combinations of offsets 0-2 and length reductions of
+0-2. While some combinations have closer results than others, the int based
+approach is consistently faster. One distinction in the benchmarks is that
+there are warm-up runs to get the compiler to optimize execution prior to
+collecting results.
+
+
+
+It is definitely a balancing act. The current trunk is a significant
+improvement over 1.8, far more impactful than this.
+
+",Re: [xz-devel] jdk9+ CRC64,msg00480.html

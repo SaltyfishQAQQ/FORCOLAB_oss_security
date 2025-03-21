@@ -1,0 +1,84 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks for the updates!
+
+Based on this PR I created a branch `xz_for_msvc`. I put some of the commits in your name even though they were modified a little. If you prefer otherwise please let me know.
+
+Unless I missed something, `xz_for_msvc` should have everything from this PR except `__declspec(noreturn)` and the VS2013 fallback for `snprintf`.
+
+I feel the noreturn could be handled in a more generic way. `noreturn` from `<stdnoreturn.h>` could be ideal. According to docs, it seems to be supported by VS2015 too. It's currently not used in XZ Utils, only the GNU C `__attribute__((__noreturn__))` is, but this could be changed.
+
+Unless there is a good reason, I feel VS2013 support shouldn't be added to the command line tools to keep the MSVC patches as simple as easily possible. By the time this code is in a stable XZ Utils release, VS2013 will only have 5-7 months of support remaining (if April 2024 is the true end date for VS2013 support).
+
+The changes to file_io.* I made quite differently and it's quite possible that my approach cannot work. It would be great if you could test it and tell if it works or can be made to work. Otherwise I will adapt your version from this PR.
+
+DOS/DJGPP build checks for special filenames like `prn` in file_io.c which could happen in weird cases like `xz -S_xz -d prn_xz`. I wonder if something like that should be done on Windows builds too (not just MSVC).",positive,0.288196
+Lasse Collin,Kelvin Lee,pr_60.csv,"xz_w2k includes simple commits that remove pre-W2k support. Very likely it will be merged but I didn't want to put it to master directly.
+
+The getopt.in.h question will be reconsidered. I don't know yet if it will be changed.
+
+I think everything from this PR and discussion has been handled now. Thanks a lot!",positive,0.723373
+Lasse Collin,Kelvin Lee,pr_63.csv,"
+getopt.in.h is done like that in Gnulib. A package that uses Gnulib may have many .in.h files. Which files will be needed is detected when running `configure` and copied to .h name. Gnulib has replacements for many system headers to aid portability. With the .in.h -> .h method only the specificic headers can be overriden.
+
+Obviously XZ Utils only include getopt from Gnulib at the moment. In the early days I didn't know if more modules would be needed. So moving the getopt files to lib/getopt/ and putting that to include path when needed could be fine if we are certain that the module list won't grow. If many Gnulib modules (or similar things from other sources) were needed then this wouldn't work because the include path would grow too long and the modules can have intermodule dependencies too.
+
+I will discuss this with Jia. We plan to update getopt code with the current Gnulib too (it's still LGPLv2.1 so no license changes).
+
+I have seen your other messages. I will get back to them later this week.",positive,0.463777
+Lasse Collin,Kelvin Lee,pr_63.csv,The getopt.in.h change is in xz_for_msvc branch now. Thanks!,positive,0.99095
+Lasse Collin,Kelvin Lee,pr_60.csv,I merged xz_for_msvc to master except the tuklib_physmem W2k commits.,neutral,0.0
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks for testing! There are more commits in `xz_for_msvc` now, including CMake support. It would be awesome if you could test it with MSVC again. If you don't have time etc. then feel free to say so or ignore this. :-)
+
+I think xzdec should build now with VS2013. xz is set to require VS2015 (_MSC_VER >= 1900, that is, MSVC_VERSION >= 1900 in CMake). I don't know if a more recent VS version should be recommended in the docs, like, if there are compatibility fixes that matter.
+
+`_Noreturn` needs `/std:c11` or `/std:c17`. CMake likely doesn't set it because CMakeLists.txt only requires a C99 compiler. There is `__declspec(noreturn)` too for this case.
+
+I wonder if C11/C17 mode would be preferred for other reasons, for example, if standards conformance would be stricter and thus risk of weird bugs would be lower. [Microsoft docs](https://learn.microsoft.com/en-us/cpp/overview/install-c17-support?view=msvc-170) say that C11/C17 needs an updated Windows SDK and UCRT though. I don't have much clue about these. Would using C11/C17 mode affect how old Windows versions can run the resulting binaries?
+
+About `con` and friends. At least with MinGW-w64 builds it seems to be a problem (possibly a security issue). `xz -d -S_xz con_xz` decompresses to console even though `open` is used with `O_EXCL`. I'm not sure how to fix. I would expect Windows to have an API to check for problematic filenames instead of apps needing to roll their own checking code. The code used with DJGPP isn't compatible with anything else.",negative,-0.300831
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks again for testing!
+
+I included the unistd.h fix from PR 63 in the xz_for_msvc branch.
+
+With CMake 3.27 and its new default [policy CMP0149](https://cmake.org/cmake/help/latest/policy/CMP0149.html) the xz_for_msvc branch uses the latest Windows SDK by default.
+
+CMakeLists.txt currently requires a C99 compiler:
+
+```
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+```
+
+If the first line was set to C11 and the second line was omitted then CMake would attempt to find a C11 compiler but would accept older standard too if C11 isn't available. So that would be a way to get C11 mode when using new enough MSVC. But maybe it's not nice if it limits SDK choices.
+
+Since it works now, maybe it's fine to leave it as it is.
+
+About he commit to tuklib_physmem.c that avoids building the pre-W2k code: I suspect that this
+
+```
+#if defined(_WIN32_WINNT_WIN2K) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+```
+
+isn't correct. Now the old code will never be built.
+
+`_WIN32_WINNT` is about exposing newer features from the API headers, it doesn't mean that the program will automatically require that version of Windows. Earlier the builds used `#define _WIN32_WINNT 0x0500` (which is `_WIN32_WINNT_WIN2K`) to make `MEMORYSTATUSEX` visible in the API headers. Those binaries could still run even on Win95 if msvcrt.dll was available because `GlobalMemoryStatusEx` was loaded dynamically.
+
+Maybe at this point it could be best to just omit pre-W2K support from that file. Even when it was written, it was just a fun distraction to check if Windows build of xz could easily run even on Win95 and it did.
+
+The win95 threading option, despite its name, exist for WinXP support. Those APIs just happen to be in Win95 already. The threading APIs from WinVista are closer to pthreads than the older APIs but, as far as I know, there shouldn't be any significant difference in practice in case of liblzma since it needs only a small subset of features. Requiring WinVista would simplify things though but on the other hand the support for the ancient things already exists and works fine.
+
+`GetTickCount64` in mytime.c needs WinVista so MSVC builds of the xz command line tool will need at least WinVista.
+
+`GetFileType` needs a `HANDLE` so one would first need `CreateFile` and so on. It's unfortunate if `_stat64` doesn't return any info in `st_mode` or `st_dev` or other member. I think I won't work on this problem now. If I have understood correctly, it helps slightly that the problem can only occur if using `--suffix` as the default suffixes have a dot and thus if the input file is valid then the output is too since both `con` and `con.xz` are invalid names for regular files.",negative,-0.375933
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks! Now I realized that I had misidentified the problem. `S_ISREG` is enough but it has to be used with `_fstat64`. With `_stat64`, `con` is a regular file. So the method used for DJGPP is at the wrong location for Windows.
+
+I pushed a commit to xz_for_msvc which should fix it. I tested it with MinGW-w64.
+
+There is another special case in the DJGPP-specific code but I think it's not needed on Windows. It's possible that the output filename is the same as the input filename. On DOS with only 8.3 names it can happen if an overlong name is given on the command line. But it can happen on modern Windows too if 8.3 names are enabled. For example:
+
+```
+echo foo | xz > foobar~1zoo
+xz --suffix=zoo --decompress --force foobar~1zoo
+```
+
+It should fail because it cannot remove `foobar~1` because the file is already open. It's the same file as `foobar~1zoo` due to 8.3 names.",negative,-0.580539

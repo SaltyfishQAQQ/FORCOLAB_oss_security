@@ -1,0 +1,68 @@
+timestamp,from,to,body,title,msg_file
+"Sat, 06 Nov 2021 13:36:06 -0700",Sebastian Andrzej Siewior,,"Hi,
+
+just spotted that Christmas is around the corner. I *think* that I've
+been a good boy over the year. I plan to keep it that way just to be
+sure. Not trying to push my luck here but what are my chances to find
+parallel decompression in xz-utils under the christmas tree?
+
+
+Sebastian
+",[xz-devel] Multithreaded decompression for XZ Utils.,msg00513.html
+"Wed, 10 Nov 2021 14:56:46 -0800",Lasse Collin,Sebastian Andrzej Siewior,"On 2021-11-06 Sebastian Andrzej Siewior wrote:
+
+
+You have been very good boy indeed and I have been the opposite, still
+not gotten this done. I don't want to give any odds, although there are
+reasons why the odds should be better than a month or two ago, but I
+will really try so that Santa can deliver a new alpha package.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] Multithreaded decompression for XZ Utils.,msg00515.html
+"Fri, 12 Nov 2021 07:40:54 -0800",Jia Tan,Lasse Collin,"I tested the patch and it works well on my machine. I focused my
+review on src/xz/coder.c. and src/liblzma/api/lzma/container.h since
+you have already had some discussion on
+src/liblzma/common/stream_decoder_mt.c and it seemed similar in style
+to src/liblzma/common/stream_encoder_mt.c. Here are my thoughts from
+my review:
+
+
+In src/xz/coder.c
+1. The get_free_mem function could be renamed into something more
+clear. Just by reading the name, I can't tell if it returns bytes, kb,
+mb, etc.
+2. get_free_mem returns a int32_t, but treats its returns as boolean
+(-1 on failure, 0 on success). I would suggest returning either bool,
+lzma_ret, or just int. When I see int32_t as a developer, I assume
+there is a reason it needs to be 32 bits. Since all relevant error
+codes will be much less than 32 bits, I don't see a reason to specify
+this as a 32 bit return.
+3. get_free_mem uses a lot of magic numbers. At the top of coder.c I
+would define:
+    #define ARCH_32BIT_KB_MAX 2621440
+    #define KB_TO_B(bytes) 1024 * bytes
+    #define MEMINFO_BUF_SIZE 4096
+    #define BASE_DECIMAL 10
+And use these macros throughout the get_free_mem function
+4. It may be a good idea to add a TODO to include implementations of
+get_free_mem for other platforms like Windows and Mac
+5. get_free_mem is only checked once before the decompression starts.
+If the system is low on memory right when it starts, it will limit the
+memory for the entire decompression even if memory frees up later. I
+am not sure what the best solution is, but periodically checking the
+available free memory and adjusting the threads could improve large
+decompression tasks performance.
+
+In src/liblzma/api/lzma/container.h
+1. In the lzma_memlimit_opt, the comment has a typo ""Continue with
+without a thread"" in the brief section
+
+One question I have is whether the get_free_mem memlimit should be
+included in the multithreaded compression logic. It's out of the scope
+for this patch, but it is something worth considering.
+
+Just trying to do my part as a helper elf!
+
+Jia Tan
+",Re: [xz-devel] Multithreaded decompression for XZ Utils.,msg00518.html

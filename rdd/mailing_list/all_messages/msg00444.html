@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [PATCH] partial update, end with LZMA_STREAM_END error</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00444" id="c">
+<link rel="index" href="maillist.html#00444" id="i">
+<link rel="prev" href="msg00440.html" id="p">
+<link rel="next" href="msg00496.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00444.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+partial+update%2C+end+with+LZMA_STREAM_END+error%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [PATCH] partial update, end with LZMA_STREAM_END error</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210129" rel="nofollow">Fri, 29 Jan 2021 15:05:17 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>From: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+
+This is an incremental update against the outq patch. I can send an
+all-in-one patch against the current master branch, I hope this makes
+the review easier.</pre><pre>
+
+I wanted to address all issues raised in the previous mail. The &quot;no
+progress&quot; state is hopefully properly addressed. I added `tmp_buf' which
+is used if the output buffer is exhausted. Should the additional buffer
+be used then it is considered as LZMA_DATA_ERROR. if the block decoder
+returns with LZMA_OK. I think bad-1-lzma2-10.xz tried this.
+
+Signed-off-by: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+---
+ src/liblzma/common/stream_decoder_mt.c | 128 +++++++++++++++----------
+ 1 file changed, 78 insertions(+), 50 deletions(-)
+
+diff --git a/src/liblzma/common/stream_decoder_mt.c 
+b/src/liblzma/common/stream_decoder_mt.c
+index 8e361c38f27a2..bbe22c461e52f 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -45,7 +45,6 @@ struct worker_thread {
+        /// Bytes consumed of -&gt;in (worker)
+        size_t in_pos;
+ 
+-       lzma_ret thread_error;
+        worker_state state;
+ 
+        /// Pointer to the main structure is needed when putting this
+@@ -98,6 +97,7 @@ struct lzma_stream_coder {
+ 
+        /// Current thread compressed data is written to
+        struct worker_thread *thr_write;
++       lzma_ret thread_error;
+ 
+        lzma_outq outq;
+ 
+@@ -142,6 +142,23 @@ static void thr_do_partial_update(void *thr_ptr)
+        mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ }
+ 
++static void worker_set_error(struct worker_thread *thr, lzma_ret err_code)
++{
++       mythread_mutex_lock(&amp;thr-&gt;mutex);
++       if (thr-&gt;state == THR_RUN)
++               thr-&gt;state = THR_IDLE;
++       mythread_mutex_unlock(&amp;thr-&gt;mutex);
++
++       mythread_mutex_lock(&amp;thr-&gt;coder-&gt;mutex);
++       if (thr-&gt;coder-&gt;thread_error == LZMA_OK)
++               thr-&gt;coder-&gt;thread_error = err_code;
++
++       thr-&gt;next = thr-&gt;coder-&gt;threads_free;
++       thr-&gt;coder-&gt;threads_free = thr;
++       mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
++       mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
++}
++
+ /// Use smaller chunks so cancellation attempts don't block for long
+ #define CHUNK_SIZE     16384
+ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+@@ -149,6 +166,8 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+        struct worker_thread *thr = thr_ptr;
+        size_t in_filled;
+        size_t out_pos;
++       unsigned char tmp_buf;
++       size_t tmp_buf_pos = 0;
+        lzma_ret ret;
+ 
+ next_loop_lock:
+@@ -176,12 +195,10 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+                goto next_loop_unlocked;
+        } else if (thr-&gt;state != THR_RUN) {
+                thr-&gt;state = THR_IDLE;
+-               thr-&gt;thread_error = LZMA_PROG_ERROR;
+                mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ 
+-               mythread_mutex_lock(&amp;thr-&gt;coder-&gt;mutex);
+-               mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
+-               mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
++               worker_set_error(thr, LZMA_PROG_ERROR);
++
+                goto next_loop_lock;
+        }
+ 
+@@ -199,60 +216,74 @@ static MYTHREAD_RET_TYPE worker_decoder(void *thr_ptr)
+ 
+        out_pos = thr-&gt;secret_progress;
+ 
+-       ret = thr-&gt;block_decoder.code(thr-&gt;block_decoder.coder,
+-                                     thr-&gt;allocator,
+-                                     thr-&gt;in, &amp;thr-&gt;in_pos, in_filled,
+-                                     thr-&gt;outbuf-&gt;buf, &amp;out_pos, 
+thr-&gt;outbuf-&gt;allocated,
+-                                     LZMA_RUN);
+-       if (ret == LZMA_OK || ret == LZMA_STREAM_END) {
++       // Check if it attempts to write more than written in the header.
++       if (out_pos == thr-&gt;outbuf-&gt;allocated) {
++
++               ret = thr-&gt;block_decoder.code(thr-&gt;block_decoder.coder,
++                                             thr-&gt;allocator,
++                                             thr-&gt;in, &amp;thr-&gt;in_pos, in_filled,
++                                             &amp;tmp_buf, &amp;tmp_buf_pos, 1,
++                                             LZMA_RUN);
++       } else {
++               ret = thr-&gt;block_decoder.code(thr-&gt;block_decoder.coder,
++                                             thr-&gt;allocator,
++                                             thr-&gt;in, &amp;thr-&gt;in_pos, in_filled,
++                                             thr-&gt;outbuf-&gt;buf, &amp;out_pos, 
+thr-&gt;outbuf-&gt;allocated,
++                                             LZMA_RUN);
++       }
++       if (ret == LZMA_OK) {
+                bool partial_update;
+ 
+                mythread_mutex_lock(&amp;thr-&gt;mutex);
+-               if (thr-&gt;in_pos == thr-&gt;in_block_size) {
+-                       if (thr-&gt;state == THR_RUN)
+-                               thr-&gt;state = THR_IDLE;
+-               }
+                partial_update = thr-&gt;partial_update;
+                mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ 
+-               if ((partial_update &amp;&amp; (out_pos != thr-&gt;outbuf-&gt;pos)) ||
+-                   out_pos == thr-&gt;outbuf-&gt;allocated) {
++               if (partial_update &amp;&amp; (out_pos != thr-&gt;outbuf-&gt;pos)) {
+ 
+                        mythread_mutex_lock(&amp;thr-&gt;coder-&gt;mutex);
+                        thr-&gt;outbuf-&gt;pos = out_pos;
+ 
+-                       if (partial_update)
+-                               mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
+-
+-                       if (out_pos == thr-&gt;outbuf-&gt;allocated) {
+-
+-                               thr-&gt;outbuf-&gt;unpadded_size = 
+lzma_block_unpadded_size(&amp;thr-&gt;block_options);
+-                               thr-&gt;outbuf-&gt;uncompressed_size = 
+thr-&gt;block_options.uncompressed_size;
+-                               thr-&gt;outbuf-&gt;finished = true;
+-                               thr-&gt;outbuf = NULL;
+-
+-                               thr-&gt;next = thr-&gt;coder-&gt;threads_free;
+-                               thr-&gt;coder-&gt;threads_free = thr;
+-
+-                               mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
+-                               goto next_loop_lock;
+-                       }
+-
++                       mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
+                        mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
+                }
+ 
+                thr-&gt;secret_progress = out_pos;
++
++               /*
++                * If the input buffer has been fully consumed and we made no
++                * progress then something is wrong.
++                */
++               if (thr-&gt;in_pos == thr-&gt;in_block_size || tmp_buf_pos != 0) {
++                       tmp_buf_pos = 0;
++                       worker_set_error(thr, LZMA_DATA_ERROR);
++               }
++
+                goto next_loop_lock;
+-       } else {
++       } else if (ret == LZMA_STREAM_END) {
+ 
+                mythread_mutex_lock(&amp;thr-&gt;mutex);
+-               thr-&gt;state = THR_IDLE;
+-               thr-&gt;thread_error = ret;
++               if (thr-&gt;state == THR_RUN)
++                       thr-&gt;state = THR_IDLE;
+                mythread_mutex_unlock(&amp;thr-&gt;mutex);
+ 
+                mythread_mutex_lock(&amp;thr-&gt;coder-&gt;mutex);
++
++               thr-&gt;outbuf-&gt;pos = out_pos;
++               thr-&gt;outbuf-&gt;unpadded_size = 
+lzma_block_unpadded_size(&amp;thr-&gt;block_options);
++               thr-&gt;outbuf-&gt;uncompressed_size = 
+thr-&gt;block_options.uncompressed_size;
++               thr-&gt;outbuf-&gt;finished = true;
++               thr-&gt;outbuf-&gt;pos = out_pos;
++               thr-&gt;outbuf = NULL;
++
++               thr-&gt;next = thr-&gt;coder-&gt;threads_free;
++               thr-&gt;coder-&gt;threads_free = thr;
++
+                mythread_cond_signal(&amp;thr-&gt;coder-&gt;cond);
+                mythread_mutex_unlock(&amp;thr-&gt;coder-&gt;mutex);
++               goto next_loop_lock;
++       } else {
++               worker_set_error(thr, ret);
++
+                goto next_loop_lock;
+        }
+        return MYTHREAD_RET_VALUE;
+@@ -309,18 +340,9 @@ static lzma_ret stream_decode_in(struct lzma_stream_coder 
+*coder,
+        struct worker_thread *thr = coder-&gt;thr_write;
+        size_t old_filled;
+        size_t cur_in_infilled;
+-       lzma_ret ret;
+ 
+        mythread_mutex_lock(&amp;thr-&gt;mutex);
+ 
+-       if (thr-&gt;state == THR_IDLE) {
+-               ret = thr-&gt;thread_error;
+-               if (ret != LZMA_OK) {
+-                       mythread_mutex_unlock(&amp;thr-&gt;mutex);
+-                       return ret;
+-               }
+-       }
+-
+        old_filled = thr-&gt;in_filled;
+        mythread_mutex_unlock(&amp;thr-&gt;mutex);
+        cur_in_infilled = old_filled;
+@@ -360,7 +382,6 @@ static lzma_ret initialize_new_thread(struct 
+lzma_stream_coder *coder,
+                goto error_cond;
+ 
+        thr-&gt;state = THR_IDLE;
+-       thr-&gt;thread_error = LZMA_OK;
+        thr-&gt;allocator = allocator;
+        thr-&gt;coder = coder;
+        thr-&gt;block_decoder = LZMA_NEXT_CODER_INIT;
+@@ -481,6 +502,13 @@ static lzma_ret try_copy_decoded(struct lzma_stream_coder 
+*coder,
+                lzma_vli uncompressed_size;
+ 
+                mythread_mutex_lock(&amp;coder-&gt;mutex);
++
++               ret = coder-&gt;thread_error;
++               if (ret != LZMA_OK) {
++                       mythread_mutex_unlock(&amp;coder-&gt;mutex);
++                       return ret;
++               }
++
+                if (!lzma_outq_is_readable(&amp;coder-&gt;outq)) {
+                        mythread_mutex_unlock(&amp;coder-&gt;mutex);
+                        return LZMA_OK;
+@@ -810,9 +838,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator 
+*allocator,
+                                       coder-&gt;memusage += coder-&gt;exp_block_size;
+                               thr-&gt;in_size = thr-&gt;in_block_size;
+                       }
+-                      if (thr-&gt;outbuf == coder-&gt;outq.head)
+-                              lzma_outq_enable_partial_output(&amp;coder-&gt;outq,
+-                                                              
+thr_do_partial_update);
++                      lzma_outq_enable_partial_output(&amp;coder-&gt;outq,
++                                                      thr_do_partial_update);
+               }
+ 
+               coder-&gt;sequence = SEQ_BLOCK;
+@@ -1060,6 +1087,7 @@ stream_decoder_mt_init(lzma_next_coder *next, const 
+lzma_allocator *allocator,
+ 
+        coder-&gt;timeout = options-&gt;timeout;
+        coder-&gt;sequence = SEQ_STREAM_HEADER;
++       coder-&gt;thread_error = LZMA_OK;
+ 
+        coder-&gt;memlimit = my_max(1, options-&gt;memlimit);
+        coder-&gt;memusage = LZMA_MEMUSAGE_BASE;
+-- 
+2.30.0
+
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00440.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00444">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00444">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00496.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00397.html">[xz-devel] [PATCH v2] liblzma: Add multi-threade...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00409.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00413.html">Re: [xz-devel] [PATCH v2] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00424.html">[xz-devel] [PATCH] Use outq</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00438.html">Re: [xz-devel] [PATCH v2] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00440.html">Re: [xz-devel] [PATCH v2] liblzma: Add ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [PATCH] partial update, ...</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00496.html">Re: [xz-devel] [PATCH v2] liblzma: ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00498.html">Re: [xz-devel] [PATCH v2] liblz...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [PATCH] partial update, end with LZMA_STREAM_END error">
+<input type="hidden" name="msgid" value="20210129230502.dixsf6wcprw2zm42@flow">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00444.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+partial+update%2C+end+with+LZMA_STREAM_END+error%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00440.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00496.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210129230502.dixsf6wcprw2zm42@flow</li>
+</ul>
+</div>
+</body>
+</html>

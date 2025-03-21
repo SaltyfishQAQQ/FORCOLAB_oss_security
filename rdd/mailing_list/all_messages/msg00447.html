@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] xz-java and newer java</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="thrd2.html#00447" id="c">
+<link rel="index" href="mail2.html#00447" id="i">
+<link rel="prev" href="msg00439.html" id="p">
+<link rel="next" href="msg00483.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00447.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] xz-java and newer java</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210131" rel="nofollow">Sun, 31 Jan 2021 15:03:36 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Replacing while loops with switch statements for the &quot;extra bytes&quot;
+also yields a small improvement. Pulling that common logic out into a
+utility method negates most of the benefit.
+Here is the updated ArrayUtil class.</pre><pre>
+
+
+
+package org.tukaani.xz.common;
+
+import static java.lang.invoke.MethodType.methodType;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Utilities for optimized array interactions.
+ *
+ * &lt;p&gt;
+ * The means of comparing arrays can be controlled by setting the sytem property
+ * {@code org.tukaani.xz.ArrayComparison} to a value from {@link
+ArrayComparison}.
+ * &lt;/p&gt;
+ *
+ * @author Brett Okken
+ */
+public final class ArrayUtil {
+
+    /**
+     * Enumerated options for controlling implementation of how to
+compare arrays.
+     */
+    public static enum ArrayComparison {
+        /**
+         * Uses {@code VarHandle} for {@code int[]} access.
+         * &lt;p&gt;
+         * This is default behavior on jdk9+ for 32 bit x86.
+         * &lt;/p&gt;
+         */
+        VH_INT,
+        /**
+         * Uses {@code VarHandle} for {@code int[]} access after attempting
+         * to align the reads on 4 byte boundaries.
+         */
+        VH_INT_ALIGN,
+        /**
+         * Uses {@code VarHandle} for {@code long[]} access.
+         * &lt;p&gt;
+         * This is default behavior on jdk9+ for 64 bit x86.
+         * &lt;/p&gt;
+         */
+        VH_LONG,
+        /**
+         * Uses {@code VarHandle} for {@code long[]} access after attempting
+         * to align the reads.
+         */
+        VH_LONG_ALIGN,
+        /**
+         * Uses {@code Arrays.mismatch()} to perform vectorized comparison.
+         * &lt;p&gt;
+         * This is default behavior on jdk9+ for non-x86.
+         * &lt;/p&gt;
+         */
+        VECTOR,
+        /**
+         * Uses {@code sun.misc.Unsafe.getInt()} for unaligned {@code int[]}
+         * access.
+         * &lt;p&gt;
+         * This is default behavior on jdk 8 and prior for 32 bit x86.
+         * &lt;/p&gt;
+         */
+        UNSAFE_GET_INT,
+        /**
+         * Uses {@code sun.misc.Unsafe.getLong()} for unaligned {@code long[]}
+         * access.
+         * &lt;p&gt;
+         * This is default behavior on jdk 8 and prior for 64 bit x86.
+         * &lt;/p&gt;
+         */
+        UNSAFE_GET_LONG,
+        /**
+         * Performs byte-by-byte comparison.
+         */
+        LEGACY;
+
+        static ArrayComparison getFromProperty(String prop) {
+            if (prop == null || prop.isEmpty()) {
+                return null;
+            }
+            try {
+                return ArrayComparison.valueOf(prop.toUpperCase(Locale.US));
+            } catch (Exception e) {
+                final Logger logger =
+Logger.getLogger(ArrayUtil.class.getName());
+                logger.log(Level.INFO,
+                           &quot;Invalid ArrayComparison option, using
+default behavior&quot;,
+                           e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * MethodHandle to the actual mismatch method to use at runtime.
+     */
+    private static final MethodHandle MISMATCH;
+
+    /**
+     * The method this is bound to at runtime is depends on the chosen
+     * implementation for {@code byte[]} comparison.
+     * &lt;p&gt;
+     * For {@code long} based comparisons, it will be bound to either
+     * {@link Long#numberOfLeadingZeros(long)} or
+     * {@link Long#numberOfTrailingZeros(long)} depending on
+     * {@link ByteOrder#nativeOrder()}.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For {@code int} based comparisons it will be bound to either
+     * {@link Integer#numberOfLeadingZeros(int)} or
+     * {@link Integer#numberOfTrailingZeros(int)} depending on
+     * {@link ByteOrder#nativeOrder()}.
+     * &lt;/p&gt;
+     */
+    private static final MethodHandle LEADING_ZEROS;
+
+    /**
+     * Populated from reflected read of
+     * {@code sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET} if one of the unsafe
+     * implementations is used.
+     */
+    private static final long ARRAY_BASE_OFFSET;
+
+    /**
+     * The method this is bound to at runtime is depends on the chosen
+     * implementation for {@code byte[]} comparison.
+     * &lt;p&gt;
+     * For {@link ArrayComparison#VECTOR} and
+     * {@link ArrayComparison#LEGACY} this will be {@code null}.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For {@link ArrayComparison#VH_INT} and {@link
+ArrayComparison#VH_INT_ALIGN}
+     * this will be a jdk 9+ {@code byteArrayViewVarHandle} for {@code int[]}
+     * using the {@link ByteOrder#nativeOrder()}. The method signature is
+     * {@code int get(byte[], int)}.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For {@link ArrayComparison#VH_LONG} and {@link
+ArrayComparison#VH_LONG_ALIGN}
+     * this will be a jdk 9+ {@code byteArrayViewVarHandle} for {@code long[]}
+     * using the {@link ByteOrder#nativeOrder()}. The method signature is
+     * {@code long get(byte[], int)}.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For {@link ArrayComparison#UNSAFE_GET_INT} this is bound to
+     * {@code sun.misc.Unsafe.getInt(Object, long)}.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * For {@link ArrayComparison#UNSAFE_GET_LONG} this is bound to
+     * {@code sun.misc.Unsafe.getLong(Object, long)}.
+     * &lt;/p&gt;
+     */
+    private static final MethodHandle GET_PRIMITIVE;
+
+    /**
+     * MethodHandle to the jdk 9+
+     * {@code Arrays.mismatch(byte[] a, int aFromIndex, int aToIndex,
+byte[] b, int bFromIndex, int bToIndex)}.
+     */
+    private static final MethodHandle ARRAYS_MISMATCH;
+
+    static {
+        final Logger logger = Logger.getLogger(ArrayUtil.class.getName());
+        MethodHandle leadingZeros = null;
+        MethodHandle getPrimitive = null;
+        MethodHandle arraysMismatch = null;
+        long arrayBaseOffset = 0;
+        MethodHandle mismatch = null;
+        final MethodHandles.Lookup lookup = MethodHandles.lookup();
+        final MethodType mismatchType = methodType(
+            int.class, byte[].class, int.class, int.class, int.class);
+        try {
+            final Properties props = System.getProperties();
+            final ArrayComparison algo = ArrayComparison.getFromProperty(
+
+props.getProperty(&quot;org.tukaani.xz.ArrayComparison&quot;));
+            final String arch = props.getProperty(&quot;os.arch&quot;, &quot;&quot;);
+            final boolean unaligned =
+arch.matches(&quot;^(i[3-6]86|x86(_64)?|x64|amd64)$&quot;);
+
+            //if unaligned, or explicitly configured, try VarHandles
+            if ((unaligned &amp;&amp; algo == null)
+                    || algo == ArrayComparison.VH_LONG
+                    || algo == ArrayComparison.VH_LONG_ALIGN
+                    || algo == ArrayComparison.VH_INT
+                    || algo == ArrayComparison.VH_INT_ALIGN) {
+                try {
+                    final Class&lt;?&gt; varHandleClazz =
+                        Class.forName(&quot;java.lang.invoke.VarHandle&quot;, true, null);
+                    final Method byteArrayViewHandle =
+
+MethodHandles.class.getDeclaredMethod(&quot;byteArrayViewVarHandle&quot;,
+                                                              new
+Class[] {Class.class,
+
+    ByteOrder.class});
+
+                    final boolean doLong = (algo == null &amp;&amp; arch.contains(&quot;64&quot;))
+                                           || algo == ArrayComparison.VH_LONG
+                                           || algo ==
+ArrayComparison.VH_LONG_ALIGN;
+
+                    final Object varHandle =
+                        byteArrayViewHandle.invoke(null,
+                                                   doLong ?
+long[].class : int[].class,
+                                                   ByteOrder.nativeOrder());
+                    final Class&lt;?&gt; accessModeEnum =
+
+Class.forName(&quot;java.lang.invoke.VarHandle$AccessMode&quot;, true, null);
+                    @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+                    final Object getAccessModeEnum =
+                        Enum.valueOf((Class)accessModeEnum, &quot;GET&quot;);
+                    final Method toMethodHandle =
+
+varHandleClazz.getDeclaredMethod(&quot;toMethodHandle&quot;, accessModeEnum);
+                    getPrimitive =
+                        (MethodHandle)
+toMethodHandle.invoke(varHandle, getAccessModeEnum);
+
+                    //the primitive will be in platform byte order.
+the concept of &quot;leading
+                    //zeros&quot; being bytes in encounter order is true
+for big endian
+                    //for little endian platform, the trailing zeros
+gives the encounter order result
+                    leadingZeros = lookup.findStatic(doLong?
+Long.class : Integer.class,
+
+ByteOrder.BIG_ENDIAN == ByteOrder.nativeOrder()
+                                                         ?
+&quot;numberOfLeadingZeros&quot; : &quot;numberOfTrailingZeros&quot;,
+
+methodType(int.class, doLong ? long.class : int.class));
+
+                    final String mismatchMethod;
+                    if (doLong) {
+                        mismatchMethod = algo == null || algo ==
+ArrayComparison.VH_LONG
+                                ? &quot;varHandleMismatch&quot; :
+&quot;alignedVarHandleMismatch&quot;;
+                        logger.finest(&quot;byte[] comparison using long VarHandle&quot;);
+                    } else {
+                        mismatchMethod = algo == null || algo ==
+ArrayComparison.VH_INT
+                                ? &quot;intVarHandleMismatch&quot; :
+&quot;alignedIntVarHandleMismatch&quot;;
+                        logger.finest(&quot;byte[] comparison using int VarHandle&quot;);
+                    }
+
+                    mismatch =
+                        lookup.findStatic(ArrayUtil.class,
+mismatchMethod, mismatchType);
+                } catch (Throwable t) {
+                    logger.log(Level.FINE,
+                               &quot;failed trying to load a MethodHandle
+to invoke get on a byteArrayViewVarHandle&quot;,
+                               t);
+                    mismatch = null;
+                }
+            }
+
+            if (mismatch == null &amp;&amp; ((!unaligned &amp;&amp; algo == null)
+                                     || algo == ArrayComparison.VECTOR)) {
+                try {
+                    final MethodType arraysType =
+methodType(int.class, byte[].class, int.class, int.class,
+
+ byte[].class, int.class, int.class);
+                    arraysMismatch = lookup.findStatic(Arrays.class,
+&quot;mismatch&quot;, arraysType);
+                    mismatch =
+                        lookup.findStatic(ArrayUtil.class,
+&quot;arraysMismatch&quot;, mismatchType);
+                    logger.finest(&quot;byte[] comparisons using Arrays.mismatch&quot;);
+                } catch (Throwable t) {
+                    logger.log(Level.FINE,
+                               &quot;failed trying to load a MethodHandle
+to invoke Arrays.mismatch&quot;,
+                               t);
+                    arraysMismatch = null;
+                }
+            }
+
+            //if byteArrayViewVarHandle for a long[] could not be loaded, then
+            //try to load sun.misc.Unsafe for unaligned archs only
+            if (mismatch == null &amp;&amp; ((unaligned &amp;&amp; algo == null)
+                                     || algo == ArrayComparison.UNSAFE_GET_LONG
+                                     || algo ==
+ArrayComparison.UNSAFE_GET_INT)) {
+                Class&lt;?&gt; unsafeClazz =
+Class.forName(&quot;sun.misc.Unsafe&quot;, true, null);
+                Constructor&lt;?&gt; unsafeConstructor =
+unsafeClazz.getDeclaredConstructor();
+                unsafeConstructor.setAccessible(true);
+                Object unsafe = unsafeConstructor.newInstance();
+
+                arrayBaseOffset = unsafeClazz.getField(&quot;ARRAY_BYTE_BASE_OFFSET&quot;)
+                                             .getLong(null);
+
+
+                if (algo == ArrayComparison.UNSAFE_GET_LONG || (algo
+== null &amp;&amp; arch.contains(&quot;64&quot;))) {
+                    leadingZeros = lookup.findStatic(Long.class,
+
+ByteOrder.BIG_ENDIAN == ByteOrder.nativeOrder()
+                                                         ?
+&quot;numberOfLeadingZeros&quot; : &quot;numberOfTrailingZeros&quot;,
+
+methodType(int.class, long.class));
+
+                    MethodHandle virtualGetLong = lookup.findVirtual(
+                        unsafeClazz, &quot;getLong&quot;, methodType(long.class,
+Object.class, long.class));
+                    getPrimitive = virtualGetLong.bindTo(unsafe);
+
+                    // do a test read to confirm unsafe is actually functioning
+                    long val = (long) getPrimitive.invokeExact(
+                        (Object) new byte[] { 0, 0, 0, 0, 0, 0, 0, 0
+}, arrayBaseOffset + 0L);
+                    if (val != 0) {
+                        throw new IllegalStateException(&quot;invalid
+value: &quot; + val);
+                    }
+                    mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;unsafeMismatch&quot;, mismatchType);
+                    logger.finest(&quot;byte[] comparisons using Unsafe.getLong&quot;);
+                } else {
+                    leadingZeros = lookup.findStatic(Integer.class,
+
+ByteOrder.BIG_ENDIAN == ByteOrder.nativeOrder()
+                                                        ?
+&quot;numberOfLeadingZeros&quot; : &quot;numberOfTrailingZeros&quot;,
+
+methodType(int.class, int.class));
+
+                    MethodHandle virtualGetInt = lookup.findVirtual(
+                        unsafeClazz, &quot;getInt&quot;, methodType(int.class,
+Object.class, long.class));
+                    getPrimitive = virtualGetInt.bindTo(unsafe);
+
+                    // do a test read to confirm unsafe is actually functioning
+                    int val = (int) getPrimitive.invokeExact(
+                        (Object) new byte[] { 0, 0, 0, 0 },
+arrayBaseOffset + 0L);
+                    if (val != 0) {
+                        throw new IllegalStateException(&quot;invalid
+value: &quot; + val);
+                    }
+                    mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;intUnsafeMismatch&quot;, mismatchType);
+                    logger.finest(&quot;byte[] comparisons using Unsafe.getInt&quot;);
+                }
+            }
+        } catch (Throwable t) {
+            logger.log(Level.FINE, &quot;failed trying to load means to
+compare byte[] by longs&quot;, t);
+        }
+        if (mismatch == null) {
+            getPrimitive = null;
+            leadingZeros = null;
+            arraysMismatch = null;
+            logger.finest(&quot;byte[] comparisons byte by byte&quot;);
+            try {
+                mismatch = lookup.findStatic(ArrayUtil.class,
+&quot;legacyMismatch&quot;, mismatchType);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        GET_PRIMITIVE = getPrimitive;
+        ARRAY_BASE_OFFSET = arrayBaseOffset;
+        LEADING_ZEROS = leadingZeros;
+        ARRAYS_MISMATCH = arraysMismatch;
+        MISMATCH = mismatch;
+    }
+
+    /**
+     * Compares the values in &lt;i&gt;bytes&lt;/i&gt;, starting at &lt;i&gt;aFromIndex&lt;/i&gt; and
+     * &lt;i&gt;bFromIndex&lt;/i&gt; and returns the zero-based index of the first
+     * {@code byte} which differs.
+     * @param bytes The {@code byte[]} for comparison.
+     * @param aFromIndex The first offset into &lt;i&gt;bytes&lt;/i&gt; to start
+reading from.
+     * @param bFromIndex The second offset into &lt;i&gt;bytes&lt;/i&gt; to start
+reading from.
+     * @param length The number of bytes to compare.
+     * @return The offset from the starting indexes of the first byte
+which differs.
+     *     If all match, &lt;i&gt;length&lt;/i&gt; will be returned.
+     */
+    public static int mismatch(
+            byte[] bytes, int aFromIndex, int bFromIndex, int length) {
+       try {
+          return (int) MISMATCH.invokeExact(bytes, aFromIndex,
+bFromIndex, length);
+       } catch (RuntimeException e) {
+           throw e;
+       } catch (Error e) {
+           throw e;
+       } catch (Throwable t) {
+           throw new RuntimeException(t);
+       }
+    }
+
+    /**
+     * If &lt;i&gt;aFromIndex&lt;/i&gt; and &lt;i&gt;bFromIndex&lt;/i&gt; are similarly
+mis-aligned, will
+     * do single byte comparisons to obtain alignment, then call
+     * {@link #varHandleMismatch(byte[], int, byte[], int, int)}.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int alignedVarHandleMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //while we could do an index check, the VarHandle call
+incorporates a check,
+        //making any check here duplicative
+        int aFromAlignment = aFromIndex &amp; 7;
+        int bFromAlignment = bFromIndex &amp; 7;
+
+        //if they are aligned, just go
+        if (aFromAlignment == 0 &amp;&amp; bFromAlignment == 0) {
+            return varHandleMismatch(a, aFromIndex, bFromIndex, length);
+        }
+
+        int i=0;
+        //if both are similarly out of alignment, adjust
+        if (aFromAlignment == bFromAlignment) {
+            for (int j = Math.min(8 - aFromAlignment, length); i &lt; j; ++i) {
+                if (a[aFromIndex + i] != a[bFromIndex + i]) {
+                    return i;
+                }
+            }
+        } else if ((aFromAlignment &amp; 1) == 1 &amp;&amp; (bFromAlignment &amp; 1) == 1) {
+            //if they both have an odd alignment, adjust by one
+            if (a[aFromIndex] != a[bFromIndex]) {
+                return 0;
+            }
+            ++i;
+        }
+        return i + varHandleMismatch(a, aFromIndex + i, bFromIndex +
+i, length - i);
+    }
+
+    /**
+     * Uses {@link #VAR_HANDLE_GET_LONG} to compare 8 bytes at a time.
+     */
+    private static int varHandleMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //while we could do an index check, the VarHandle call
+incorporates a check,
+        //making any check here duplicative
+        int i=0;
+        for (int j=length-7; i&lt;j; i+=8) {
+            final long aVal = (long) GET_PRIMITIVE.invokeExact(a,
+aFromIndex + i);
+            final long bVal = (long) GET_PRIMITIVE.invokeExact(a,
+bFromIndex + i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which
+                //differ are 1
+                final long diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs
+tells us which
+                //byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return Math.min(i + (leadingZeros &gt;&gt;&gt; 3), length);
+            }
+        }
+
+        int result = length;
+        switch(length &amp; 7) {
+            case 7:
+                if (a[aFromIndex + i + 6] != a[bFromIndex + i + 6])
+                    result = i + 6;
+            case 6:
+                if (a[aFromIndex + i + 5] != a[bFromIndex + i + 5])
+                    result = i + 5;
+            case 5:
+                if (a[aFromIndex + i + 4] != a[bFromIndex + i + 4])
+                    result = i + 4;
+            case 4:
+                if (a[aFromIndex + i + 3] != a[bFromIndex + i + 3])
+                    result = i + 3;
+            case 3:
+                if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                    result = i + 2;
+            case 2:
+                if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                    result = i + 1;
+            case 1:
+                if (a[aFromIndex + i] != a[bFromIndex + i])
+                    result = i;
+        }
+        return result;
+    }
+
+    /**
+     * If &lt;i&gt;aFromIndex&lt;/i&gt; and &lt;i&gt;bFromIndex&lt;/i&gt; are similarly
+mis-aligned, will
+     * do single byte comparisons to obtain alignment, then call
+     * {@link #intVarHandleMismatch(byte[], int, byte[], int, int)}.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int alignedIntVarHandleMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //while we could do an index check, the VarHandle call
+incorporates a check,
+        //making any check here duplicative
+        int aFromAlignment = aFromIndex &amp; 3;
+        int bFromAlignment = bFromIndex &amp; 3;
+
+        //if they are aligned, just go
+        if (aFromAlignment == 0 &amp;&amp; bFromAlignment == 0) {
+            return intVarHandleMismatch(a, aFromIndex, bFromIndex, length);
+        }
+
+        int i=0;
+        //if both are similarly out of alignment, adjust
+        if (aFromAlignment == bFromAlignment) {
+            for (int j=Math.min(4 - aFromAlignment, length); i&lt;j; ++i) {
+                if (a[aFromIndex + i] != a[bFromIndex + i]) {
+                    return i;
+                }
+            }
+        } else if ((aFromAlignment &amp; 1) == 1 &amp;&amp; (bFromAlignment &amp; 1) == 1) {
+            //if they both have an odd alignment, adjust by one
+            if (a[aFromIndex] != a[bFromIndex]) {
+                return 0;
+            }
+            ++i;
+        }
+        return i + intVarHandleMismatch(a, aFromIndex + i, bFromIndex
++ i, length - i);
+    }
+
+    /**
+     * Uses {@link #VAR_HANDLE_GET_INT} to compare 4 bytes at a time.
+     */
+    private static int intVarHandleMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //while we could do an index check, the VarHandle call
+incorporates a check,
+        //making any check here duplicative
+        int i=0;
+        for (int j=length-3; i&lt;j; i+=4) {
+            final int aVal = (int) GET_PRIMITIVE.invokeExact(a, aFromIndex + i);
+            final int bVal = (int) GET_PRIMITIVE.invokeExact(a, bFromIndex + i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which
+                //differ are 1
+                final int diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs tells us
+                //which byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return Math.min(i + (leadingZeros &gt;&gt;&gt; 3), length);
+            }
+        }
+
+        int result = length;
+        switch(length &amp; 3) {
+            case 3:
+                if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                    result = i + 2;
+            case 2:
+                if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                    result = i + 1;
+            case 1:
+                if (a[aFromIndex + i] != a[bFromIndex + i])
+                    result = i;
+        }
+        return result;
+    }
+
+    /**
+     * Uses {@code UNSAFE_GET_LONG} to compare 8 bytes at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int unsafeMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //it is important to check the indexes prior to making the Unsafe calls,
+        //as Unsafe does not validate and could result in SIGSEGV if
+out of bounds
+        if (length &lt; 0 || aFromIndex &lt; 0 || bFromIndex &lt; 0
+                || Math.max(aFromIndex, bFromIndex) &gt; a.length - length) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        int i=0;
+        for (int j=length-7; i&lt;j; i+=8) {
+            final long aVal = (long)
+GET_PRIMITIVE.invokeExact((Object) a, ARRAY_BASE_OFFSET + aFromIndex +
+i);
+            final long bVal = (long)
+GET_PRIMITIVE.invokeExact((Object) a, ARRAY_BASE_OFFSET + bFromIndex +
+i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which differ are 1
+                final long diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs
+tells us which byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return i + (leadingZeros &gt;&gt;&gt; 3);
+            }
+        }
+
+        int result = length;
+        switch(length &amp; 7) {
+            case 7:
+                if (a[aFromIndex + i + 6] != a[bFromIndex + i + 6])
+                    result = i + 6;
+            case 6:
+                if (a[aFromIndex + i + 5] != a[bFromIndex + i + 5])
+                    result = i + 5;
+            case 5:
+                if (a[aFromIndex + i + 4] != a[bFromIndex + i + 4])
+                    result = i + 4;
+            case 4:
+                if (a[aFromIndex + i + 3] != a[bFromIndex + i + 3])
+                    result = i + 3;
+            case 3:
+                if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                    result = i + 2;
+            case 2:
+                if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                    result = i + 1;
+            case 1:
+                if (a[aFromIndex + i] != a[bFromIndex + i])
+                    result = i;
+        }
+        return result;
+    }
+
+    /**
+     * Uses {@code UNSAFE_GET_LONG} to compare 8 bytes at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int intUnsafeMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        //it is important to check the indexes prior to making the Unsafe calls,
+        //as Unsafe does not validate and could result in SIGSEGV if
+out of bounds
+        if (length &lt; 0 || aFromIndex &lt; 0 || bFromIndex &lt; 0
+                || Math.max(aFromIndex, bFromIndex) &gt; a.length - length) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        int i=0;
+        for (int j=length-3; i&lt;j; i+=4) {
+            final int aVal = (int) GET_PRIMITIVE.invokeExact((Object)
+a, ARRAY_BASE_OFFSET + aFromIndex + i);
+            final int bVal = (int) GET_PRIMITIVE.invokeExact((Object)
+a, ARRAY_BASE_OFFSET + bFromIndex + i);
+            if (aVal != bVal) {
+                //this returns a value where bits which match are 0
+and bits which
+                //differ are 1
+                final int diff = aVal ^ bVal;
+                //the first (in native byte order) bit which differs tells us
+                //which byte differed
+                final int leadingZeros = (int) LEADING_ZEROS.invokeExact(diff);
+                return i + (leadingZeros &gt;&gt;&gt; 3);
+            }
+        }
+
+        int result = length;
+        switch(length &amp; 3) {
+            case 3:
+                if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                    result = i + 2;
+            case 2:
+                if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                    result = i + 1;
+            case 1:
+                if (a[aFromIndex + i] != a[bFromIndex + i])
+                    result = i;
+        }
+        return result;
+    }
+
+    /**
+     * Uses {@code ARRAYS_MISMATCH} to compare &lt;i&gt;a&lt;/i&gt; and &lt;i&gt;b&lt;/i&gt;.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int arraysMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length)
+throws Throwable {
+        final int m = (int) ARRAYS_MISMATCH.invokeExact(a, aFromIndex,
+aFromIndex + length,
+                                                        a, bFromIndex,
+bFromIndex + length);
+        return m == -1 ? length : m;
+    }
+
+    /**
+     * Simply loops over all of the bytes, comparing one at a time.
+     */
+    @SuppressWarnings(&quot;unused&quot;)
+    private static int legacyMismatch(
+            byte[] a, int aFromIndex, int bFromIndex, int length) {
+        int i=0;
+        for (int j=length - 7; i&lt;j; i+=8) {
+            if (a[aFromIndex + i] != a[bFromIndex + i])
+                return i;
+            if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                return i + 1;
+            if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                return i + 2;
+            if (a[aFromIndex + i + 3] != a[bFromIndex + i + 3])
+                return i + 3;
+            if (a[aFromIndex + i + 4] != a[bFromIndex + i + 4])
+                return i + 4;
+            if (a[aFromIndex + i + 5] != a[bFromIndex + i + 5])
+                return i + 5;
+            if (a[aFromIndex + i + 6] != a[bFromIndex + i + 6])
+                return i + 6;
+            if (a[aFromIndex + i + 7] != a[bFromIndex + i + 7])
+                return i + 7;
+        }
+
+        int result = length;
+        switch(length &amp; 7) {
+            case 7:
+                if (a[aFromIndex + i + 6] != a[bFromIndex + i + 6])
+                    result = i + 6;
+            case 6:
+                if (a[aFromIndex + i + 5] != a[bFromIndex + i + 5])
+                    result = i + 5;
+            case 5:
+                if (a[aFromIndex + i + 4] != a[bFromIndex + i + 4])
+                    result = i + 4;
+            case 4:
+                if (a[aFromIndex + i + 3] != a[bFromIndex + i + 3])
+                    result = i + 3;
+            case 3:
+                if (a[aFromIndex + i + 2] != a[bFromIndex + i + 2])
+                    result = i + 2;
+            case 2:
+                if (a[aFromIndex + i + 1] != a[bFromIndex + i + 1])
+                    result = i + 1;
+            case 1:
+                if (a[aFromIndex + i] != a[bFromIndex + i])
+                    result = i;
+        }
+        return result;
+    }
+
+    private ArrayUtil() {
+    }
+}
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00439.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="thrd2.html#00447">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="mail2.html#00447">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00483.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00414.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00419.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00420.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00421.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00423.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00426.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00433.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00435.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00436.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00439.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] xz-java and newer java</span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00483.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00484.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00485.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00491.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00492.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00533.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00648.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00650.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00654.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00662.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] xz-java and newer java">
+<input type="hidden" name="msgid" value="CANBJVOGyGov5guKbCs1QEKo0s+_19Vaws=kkO2EihEjdB5RUtw@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00447.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00439.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00483.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOGyGov5guKbCs1QEKo0s+_19Vaws=kkO2EihEjdB5RUtw@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

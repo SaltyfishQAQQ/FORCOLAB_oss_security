@@ -1,0 +1,45 @@
+timestamp,from,to,body,title,msg_file
+"Fri, 09 Apr 2021 01:54:33 -0700",Vitaly Chikunov,,"From: ""Ivan A. Melnikov"" <i...@altlinux.org>
+
+Due to architectural limitations, address space available to a single
+userspace process on MIPS32 is limited to 2 GiB, not 4, even on systems
+that have more physical RAM -- e.g. 64-bit systems with 32-bit
+userspace, or systems that use XPA (an extension similar to x86's PAE).
+
+
+So, for MIPS32, we have to impose stronger memory limits. I've chosen
+2000MiB to give the process some headroom.
+---
+ src/xz/hardware.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 7cb33582..0ad8c658 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -91,7 +91,13 @@ hardware_memlimit_set(uint64_t new_memlimit,
+                // Use a value less than SIZE_MAX so that there's some room
+                // for the xz program and so on. Don't use 4000 MiB because
+                // it could look like someone mixed up base-2 and base-10.
++#ifdef __mips__
++               // For MIPS32, due to architectural pecularities,
++               // the limit is even lower.
++               const uint64_t limit_max = UINT64_C(2000) << 20;
++#else
+                const uint64_t limit_max = UINT64_C(4020) << 20;
++#endif
+ 
+                // UINT64_MAX is a special case for the string ""max"" so
+                // that has to be handled specially.
+-- 
+2.29.2
+
+",[xz-devel] [PATCH] Reduce maximum possible memory limit on MIPS32,msg00494.html
+"Sun, 11 Apr 2021 09:59:09 -0700",Lasse Collin,Vitaly Chikunov,"On 2021-04-09 Vitaly Chikunov wrote:
+
+
+Thanks! Committed.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet & Freenode
+",Re: [xz-devel] [PATCH] Reduce maximum possible memory limit on MIPS32,msg00495.html

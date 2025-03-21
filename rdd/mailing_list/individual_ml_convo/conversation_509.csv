@@ -1,0 +1,44 @@
+timestamp,from,to,body,title,msg_file
+"Tue, 05 Oct 2021 14:33:40 -0700",Alexander Bluhm,,"OpenBSD does not allow to change the group of a file if the user
+does not belong to this group.  In contrast to Linux, OpenBSD also
+fails if the new group is the same as the old one.  Do not call
+fchown(2) in this case, it would change nothing anyway.
+
+
+This fixes an issue with Perl Alien::Build module.
+https://github.com/PerlAlien/Alien-Build/issues/62
+---
+ src/xz/file_io.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git src/xz/file_io.c src/xz/file_io.c
+index 80b56d3..1602443 100644
+--- src/xz/file_io.c
++++ src/xz/file_io.c
+@@ -368,7 +368,13 @@ io_copy_attrs(const file_pair *pair)
+
+        mode_t mode;
+
+-       if (fchown(pair->dest_fd, (uid_t)(-1), pair->src_st.st_gid)) {
++       // With BSD semantics the new dest file may have a group that
++       // does not belong to the user.  If the src file has the same gid
++       // nothing has to be done.  Nevertheless OpenBSD fchown(2) fails
++       // in this case which seems to be POSIX compliant.  As there is
++       // nothing to do, skip the system call.
++       if (pair->dest_st.st_gid != pair->src_st.st_gid &&
++           fchown(pair->dest_fd, (uid_t)(-1), pair->src_st.st_gid)) {
+                message_warning(_(""%s: Cannot set the file group: %s""),
+                                pair->dest_name, strerror(errno));
+                // We can still safely copy some additional permissions:
+--
+2.33.0
+
+",[xz-devel] [PATCH] xz: Avoid fchown(2) failure.,msg00509.html
+"Wed, 27 Oct 2021 13:40:47 -0700",Lasse Collin,Alexander Bluhm,"On 2021-10-05 Alexander Bluhm wrote:
+
+
+Thanks! Committed.
+
+-- 
+Lasse Collin
+",Re: [xz-devel] [PATCH] xz: Avoid fchown(2) failure.,msg00510.html

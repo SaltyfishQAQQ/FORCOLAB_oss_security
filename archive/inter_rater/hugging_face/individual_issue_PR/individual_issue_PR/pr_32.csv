@@ -1,0 +1,472 @@
+event,from,created_at,body
+thread_started,vfazio,2023-02-07T16:47:02Z,"On Microblaze builds will fail when trying to add symver information because  `__attribute__((symver ..))` is not supported even though `__has_attribute(__symver__)` returns true.
+
+Support for symver needs to be detected via a compile test since `__has_attribute` can report false positives [0].
+
+Add a configure compile check for `__attribute__((symver ..))` to ensure it is supported and define a variable to advertise support.
+
+[0] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=101766#c1
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [x] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+builds targeting the microblaze fail
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: 
+
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+
+- Builds now succeed
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+I tested compiles via GCC 12 and 9 for x86_64 and microblaze targets and didn't encounter issues.
+
+<!-- Any other information that is important to this PR. -->"
+commented,vfazio,2023-02-08T13:32:32Z,rebased and pushed a whitespace change.
+commented,JiaT75,2023-02-08T16:08:23Z,"@vfazio Thanks for the bug report and PR! I am not familiar with the Microblaze platform and I am surprised that `__has_attribute` can report a false positive like this.
+
+Do you know if GCC on Microblaze supports symver? I am asking because if  `__attribute__((__symver__ ...))` is not supported then `__asm__("".symver "" ...)` is used instead with your patch. If symver is not supported on Microblaze, then the better solution would be to disable HAVE_SYMBOL_VERSIONS_LINUX in configure.ac (and in CMakeLists.txt) for Microblaze.
+
+By the way, as a temporary workaround, you can configure with --disable-symbol-versions and the build should work."
+commented,vfazio,2023-02-08T16:30:52Z,"> @vfazio Thanks for the bug report and PR! I am not familiar with the Microblaze platform and I am surprised that __has_attribute can report a false positive like this.
+> 
+> Do you know if GCC on Microblaze supports symver? I am asking because if **attribute**((**symver** ...)) is not supported then **asm**("".symver "" ...) is used instead with your patch. If symver is not supported on Microblaze, then the better solution would be to disable HAVE_SYMBOL_VERSIONS_LINUX in configure.ac (and in CMakeLists.txt) for Microblaze.
+> 
+> By the way, as a temporary workaround, you can configure with --disable-symbol-versions and the build should work.
+
+I'm not an expert on Microblaze at all, but using the asm "".symver"" syntax seems to allow the compile to work fine since we've already ported this patch to buildroot for xz 5.2.10 
+
+Here's a failing build log http://autobuild.buildroot.org/results/4dc/4dc0c88c1ed250dd5e1be492138bd6e1781128b4/build-end.log
+
+it looks like the handling for `__attribute__(__symver__)` is around this macro: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/elfos.h#L259 and my _guess_ is that it's not included in microblaze gcc toolchains
+
+I didn't see any build/link errors when switching but i suppose that doesn't mean it's working as intended."
+commented,Larhzu,2023-02-09T17:10:44Z,"The linked GCC bug 101766 gives an impression that `__has_attribute` is fairly broken and not usable without extra care. However, perhaps it's not the real problem in this case. I need to understand the big picture better first.
+
+The `__symver__` attribute is used when possible because with the traditional `asm("".symver..."")` method link-time optimization (LTO, `-flto`) with GCC breaks in a way that isn't obvious. The build will succeed without warnings but the shared library will have issues which sometimes won't be immediately visible.
+
+It's confusing if GCC doesn't support `__symver__` attribute but the platform still supports `.symver` in the assembly code. Are the binaries in the ELF format? What does `file src/liblzma/.libs/liblzma.*` say about the shared library after a successful build with your patch?
+
+If it is in ELF, what does this print?
+
+```
+readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 | grep lzma_stream_encoder_mt_memusage
+```
+
+It should print three lines whose rightmost column looks like this:
+
+```
+lzma_stream_encoder_mt_memusage@@XZ_5.2
+lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+
+If there are no `@@XZ...` or `@XZ...` then the platform doesn't support symbol versioning and the next few paragraphs aren't interesting.
+
+XZ Utils currently has two variants of symbol versioning:
+
+(1) A GNU/Linux-specific version with extra symbols for compatibility with a broken patch in RHEL/CentOS 7 which has also been copied to a few other places. The `@XZ_5.1.2alpha` and `@XZ_5.2.2` above exist due to this.
+
+(2) A generic version that works on GNU/Linux (without RHEL/CentOS 7 symbols) and FreeBSD (possibly also Solaris but not sure, it's not enabled by default on Solaris). With this the above list only has `@@XZ_5.2`. You can test this (without your patch) by omitting the `linux*)` section in configure.ac (lines 668-700 in XZ Utils 5.2.10; lines 723-755 in XZ Utils 5.4.1).
+
+It sounds very likely that the patch from RHEL/CentOS 7 (which was used somewhere else too) doesn't affect Microblaze users and thus (2) could be good **if** symbol versions are supported. The (2) method doesn't require anything in the C code, so no `__symver__` attribute or `asm("".symver..."")` and thus no LTO build issues.
+
+On the other hand, if symbol versioning isn't supported at all, then the default in configure.ac should be changed so that on Microblaze it's equivalent to `--disable-symbol-versions`. This is easy to do with `case $host_cpu in microblaze*)`. I base this on the configure message `checking host system type... microblaze-buildroot-linux-gnu` from your build log.
+
+The proposed patch has subtle problems:
+
+(1) Autoconf tests that require `-Werror` should be written very carefully. In this case if user has specified enough warning flags in `CFLAGS` (for example, `-Wmissing-prototypes`) then the test will fail even if the compiler supports the `__symver__` attribute. This means that an innocent extra warning flag in `CFLAGS` can silently break `-flto` with GCC!
+
+When writing this kind of tests, Clang's `-Weverything` is convenient for catching many issues like this. (Clang doesn't support `__symver__` so the test will fail for that reason still. `-flto` works with Clang with the traditional `.symver` method already.)
+
+While not too important for this particular test, `clang -Weverything` includes `-Wreserved-macro-identifier` which will warn about the macros added by `AC_LANG_SOURCE`. The test doesn't need anything from `AC_LANG_SOURCE` so it's better to avoid it when `-Werror` is needed. See also how support for `__constructor__` attribute is detected in configure.ac.
+
+(2) The CMake build isn't updated so with this patch CMake-based build will never use the `__symver__` attribute and thus `-flto` with GCC is silently broken again. While CMake-based build is not the primary build method on GNU/Linux, I want to keep the liblzma part of it working well at least on the most common platforms.
+
+Anyway, I want to understand the issue better before worrying about patches. Once the problem is understood, a patch is probably fairly easy to write."
+commented,vfazio,2023-02-17T14:31:08Z,"@Larhzu 
+
+> The linked GCC bug 101766 gives an impression that `__has_attribute` is fairly broken and not usable without extra care. However, perhaps it's not the real problem in this case. I need to understand the big picture better first.
+> 
+> The `__symver__` attribute is used when possible because with the traditional `asm("".symver..."")` method link-time optimization (LTO, `-flto`) with GCC breaks in a way that isn't obvious. The build will succeed without warnings but the shared library will have issues which sometimes won't be immediately visible.
+> 
+> It's confusing if GCC doesn't support `__symver__` attribute but the platform still supports `.symver` in the assembly code. Are the binaries in the ELF format? What does `file src/liblzma/.libs/liblzma.*` say about the shared library after a successful build with your patch?
+```
+vfazio@vfazio2 ~/development/buildroot $ file output/build/xz-5.2.10/src/liblzma/.libs/liblzma.*
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.la:        symbolic link to ../liblzma.la
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.lai:       libtool library file, ASCII text
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so:        symbolic link to liblzma.so.5.2.10
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5:      symbolic link to liblzma.so.5.2.10
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10: ELF 32-bit LSB shared object, Xilinx MicroBlaze 32-bit RISC, version 1 (SYSV), dynamically linked, with debug_info, not stripped
+
+```
+> 
+> If it is in ELF, what does this print?
+> 
+> ```
+> readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 | grep lzma_stream_encoder_mt_memusage
+> ```
+> 
+```
+vfazio@vfazio2 ~/development/buildroot $ readelf -W --dyn-syms output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10 | grep lzma_stream_encoder_mt_memusage
+   121: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   122: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   123: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+> It should print three lines whose rightmost column looks like this:
+> 
+> ```
+> lzma_stream_encoder_mt_memusage@@XZ_5.2
+> lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+> lzma_stream_encoder_mt_memusage@XZ_5.2.2
+> ```
+> 
+> If there are no `@@XZ...` or `@XZ...` then the platform doesn't support symbol versioning and the next few paragraphs aren't interesting.
+> 
+> XZ Utils currently has two variants of symbol versioning:
+> 
+> (1) A GNU/Linux-specific version with extra symbols for compatibility with a broken patch in RHEL/CentOS 7 which has also been copied to a few other places. The `@XZ_5.1.2alpha` and `@XZ_5.2.2` above exist due to this.
+> 
+> (2) A generic version that works on GNU/Linux (without RHEL/CentOS 7 symbols) and FreeBSD (possibly also Solaris but not sure, it's not enabled by default on Solaris). With this the above list only has `@@XZ_5.2`. You can test this (without your patch) by omitting the `linux*)` section in configure.ac (lines 668-700 in XZ Utils 5.2.10; lines 723-755 in XZ Utils 5.4.1).
+> 
+> It sounds very likely that the patch from RHEL/CentOS 7 (which was used somewhere else too) doesn't affect Microblaze users and thus (2) could be good **if** symbol versions are supported. The (2) method doesn't require anything in the C code, so no `__symver__` attribute or `asm("".symver..."")` and thus no LTO build issues.
+> 
+> On the other hand, if symbol versioning isn't supported at all, then the default in configure.ac should be changed so that on Microblaze it's equivalent to `--disable-symbol-versions`. This is easy to do with `case $host_cpu in microblaze*)`. I base this on the configure message `checking host system type... microblaze-buildroot-linux-gnu` from your build log.
+> 
+> The proposed patch has subtle problems:
+> 
+> (1) Autoconf tests that require `-Werror` should be written very carefully. In this case if user has specified enough warning flags in `CFLAGS` (for example, `-Wmissing-prototypes`) then the test will fail even if the compiler supports the `__symver__` attribute. This means that an innocent extra warning flag in `CFLAGS` can silently break `-flto` with GCC!
+
+The patch was largely based on how the check has been adapted other places:
+https://github.com/libfuse/libfuse/pull/620/commits/3aba09a5c56e017746c5c1652dbc845f4db7374a
+
+https://gitlab.com/cryptsetup/cryptsetup/-/merge_requests/275/diffs?commit_id=5f71b3d63181aa88a68f7f71eab8801f2d8d2cde
+
+https://github.com/smuellerDD/libkcapi/blob/master/m4/ac_check_attribute_symver.m4
+
+I'm open to doing this an alternative way if it's more appropriate
+> 
+> When writing this kind of tests, Clang's `-Weverything` is convenient for catching many issues like this. (Clang doesn't support `__symver__` so the test will fail for that reason still. `-flto` works with Clang with the traditional `.symver` method already.)
+> 
+> While not too important for this particular test, `clang -Weverything` includes `-Wreserved-macro-identifier` which will warn about the macros added by `AC_LANG_SOURCE`. The test doesn't need anything from `AC_LANG_SOURCE` so it's better to avoid it when `-Werror` is needed. See also how support for `__constructor__` attribute is detected in configure.ac.
+> 
+> (2) The CMake build isn't updated so with this patch CMake-based build will never use the `__symver__` attribute and thus `-flto` with GCC is silently broken again. While CMake-based build is not the primary build method on GNU/Linux, I want to keep the liblzma part of it working well at least on the most common platforms.
+> 
+> Anyway, I want to understand the issue better before worrying about patches. Once the problem is understood, a patch is probably fairly easy to write.
+
+"
+commented,vfazio,2023-02-17T14:38:44Z,"Again, i'm not totally convinced the gcc toolchain itself shouldn't be fixed to include `elfos.h` if it's generating ELF binaries.
+
+https://github.com/gcc-mirror/gcc/blob/master/gcc/config.gcc#L2369
+
+I do not see ""elfos.h"" in any of the microblaze targets.
+
+Note that our target is:
+
+```
+vfazio@vfazio2 ~/development/buildroot :( $ output/host/bin/microblazeel-linux-cc.br_real -v
+Using built-in specs.
+COLLECT_GCC=output/host/bin/microblazeel-linux-cc.br_real
+COLLECT_LTO_WRAPPER=/mnt/development/buildroot/output/host/opt/ext-toolchain/bin/../libexec/gcc/microblazeel-buildroot-linux-gnu/12.2.0/lto-wrapper
+Target: microblazeel-buildroot-linux-gnu
+
+```"
+commented,Larhzu,2023-02-17T19:00:48Z,"> ```
+> vfazio@vfazio2 ~/development/buildroot $ readelf -W --dyn-syms output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10 | grep lzma_stream_encoder_mt_memusage
+>    121: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+>    122: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+>    123: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+> ```
+
+Thanks! So it's a normal ELF target that supports symbol versioning. It's just the `__symver__` attribute that is broken in GCC on MicroBlaze.
+
+There are two possible solutions:
+
+1. Use the old `asm("".symver ..."")` method on MicroBlaze (and possible other platforms that don't support `__symver__` attribute).
+  - With this method LTO (`-flto`) will be silently broken on MicroBlaze.
+  - This requires a test in configure.ac and CMakeLists.txt.
+2. Only use simple/basic/generic symbol versioning on MicroBlaze.
+  - Before the compatibility symbols for the patch from RHEL/CentOS 7 were added, this was the only method. The patch had spread outside CentOS 7 but even then I guess these symbols probably aren't useful on MicroBlaze and omitting them should do no harm.
+  - This is simpler than the option 1 above. It sounds likely that MicroBlaze is a special case (GCC issue) so adding a special case for MicroBlaze in configure.ac is OK.
+  - This way there is no risk of silent LTO breakage with GCC >= 10 since no test for the `__symver__` attribute is needed in configure.ac or CMakeLists.txt.
+
+I committed a fix using the second method. I didn't do it for CMake-based build but I guess building liblzma with CMake on MicroBlaze isn't so important.
+
+> The patch was largely based on how the check has been adapted other places: [libfuse/libfuse@3aba09a](https://github.com/libfuse/libfuse/commit/3aba09a5c56e017746c5c1652dbc845f4db7374a)
+> 
+> https://gitlab.com/cryptsetup/cryptsetup/-/merge_requests/275/diffs?commit_id=5f71b3d63181aa88a68f7f71eab8801f2d8d2cde
+> 
+> https://github.com/smuellerDD/libkcapi/blob/master/m4/ac_check_attribute_symver.m4
+
+My Meson skills are non-existent for now so I don't know if the method in libfuse is correct. If user-supplied `CFLAGS` don't affect the test then it probably is good.
+
+The other two first declare the function and then define it so they work even with `-Wmissing-prototypes` or `-Wmissing-declarations`. The test in this XZ Utils PR missed the declaration and thus it was more fragile (wrong test result and thus broken LTO if `configure` is run with `CFLAGS=-Wmissing-declarations`).
+
+In case Clang some day happened to support the attribute then being future-compatible with `clang -Weverything` would matter too. It gives warnings from what `AC_LANG_SOURCE` outputs. This test doesn't need `AC_LANG_SOURCE` or `AC_LANG_PROGRAM` so a test like the following is enough:
+
+```
+AC_COMPILE_IFELSE([
+    void foo(void);
+    __attribute__((__symver__(""foo@BAR_1.2"")))
+    void foo(void) { return; }
+], [
+    ...
+```
+
+A somewhat similar test is already used in XZ Utils for the `__constructor__` attribute. It uses a static function so it doesn't need a separate declaration.
+
+Of course there are multiple slightly different ways to write a working test. One just has to be really careful that the test program will never give a warning about an unrelated thing in the test program which would make the test fail when it shouldn't. Perhaps `-Werror=attributes` instead of `-Werror` would be more robust if the attribute is supported only by compilers that support `-Werror=attributes`. When testing for attributes that are supported by ancient GCC versions (like `__constructor__`) then this doesn't work as the ancient GCC versions don't support `-Werror=attributes`.
+
+> Again, i'm not totally convinced the gcc toolchain itself shouldn't be fixed to include `elfos.h` if it's generating ELF binaries.
+
+I have no idea, sorry.
+
+Thanks!"
+commented,vfazio,2023-02-17T19:23:29Z,I can try testing a build of your commit sans patch to see if it works sometime next week
+commented,vfazio,2023-02-20T03:08:45Z,"@Larhzu 
+
+i did a quick build off of master via buildroot without applying our patch and tested via qemu-system-microblazeel. Things _seem_ to work OK.
+
+```
+vfazio@Zephyrus:~/development/buildroot$ readelf -W --dyn-syms output/build/xz-b9f171dd00a3cc32b6d41ea8e082cf545640ec2a/src/liblzma/.libs/liblzma.so.5.5.99 | grep stream
+    46: 00013428   516 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_decode@@XZ_5.0
+    48: 00013f64   436 FUNC    GLOBAL DEFAULT   12 lzma_stream_footer_decode@@XZ_5.0
+    63: 00013e80   228 FUNC    GLOBAL DEFAULT   12 lzma_stream_header_decode@@XZ_5.0
+    64: 000063c8   240 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_flags@@XZ_5.0
+    75: 00007618   272 FUNC    GLOBAL DEFAULT   12 lzma_stream_flags_compare@@XZ_5.0
+    77: 0000be7c   108 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_bound@@XZ_5.0
+    78: 00013dc4   188 FUNC    GLOBAL DEFAULT   12 lzma_stream_decoder@@XZ_5.0
+    99: 000064b8   356 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_padding@@XZ_5.0
+   108: 0000bee8   932 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_encode@@XZ_5.0
+   112: 0000cca8   336 FUNC    GLOBAL DEFAULT   12 lzma_stream_footer_encode@@XZ_5.0
+   114: 00006060    28 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_count@@XZ_5.0
+   120: 0000cb14   180 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder@@XZ_5.0
+   128: 0000ebfc   524 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   129: 00016670   156 FUNC    GLOBAL DEFAULT   12 lzma_stream_decoder_mt@@XZ_5.4
+   131: 0000eb58   164 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt@@XZ_5.2
+   132: 0000cbc8   224 FUNC    GLOBAL DEFAULT   12 lzma_stream_header_encode@@XZ_5.0
+   152: 00006118   160 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_size@@XZ_5.0
+vfazio@Zephyrus:~/development/buildroot$ output/images/start-qemu.sh serial-only
+Ramdisk addr 0x00000000, 
+FDT at 0x90861a8c
+Linux version 5.15.18 (vfazio@Zephyrus) (microblazeel-buildroot-linux-gnu-gcc.br_real (Buildroot 2022.11-1506-g1d18e0245a) 11.3.0, GNU ld (GNU Binutils) 2.38) #5 Sun Feb 19 11:06:27 CST 2023
+setup_memory: max_mapnr: 0x8000
+setup_memory: min_low_pfn: 0x90000
+setup_memory: max_low_pfn: 0x98000
+setup_memory: max_pfn: 0x98000
+Zone ranges:
+  DMA      [mem 0x0000000090000000-0x0000000097ffffff]
+  Normal   empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000090000000-0x0000000097ffffff]
+Initmem setup node 0 [mem 0x0000000090000000-0x0000000097ffffff]
+setup_cpuinfo: initialising
+setup_cpuinfo: No PVR support. Using static CPU info from FDT
+wt_msr
+pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+pcpu-alloc: [0] 0 
+Built 1 zonelists, mobility grouping on.  Total pages: 32512
+Kernel command line: 
+Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+mem auto-init: stack:off, heap alloc:off, heap free:off
+Memory: 120996K/131072K available (4176K kernel code, 505K rwdata, 748K rodata, 3074K init, 195K bss, 10076K reserved, 0K cma-reserved)
+SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+irq-xilinx: /plb/interrupt-controller@81800000: num_irq=4, edge=0xa
+ERROR: CPU CCF input clock not found
+/plb/timer@83c00000: irq=1
+ERROR: timer CCF input clock not found
+ERROR: Using CPU clock frequency
+clocksource: xilinx_clocksource: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 30580167144 ns
+xilinx_timer_shutdown
+xilinx_timer_set_periodic
+sched_clock: 32 bits at 62MHz, resolution 16ns, wraps every 34359738360ns
+Console: colour dummy device 80x25
+printk: console [tty0] enabled
+Calibrating delay loop... 3063.80 BogoMIPS (lpj=6127616)
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+devtmpfs: initialized
+random: get_random_u32 called from bucket_table_alloc.isra.0+0x70/0x1f0 with crng_init=0
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+NET: Registered PF_NETLINK/PF_ROUTE protocol family
+DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+pps_core: LinuxPPS API ver. 1 registered
+pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+PTP clock support registered
+clocksource: Switched to clocksource xilinx_clocksource
+NET: Registered PF_INET protocol family
+IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+TCP bind hash table entries: 1024 (order: 0, 4096 bytes, linear)
+TCP: Hash tables configured (established 1024 bind 1024)
+UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+NET: Registered PF_UNIX/PF_LOCAL protocol family
+workingset: timestamp_bits=30 max_order=15 bucket_order=0
+io scheduler mq-deadline registered
+io scheduler kyber registered
+84000000.serial: ttyUL0 at MMIO 0x84000000 (irq = 4, base_baud = 0) is a uartlite
+printk: console [ttyUL0] enabled
+xilinx_emaclite 81000000.ethernet: Device Tree Probing
+xilinx_emaclite 81000000.ethernet: Failed to register mdio bus.
+xilinx_emaclite 81000000.ethernet: MAC address is now 02:00:00:00:00:00
+xilinx_emaclite 81000000.ethernet: Xilinx EmacLite at 0x81000000 mapped to 0x(ptrval), irq=2
+NET: Registered PF_INET6 protocol family
+Segment Routing with IPv6
+In-situ OAM (IOAM) with IPv6
+sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+NET: Registered PF_PACKET protocol family
+Freeing unused kernel image (initmem) memory: 3072K
+This architecture does not have kernel memory protection.
+Run /init as init process
+  with arguments:
+    /init
+  with environment:
+    HOME=/
+    TERM=linux
+Starting syslogd: OK
+Starting klogd: OK
+Running sysctl: OK
+Saving 2048 bits of non-creditable seed for next boot
+Starting network: random: fast init done
+udhcpc: started, v1.36.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+deleting routers
+adding dns 10.0.2.3
+OK
+
+Welcome to Buildroot
+buildroot login: root
+
+# xz -h
+Usage: xz [OPTION]... [FILE]...
+Compress or decompress FILEs in the .xz format.
+
+  -z, --compress      force compression
+  -d, --decompress    force decompression
+  -t, --test          test compressed file integrity
+  -l, --list          list information about .xz files
+  -k, --keep          keep (don't delete) input files
+  -f, --force         force overwrite of output file and (de)compress links
+  -c, --stdout        write to standard output and don't delete input files
+  -0 ... -9           compression preset; default is 6; take compressor *and*
+                      decompressor memory usage into account before using 7-9!
+  -e, --extreme       try to improve compression ratio by using more CPU time;
+                      does not affect decompressor memory requirements
+  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0
+                      to use as many threads as there are processor cores
+  -q, --quiet         suppress warnings; specify twice to suppress errors too
+  -v, --verbose       be verbose; specify twice for even more verbose
+  -h, --help          display this short help and exit
+  -H, --long-help     display the long help (lists also the advanced options)
+  -V, --version       display the version number and exit
+
+With no FILE, or when FILE is -, read standard input.
+
+Report bugs to <xz@tukaani.org> (in English or Finnish).
+XZ Utils home page: <https://tukaani.org/xz/>
+THIS IS A DEVELOPMENT VERSION NOT INTENDED FOR PRODUCTION USE.
+
+# xz -V
+xz (XZ Utils) 5.5.0alpha
+liblzma 5.5.0alpha
+
+# fallocate -l 100000 test.file
+# xz test.file 
+# ls -la
+total 8
+drwx------    2 root     root            80 Jan  1 00:00 .
+drwxr-xr-x   17 root     root           400 Feb 19  2023 ..
+-rw-------    1 root     root           102 Jan  1 00:00 .ash_history
+-rw-r--r--    1 root     root           148 Jan  1 00:00 test.file.xz
+# xzcat test.file.xz |  hexdump
+0000000 0000 0000 0000 0000 0000 0000 0000 0000
+*
+00186a0
+```
+
+While i think i personally prefer the compile time check, even if that means i need to tweak it to be more accurate, it's ultimately your call and i'm OK with closing this PR if quirking microblaze is the solution you're happy with. But if gcc gets fixed (assuming it's actually a gcc bug), that means microblaze is now an edge case different from other architectures."
+commented,vfazio,2023-02-20T04:07:02Z,"as a test, i patched gcc's `gcc/config/microblaze/microblaze.h` to add:
+
+```
+#define ASM_OUTPUT_SYMVER_DIRECTIVE(FILE, NAME, NAME2)		\
+  do								\
+    {								\
+      fputs (""\t.symver\t"", (FILE));				\
+      assemble_name ((FILE), (NAME));				\
+      fputs ("", "", (FILE));					\
+      assemble_name ((FILE), (NAME2));				\
+      fputc ('\n', (FILE));					\
+    }								\
+  while (0)
+```
+
+and recompiled xz 5.2.10 without the patch:
+
+```
+vfazio@Zephyrus:~/development/buildroot$ readelf -W --dyn-syms output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10 | grep lzma_stream_encoder_mt_memusage
+   123: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   124: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   125: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```"
+commented,Larhzu,2023-02-20T20:56:48Z,"Fixing GCC would be the best but I guess the current GCC versions have to be supported for some time anyway.
+
+I have understood that MicroBlaze is for embedded use so I feel quite OK by making it a special case. The way symbol versioning is used in XZ Utils means that the downsides are very small: it sounds fairly unlikely that the issues caused by the patch from RHEL/CentOS 7 would affect MicroBlaze use cases. So the solution I committed is specific to XZ Utils and not trivially usable for other projects.
+
+Checking for features is obviously better most of the time (instead of checking for CPU/OS/whatever) so in general I don't disagree with you. In this case I feel the problem likely exists on just one platform and a generic test would be more complex than what is currently used on other platforms. If there is a bug in the test for the `__symver__` attribute, then LTO builds can silently break if the fallback is `asm("".symver ..."")` or the compatibility symbols may silently be missing if the fallback is to use `liblzma_generic.map`. The method I committed has lower risk and it's simpler too.
+
+I plan to put the workaround in 5.4.2 and also 5.2.11 at the same time, whenever a new bugfix release will be made. Before that, it's safe to use the commit with both 5.2.10 and 5.4.1.
+
+If GCC is fixed this year, perhaps this workaround can be omitted 2-3 years later when a new major release of XZ Utils is made.
+
+Thanks for reporting the problem and testing!"
+commented,vfazio,2023-02-20T21:07:23Z,"GCC discussion
+
+https://gcc.gnu.org/pipermail/gcc/2023-February/240747.html"
+commented,JiaT75,2023-02-21T12:27:27Z,Thanks for reporting this and helping us fix @vfazio and reporting to gcc! I am closing this since the issue seems resolved with our workaround. Let us know if there are any other issues that you find :)

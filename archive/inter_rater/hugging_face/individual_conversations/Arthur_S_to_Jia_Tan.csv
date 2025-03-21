@@ -1,0 +1,12 @@
+from,to,file_name,message,mood,score
+Arthur S,Jia Tan,issue_18.csv,"@JiaT75 I did something. At least it runs full autotools set on Windows host. I don't yet understand CMake part and also VisualStudio parts, but might be able to take another look some time later. Any additional context, what you think could help is highly appreciated.",positive,0.8189363607671112
+Arthur S,Jia Tan,issue_18.csv,Hi @JiaT75  Thank you for the ping. Got it out of my focus. I will revisit the topic this weekend and update. I hope to get Windows part done.,positive,0.8845065589994192
+Arthur S,Jia Tan,issue_18.csv,"@JiaT75 Could you specify which flavors of msys2 would you like to support?
+
+There are different combinations of arch, compiler, c standard library: https://www.msys2.org/docs/environments/
+
+I had recent experience of setting GitHub workflows for Windows builds and msys2, I might be able to help.
+
+Update 1: ""MinGw and CMake"", ok, I see that `MinGw` might mean that you are not using msys2 version of toolchain yet.
+
+Update 2: Here is GH Action to setup msys2 https://github.com/msys2/setup-msys2 with pretty detailed README.",neutral,0.04423804208636284

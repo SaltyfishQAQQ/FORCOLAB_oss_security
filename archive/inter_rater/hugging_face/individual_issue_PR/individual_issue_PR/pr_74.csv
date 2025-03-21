@@ -1,0 +1,64 @@
+event,from,created_at,body
+thread_started,kianmeng,2023-11-30T13:47:26Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [x] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+Typos fixes of `codespell`.
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: 
+
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+- Found new typos via `typos --hidden --format brief`
+-
+-
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->"
+commented,JiaT75,2023-11-30T13:59:51Z,"Hello!
+
+Thanks for the PR. Could you please separate this into two separate commits? One for the typo fix in `file_io.c` and another for the typo fixes in the test files. 
+
+In the commit messages, the first should be prefixed with ""xz:"" instead of ""Docs:"". We use the ""Docs:"" prefix when referring to changes to things like the README, man pages, INSTALL, etc. The second commit should be prefixed with ""Tests:""."
+commented,kianmeng,2023-11-30T14:19:40Z,@JiaT75 Two separate commits or PRs?
+commented,JiaT75,2023-11-30T14:21:29Z,"> @JiaT75 Two separate commits or PRs?
+
+Two separate commits is fine."
+commented,kianmeng,2023-11-30T15:02:14Z,@JiaT75 Done.
+commented,JiaT75,2023-11-30T15:08:36Z,Thanks for making the changes!
+commented,kianmeng,2023-12-01T03:53:37Z,:partying_face: :partying_face: :partying_face: :partying_face: :partying_face: 

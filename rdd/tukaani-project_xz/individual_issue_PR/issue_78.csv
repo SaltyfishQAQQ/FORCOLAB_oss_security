@@ -1,0 +1,26 @@
+event,from,created_at,body,to
+thread_started,snweiss,2024-01-14T12:50:23Z,"### Describe the bug
+
+Trying to install xz_utils via conan - 
+```
+xz_utils/5.4.2: Sources downloaded from 'conancenter'
+xz_utils/5.4.2: Calling source() in C:\Users\ContainerAdministrator\.conan2\p\xz_ut55e9abba365d4\s\src
+xz_utils/5.4.2: ERROR: Error downloading file https://tukaani.org/xz/xz-5.4.2.tar.gz: 'HTTPSConnectionPool(host='tukaani.org', port=443): Read timed out. (read timeout=60)'
+```
+
+Seems like https://tukaani.org is down for the past week
+
+### Version
+
+5.4.2
+
+### Operating System
+
+Windows 11
+
+### Relevant log output
+
+_No response_",['snweiss']
+commented,Larhzu,2024-01-14T15:44:13Z,"Seems to work fine at the moment. The hosting provider had reported that a denial of service attack happened 2-3 days ago.
+
+The 5.4.2 release is available on GitHub and also on [Sourceforge](https://sourceforge.net/projects/lzmautils/files/). Future release will use github.com as the primary download URL for unrelated reasons.",['snweiss']

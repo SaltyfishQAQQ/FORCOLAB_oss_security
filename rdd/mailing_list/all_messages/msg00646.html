@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] Testing LZMA_RANGE_DECODER_CONFIG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00646" id="c">
+<link rel="index" href="maillist.html#00646" id="i">
+<link rel="prev" href="msg00645.html" id="p">
+<link rel="next" href="msg00647.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00646.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Testing+LZMA_RANGE_DECODER_CONFIG%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] Testing LZMA_RANGE_DECODER_CONFIG</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240218" rel="nofollow">Sun, 18 Feb 2024 04:11:37 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2024-02-17 Sebastian Andrzej Siewior wrote:
+&gt; I did some testing on !x86. I changed LZMA_RANGE_DECODER_CONFIG to
+&gt; different values run a test and looked at the MiB/s value. xz_0 means
+&gt; LZMA_RANGE_DECODER_CONFIG was 0, xz_1 means the define was set to 1. I
+&gt; touched src/liblzma/lzma/lzma_decoder.c and rebuilt xz. I pinned the
+&gt; shell to a single CPU and run test for archive (-tv) for one file
+&gt; three times.</pre><pre>
+
+Great to see testing! The testing method is fine. If pinning to a
+single core, I assume --threads=1 was set as well because
+multithreading is the default now.
+
+Branchless code can help when branch prediction penalties are high. So
+it will depend on the processor (not just the instruction set).
+
+On x86-64, there was a clear improvement with the branchless C code. It
+was a little more with Clang than GCC. So if easily possible, also
+testing with Clang could be useful. Testing your script on x86-64 could
+be worth it too so check that at least on x86-64 you get an improvement
+with =1 and =3 compared to =0. (The bit 1 makes the main difference; 2
+should have a small effect, and 4 and 8 are questionable and perhaps
+not worth benchmarking until the usefulness of =1 or =3 is clear.)
+
+If the branchless C code is not consistent outside x86-64, then 5.6.0
+likely should stick to =0. From your results it seems that the other
+tweaks to the code provided a minor improvement on non-x86-64 still.
+(The tweaks that LZMA_RANGE_DECODER_CONFIG doesn't affect.)
+
+Thanks!
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00645.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00646">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00646">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00647.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00645.html">[xz-devel] Testing LZMA_RANGE_DECODER_CONFIG</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] Testing LZMA_RANGE_DECODER_C...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00647.html">Re: [xz-devel] Testing LZMA_RANGE_DECOD...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00651.html">Re: [xz-devel] Testing LZMA_RANGE_D...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00652.html">Re: [xz-devel] Testing LZMA_RAN...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] Testing LZMA_RANGE_DECODER_CONFIG">
+<input type="hidden" name="msgid" value="20240218141126.6db95607@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00646.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Testing+LZMA_RANGE_DECODER_CONFIG%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00645.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00647.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20240218141126.6db95607@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

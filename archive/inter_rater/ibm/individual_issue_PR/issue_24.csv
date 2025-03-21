@@ -1,0 +1,17 @@
+event,from,created_at,body,to
+thread_started,JiaT75,2023-01-24T13:08:41Z,"### Describe the bug
+
+Not necessarily a bug, but the behavior is confusing. lzma_str_to_filters() is successful with the filter string ""lzma1"" when LZMA_STR_ALL_FILTERS flag is used, as expected. However, lzma_str_to_filters() fails with ""lzma1"" when LZMA_STR_NO_VALIDATION. This is confusing because the ""validation"" is too vague. Checking if a filter can be used with the .xz format is technically validation. So, either the code should change or the documentation should be updated to clarify this.
+
+### Version
+
+5.4.1
+
+### Operating System
+
+Ubuntu
+
+### Relevant log output
+
+_No response_",JiaT75
+commented,JiaT75,2023-01-26T12:49:47Z,"Created two PRs for this, but only one should be used. The better choice is probably https://github.com/tukaani-project/xz/pull/25, but I wanted to show both solutions to see which one we like better.",JiaT75

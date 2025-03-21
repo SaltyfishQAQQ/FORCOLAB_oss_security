@@ -1,0 +1,49 @@
+event,from,created_at,body,to
+thread_started,Alcaro,2024-03-29T21:18:50Z,"Some of them claim to fix actual bugs and/or improve test coverage, but it's unclear to me if they're bugs in the actual XZ project, or if they're fallout from the backdoor.
+
+For this kind of situation, I'd rather err on the side of deleting too much. If they were helpful, the bugs can be re-reported and re-fixed.
+
+I only checked up to and including https://github.com/tukaani-project/xz/commits?author=JiaT75&after=af071ef7702debef4f1d324616a0137a5001c14c+104 ; everything on that page looks clean to me, so I believe the user only became malicious somewhere after that point.",['Alcaro']
+commented,ghost,2024-03-29T21:44:04Z,LGTM! :P,['Alcaro']
+commented,thesamesam,2024-03-29T21:45:33Z,"I wouldn't do https://github.com/tukaani-project/xz/pull/95/commits/71ff4e23932ed8eb9be8d6dbb8e5413fb11e3cd2. As I mention in the commits somewhere, the change is right to begin with. See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114115.
+
+But I don't object strenuously - we can always redo it later.
+
+I haven't checked the reverts do what they say they do, but the list sounds right to me.",['ghost']
+commented,Alcaro,2024-03-29T22:04:03Z,"Yes, this PR is bigger than necessary. It's intentional; for issues of this nature, I'd rather purge everything related with a wide margin. Better safe than sorry.
+
+The bug report tells how to trigger that issue; once the dust settles, it will be easy to rerun the reproduction steps and see if it still crashes, and if yes, someone uninvolved can create a new fix, or revert the revert.",['thesamesam']
+commented,ItzSwirlz,2024-03-29T22:23:16Z,"Honestly, might be best to revert all commits in the past 3 months or so, or just find an older tagged version that hasn't probably been force pushed. It's possible that the bad actor modified old commit logs and whatnot",['Alcaro']
+commented,naikel,2024-03-29T22:48:09Z,"@Alcaro why are you changing the correct word ""function"" to ""funcion"" and also naming the commit as ""fixing a typo""?
+
+You're introducing a typo instead.
+
+EDIT: I can see you're only reverting commits.",Alcaro
+commented,theCapypara,2024-03-29T22:49:39Z,@naikel Those are reverts. The original commits fixed the typo. They were reverted.,naikel
+commented,Alcaro,2024-03-29T22:59:21Z,"It was easier to revert the entire commit than only revert parts of it.
+
+That entire line is removed in a subsequent commit (1efea8d8ec96676850341532970f90ec9db7d964), so the end result is the same.",['theCapypara']
+commented,karak1974,2024-03-29T23:05:02Z,Most useful PR I saw today!,['Alcaro']
+commented,JustinBDev,2024-03-29T23:06:27Z,"May be overkill to suggest, but before this get merged we should get confirmation one way or another that the threat is no longer active/functional **on this puReq**
+
+That said, @Alcaro , great initiative!",Alcaro
+commented,TruncatedDinoSour,2024-03-29T23:10:36Z,"
+3 months of work though, oof, https://github.com/tukaani-project/xz/commit/685094b8e1c1aa1bf934de0366ca42ef599d25f7
+better than a backdoor ig",['JustinBDev']
+commented,lcarilla,2024-03-29T23:17:45Z,"also LGTM based on what i know so far
+lets get this merged, every state of xz is better than what we have now",['TruncatedDinoSour']
+commented,TruncatedDinoSour,2024-03-29T23:19:53Z,"
+yeah, if anything we can fix later, this at least rules out the malicious commits, i +1 the 'merge it now and see later' idea rn",['lcarilla']
+commented,lcarilla,2024-03-29T23:20:54Z,"@TruncatedDinoSour your a maintainer of this, right? can you remove jia from the repo if not done yet",TruncatedDinoSour
+commented,TruncatedDinoSour,2024-03-29T23:23:53Z,"
+i'm not, i'm just trying to be active and stay up to date with the situation whilst giving my input on this, looking for ways to contribute to resolving this asap as i also use this project,, i've looked through jias commits trying to find anything suspicious, skimming through it didn't uncover much and paying a bit more attention to it didn't uncover much either, i did found an xz-related kernel patch though fairly recently : https://lore.kernel.org/lkml/20240320183846.19475-1-lasse.collin@tukaani.org/t/",tukaani
+commented,theCapypara,2024-03-29T23:25:37Z,"There is nobody that could merge this at the moment, as the accounts of both maintainers have been suspended appereantly:
+https://github.com/tukaani-project/xz/issues/92#issuecomment-2027816300",['TruncatedDinoSour']
+commented,lcarilla,2024-03-29T23:25:43Z,"is there anyone here who is able to merge this damn PR 😄 ?
+or has jia completely taken over all this",['theCapypara']
+commented,lcarilla,2024-03-29T23:25:51Z,"
+damn.",['theCapypara']
+commented,lcarilla,2024-03-29T23:28:12Z,"ill contact github support, maybe they can help 😄 , but getting this merged is not gonna fix all the already infected systems. crazy how one github account can take over an OSS project basically every linux distro relies onj",['theCapypara']
+commented,MammaUauua,2024-03-29T23:40:03Z,Why did you revert 8c9b8b2063daa78ead9f648c2ec3c91e8615dffb 🤣,['lcarilla']
+commented,MammaUauua,2024-03-29T23:41:26Z,7c8ad8079eb74db230441d0486164e3aec60003d is not necessary,['lcarilla']
+commented,skull-squadron,2024-03-29T23:43:11Z,"@Alcaro You win a -LoC award in any event. A code base should be as small as possible, but no smaller. Every add'l line of code is a place for a bug to hide, UB, or even possibly a malicious implant. By far, corporate FOSS megaprojects tend to be the worst.",Alcaro

@@ -1,0 +1,20 @@
+from,to,file_name,message,mood,score
+Lasse Collin,mvatsyk-lsg,pr_73.csv,"Thanks to both of you for your work so far!
+
+There are a few things I would like to understand better. I have only skimmed OSS-Fuzz's docs so I might be asking silly questions, sorry.
+
+1. Seems that [renaming a fuzz target](https://google.github.io/oss-fuzz/faq/#what-happens-when-i-rename-a-fuzz-target-) requires renaming the accumulated corpora too.
+
+2. Does adding more fuzzers mean that the project-specific fuzzing resources (processor time) will be divided between the fuzzers? With a quick look I didn't find any advice about resource usage in OSS-Fuzz docs and it's not discussed much in this thread either.
+
+3. The value of code coverage in fuzzing is unclear. *If* extending coverage by a few simple lines of code could slow down fuzzing of more important parts of the code, does it make sense to extend fuzzing coverage in that case? I'm thinking of cases where an old-school code review shouldn't take a lot of time (code snippets that are about 200 lines each and do nothing unusually complicated). Or perhaps these should be fuzzed at first but disabled after some time if they find nothing?
+
+Examples of remaining significant overlap in the new fuzzing targets:
+
+* fuzz_encode_alone.c would test end of payload marker (EOPM) encoding in LZMA but otherwise it doesn't test much that won't be tested by fuzz_encode_stream.c. They both use the LZMA encoder in the end. So it seems that fuzz_encode_alone.c isn't useful and could _maybe_ even be harmful due to resource usage unless the fuzzers are smart enough to spot when code paths become identical.
+
+* fuzz_decode_alone.c splits into three different decoders depending on the input. Yet the three decoders are fuzzed separately too (stream, alone, lzip). So the only extra fuzzed thing is the small auto_decoder.c.
+
+I don't know enough about the fuzzing methods to know what actually makes sense. I would like to be assured that adding all these fuzzers adds real value.
+
+Thanks!",positive,0.305391

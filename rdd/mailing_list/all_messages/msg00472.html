@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] jdk9+ CRC64</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00472" id="c">
+<link rel="index" href="maillist.html#00472" id="i">
+<link rel="prev" href="msg00464.html" id="p">
+<link rel="next" href="msg00474.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00472.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+jdk9%5C%2B+CRC64%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] jdk9+ CRC64</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210206" rel="nofollow">Sat, 06 Feb 2021 09:00:32 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>Since it is quite easy to read an int from a byte[] in jdk 9, the
+CRC64 implementation can be optimized to operate on an int rather than
+byte by byte as part of a multi-release jar. This shows to be 5-7%
+faster in a microbenchmark of just the crc64 calculation. In jdk 11 it
+speeds up the decompression of the repeating single byte by ~1%.</pre><pre>
+
+/*
+ * CRC64
+ *
+ * Authors: Brett Okken &lt;brett.okken...@gmail.com&gt;
+ *          Lasse Collin &lt;lasse.col...@tukaani.org&gt;
+ *
+ * This file has been put into the public domain.
+ * You can do whatever you want with this file.
+ */
+
+package org.tukaani.xz.check;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+
+public class CRC64 extends Check {
+    private static final VarHandle LE_INT_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(int[].class,
+ByteOrder.LITTLE_ENDIAN);
+    private static final VarHandle LE_LONG_HANDLE =
+            MethodHandles.byteArrayViewVarHandle(long[].class,
+ByteOrder.LITTLE_ENDIAN);
+    private static final long[][] TABLE = new long[4][256];
+
+    static {
+        final long poly64 = 0xC96C5795D7870F42L;
+
+        for (int s = 0; s &lt; 4; ++s) {
+            for (int b = 0; b &lt; 256; ++b) {
+                long r = s == 0 ? b : TABLE[s - 1][b];
+                for (int i = 0; i &lt; 8; ++i) {
+                    if ((r &amp; 1) == 1) {
+                        r = (r &gt;&gt;&gt; 1) ^ poly64;
+                    } else {
+                        r &gt;&gt;&gt;= 1;
+                    }
+                }
+                TABLE[s][b] = r;
+            }
+        }
+    }
+
+    private long crc = -1;
+
+    public CRC64() {
+        size = 8;
+        name = &quot;CRC64&quot;;
+    }
+
+    @Override
+    public void update(byte[] buf, int off, int len) {
+        final int end = off + len;
+        int i=off;
+        if (len &gt; 7) {
+            while ((i &amp; 3) != 0) {
+                crc = TABLE[0][(buf[i++] &amp; 0xFF) ^ ((int)crc &amp; 0xFF)]
+^ (crc &gt;&gt;&gt; 8);
+            }
+            for (int j = end - 3; i &lt; j; i += 4) {
+                int tmp = ((int)crc) ^ (int) LE_INT_HANDLE.get(buf, i);
+                crc = TABLE[3][tmp &amp; 0xFF] ^
+                      TABLE[2][(tmp &gt;&gt;&gt; 8) &amp; 0xFF] ^
+                      (crc &gt;&gt;&gt; 32) ^
+                      TABLE[1][(tmp &gt;&gt;&gt; 16) &amp; 0xFF] ^
+                      TABLE[0][(tmp &gt;&gt;&gt; 24) &amp; 0xFF];
+            }
+        }
+        while (i &lt; end) {
+             crc = TABLE[0][(buf[i++] &amp; 0xFF) ^ ((int)crc &amp; 0xFF)] ^
+(crc &gt;&gt;&gt; 8);
+        }
+    }
+
+    @Override
+    public byte[] finish() {
+        long value = ~crc;
+        crc = -1;
+
+        byte[] buf = new byte[8];
+        LE_LONG_HANDLE.set(buf, 0, value);
+
+        return buf;
+    }
+}
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00464.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00472">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00472">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00474.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] jdk9+ CRC64</span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00474.html">Re: [xz-devel] jdk9+ CRC64</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00476.html">Re: [xz-devel] jdk9+ CRC64</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00478.html">Re: [xz-devel] jdk9+ CRC64</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00480.html">Re: [xz-devel] jdk9+ CRC64</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] jdk9+ CRC64">
+<input type="hidden" name="msgid" value="CANBJVOG8bSkj3NiTp7W43GSG=3bbtysSL7-ajtjoRV-gb5FOrg@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00472.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+jdk9%5C%2B+CRC64%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00464.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00474.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOG8bSkj3NiTp7W43GSG=3bbtysSL7-ajtjoRV-gb5FOrg@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

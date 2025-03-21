@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] xz-java and newer java</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00426" id="c">
+<link rel="index" href="maillist.html#00426" id="i">
+<link rel="prev" href="msg00423.html" id="p">
+<link rel="next" href="msg00433.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00426.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] xz-java and newer java</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210118" rel="nofollow">Mon, 18 Jan 2021 13:53:15 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-01-11 Brett Okken wrote:
+&gt; I threw together a quick jmh test, and there is no value in the
+&gt; changes to Hash234.</pre><pre>
+
+OK, let's forget that then.
+
+On 2021-01-16 Brett Okken wrote:
+&gt; I have found a way to use VarHandle byte array access at runtime in
+&gt; code which is compile time compatible with jdk 7. So here is an
+&gt; updated ArrayUtil class which will use a VarHandle to read long values
+&gt; in jdk 9+. If that is not available, it will attempt to use
+&gt; sun.misc.Unsafe. If that cannot be found, it falls back to standard
+&gt; byte by byte comparison.
+
+Sounds promising. :-) You have already done quite a bit of work in both
+writing code and benchmarking. Thank you!
+
+The method you ended up is similar to src/liblzma/common/memcmplen.h
+in XZ Utils. There 8-byte version is used on 64-bit systems and 4-byte
+version on 32-bit systems. In XZ Utils, SSE2 version (16-byte
+comparison) is faster than 4-byte compare on 32-bit x86, but on x86-64
+the 8-byte version has similar speed or is faster than the SSE2 version
+(it depends on the CPU).
+
+Have you tested with 32-bit Java too? It's quite possible that it's
+better to use ints than longs on 32-bit system. If so, that should be
+detected at runtime too, I guess.
+
+In XZ Utils the arrays have extra room at the end so that memcmplen.h
+can always read 4/8/16 bytes at a time. Since this is easy to do, I
+think it should be done in XZ for Java too to avoid special handling of
+the last bytes.
+
+&gt; I did add an index bounds check for the unsafe implementation and
+&gt; found it had minimal impact on over all performance.
+
+Since Java in general is memory safe, having bound checks with Unsafe is
+nice as long as it doesn't hurt performance too much. This
+
+        if (aFromIndex &lt; 0 || aFromIndex + length &gt; a.length ||
+            bFromIndex &lt; 0 || bFromIndex + length &gt; b.length) {
+
+is a bit relaxed though since it doesn't catch integer overflows.
+Something like this would be more strict:
+
+        if (length &lt; 0 ||
+            aFromIndex &lt; 0 || aFromIndex &gt; a.length - length ||
+            bFromIndex &lt; 0 || bFromIndex &gt; b.length - length) {
+
+&gt; Using VarHandle (at least on jdk 11) offers very similar performance
+&gt; to Unsafe across all 3 files I used for benchmarking.
+
+OK. I cannot comment the details much because I'm not familiar with
+either API for now.
+
+Comparing byte arrays as ints or longs results in unaligned/misaligned
+memory access. MethodHandles.byteArrayViewVarHandle docs say that this
+is OK. A quick web search gave me an impression that it might not be
+safe with Unsafe though. Can you verify how it is with Unsafe? If it
+isn't allowed, dropping support for Unsafe may be fine. It's just the
+older Java versions that would use it anyway.
+
+It is *essential* that the code works well also on archs that don't
+have fast unaligned access. Even if the VarHandle method is safe, it's
+not clear how the performance is on archs that don't support fast
+unaligned access. It would be bad to add an optimization that is good
+on x86-64 but counter-productive on some other archs. One may need
+arch-specific code just like there is in XZ Utils, although on the
+other hand it would be nice to keep the Java code less complicated.
+
+Do you have a way to check how these methods behave on Android and ARM?
+(I understand that this might be too much work to check. This may be
+skipped.)
+
+I wish to add module-info.java in the next release. Do these new
+methods affect what should be in module-info.java? With the current
+code this seems to be enough:
+
+    module org.tukaani.xz {
+        exports org.tukaani.xz;
+    }
+
+&gt;     final int leadingZeros = (int)LEADING_ZEROS.invokeExact(diff);
+&gt;     return i + (leadingZeros / Byte.SIZE);
+
+Seems that Java might not optimize that division to a right shift. It
+could be better to use &quot;leadingZeros &gt;&gt;&gt; 3&quot;.
+
+&gt; I know you said you were not going to be able to work on xz-java for
+&gt; awhile, but given these benchmark results, which really exceeded my
+&gt; expectations, could this get some priority to release?
+
+I understood that it's 9-18 % faster. That is significant but it's
+still a performance optimization only, not an important bug fix, and to
+me the code doesn't feel completely ready yet (for example, the
+unaligned access is important to get right).
+
+(Compare to the threaded decompression support that is coming to XZ
+Utils. It will speed things up a few hundred percent.)
+
+Can you provide a complete patch to make testing easier (or if not
+possible, complete copies of modified files)? Also, please try to wrap
+the lines so that they stay within 80 columns (with some long
+unbreakable strings this may not be possible, then those lines can be
+overlong instead of messing up the indentation).
+
+I think your patch will find its way into XZ for Java in some form
+but once again I repeat that it will take some time. These XZ projects
+are only a hobby for me and currently I don't even turn on my computer
+every day.
+
+-- 
+Lasse Collin  |  IRC: Larhzu @ IRCnet &amp; Freenode
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00423.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00426">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00426">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00433.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00400.html">[xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00402.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00407.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00408.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00414.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00419.html">Re: [xz-devel] xz-java and newer java</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00420.html">Re: [xz-devel] xz-java and newer ja...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00421.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00423.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] xz-java and newe...</span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00433.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00435.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00436.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00439.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00447.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00483.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00484.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00485.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00491.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00492.html">Re: [xz-devel] xz-java and newe...</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] xz-java and newer java">
+<input type="hidden" name="msgid" value="20210118235246.6b175759@tukaani.org">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00426.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+xz%5C-java+and+newer+java%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00423.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00433.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210118235246.6b175759@tukaani.org</li>
+</ul>
+</div>
+</body>
+</html>

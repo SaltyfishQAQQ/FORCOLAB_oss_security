@@ -1,0 +1,12 @@
+from,to,file_name,message,mood,score
+Lasse Collin,mgood7123,issue_70.csv,"
+Yes, I relealized this as I wrote in my next message. Since GCC upstream knows that musl doesn't support ifunc, I wonder if Clang/LLVM should know it too and then warn or error if the ifunc attribute is used. That is, I wonder if this could be a Clang/LLVM bug.
+
+
+In Autoconf, checking if `$host_os` equals `linux-musl` probably is the correct method. I don't know right now how to detect it in CMake.
+
+According to musl's FAQ, there intentionally is no easy `#ifdef` to detect musl in C code.
+
+Hacks like checking file paths wouldn't work when cross-compiling.
+
+On the second thought, uClibc might not support ifunc either. It could be better to detect glibc, so `linux-gnu` in case of Autoconf (maybe FreeBSD too). But once again I don't know right now how to detect the libc in CMake.",negative,-0.2317387294024229

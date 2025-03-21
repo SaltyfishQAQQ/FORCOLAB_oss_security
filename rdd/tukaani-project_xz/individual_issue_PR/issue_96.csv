@@ -1,0 +1,32 @@
+event,from,created_at,body,to
+thread_started,luke-beep,2024-03-29T21:32:59Z,"### Describe the Feature
+
+Remove the compromised part of the xz-utils package. It'd be a great addition for all of us, excluding the threat actors 💯
+
+Check out [this](https://github.com/tukaani-project/xz/pull/95) PR </> 
+
+### Expected Complications
+
+No.
+
+### Will I try to implement this new feature?
+
+No.",['luke-beep']
+commented,CaptainFallaway,2024-03-29T21:35:26Z,Agreed.,['luke-beep']
+commented,MarkusTieger,2024-03-29T21:44:19Z,"I saw this article a few minutes ago: https://www.openwall.com/lists/oss-security/2024/03/29/4
+
+But for me, i couldn't find anything malicious in the tarballs. There is currently no patch in gentoo, so i would like to create a pr to fix it. But I couldn't reproduce anything from the post.",['CaptainFallaway']
+commented,luke-beep,2024-03-29T21:46:21Z,"
+See the linked PR.",['MarkusTieger']
+commented,ghost,2024-03-29T21:46:21Z,"We should really check for stuff like these more.
+The only reason we know that this stuff exist is because ""someone's ssh login time was a 0.5s slower.""",['luke-beep']
+commented,dirkmueller,2024-03-29T21:47:45Z,"@MarkusTieger the payload is in git and therefore in the tarball, but it's not active on systems that aren't deb, rpm and glibc based. So Gentoo isn't directly affected.
+
+Using --disable-ifumc is another mitigation possibility. Or simply downgrade ",MarkusTieger
+commented,MarkusTieger,2024-03-29T21:50:35Z,"
+Well at least on my system i have glibc installed. Arch Linux was also affected (at least they commited a fix), and they don't have a deb or rpm package. ",['dirkmueller']
+commented,bnavigator,2024-03-29T22:01:19Z,"
+The kids over there just don't know what they are talking about. Also their ""fix"" is to use the github repo instead of the tarball. So it still contains lots of puzzle pieces of the backdoor, just not the build trigger which would supposedly not activate in pkgbuild anyway.",['MarkusTieger']
+commented,Foxboron,2024-03-29T23:20:27Z,@bnavigator I hope we can reach a more productive tone in the future.,bnavigator
+commented,luke-beep,2024-03-30T00:01:44Z,"
+Hey, could you maybe chill out a bit? I get you're upset, but let's try to keep the tone civil. We're all just trying to sort this out together.",['Foxboron']

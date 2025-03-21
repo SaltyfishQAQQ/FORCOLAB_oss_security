@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00616" id="c">
+<link rel="index" href="maillist.html#00616" id="i">
+<link rel="prev" href="msg00615.html" id="p">
+<link rel="next" href="msg00617.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00616.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+RHEL7+ABI+patch+%5C%28913ddc5%5C%29+breaks+linking+on+ia64%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20221123" rel="nofollow">Wed, 23 Nov 2022 03:31:56 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2022-11-23 John Paul Adrian Glaubitz wrote:
+&gt; I guess the additional unwind section breaks your workaround, so the
+&gt; best might be to just disable this workaround on ia64 using the
+&gt; configure flag, no?</pre><pre>
+
+There currently is no configure option to only disable the CentOS 7
+workaround symbols. They are enabled if $host_os matches linux* and
+--disable-symbol-versions wasn't used. Disabling symbol versions from
+liblzma.so.5 will cause problems as they have been used since 5.2.0 and
+many programs and libraries will expect to find XZ_5.0 and XZ_5.2.
+
+Having the symbol versions in a static library doesn't make much sense
+though. Perhaps this is a bug in XZ Utils. As a test, the static
+liblzma.a could be built without symbol versions with --disable-shared
+--disable-symbol-versions:
+
+(1) Does this make the problem go away?
+
+(2) Do the failing builds even require that liblzma.a is present
+    on the system?
+
+I don't now how to avoid symvers in a static library as, to my
+understanding, GNU Libtool doesn't add any -DBUILDING_SHARED_LIBRARY
+kind of flag which would allow using a #ifdef to know when to use the
+symbol versions. Libtool does add -DDLL_EXPORT when building a shared
+library on Windows but that's not useful here.
+
+(Switching to another build system would avoid some other Libtool
+problems too like wrong shared library versioning on some OSes. However,
+Autotools-based build system is able to produce usable xz on quite a
+few less-common systems that some other build systems don't support.)
+
+A workaround to this workaround could be to disable the CentOS 7
+symbols on ia64 by default. Adding an explicit configure option is
+possible too, if needed. But the first step should be to understand
+what is going on since the same problem could appear in the future if
+symbol versions are used for providing compatibility with an actual ABI
+change (hopefully not needed but still).
+
+&gt; Older versions are available through Debian Snapshots:
+&gt; 
+&gt; &gt; <a  rel="nofollow" href="http://snapshot.debian.org/package/xz-utils/">http://snapshot.debian.org/package/xz-utils/</a>  
+
+liblzma.a in liblzma-dev_5.2.5-2.1_ia64.deb doesn't have any &quot;@XZ&quot; in
+it which is expected. This looks normal:
+
+    &lt;lzma_get_progress&gt;: [0x18c0-0x1990], info at +0x100
+
+&gt; &gt; Many other functions are listed in those .IA_64.unwind
+&gt; &gt; sections too but lzma_get_progress is the only one that has &quot;@XZ&quot;
+&gt; &gt; as part of the function name.  
+&gt; 
+&gt; Hmm, that definitely seems the problem. Could it be that the symbols
+&gt; that are exported on ia64 need some additional naming?
+
+It seems weird why only one symbol is affected. Perhaps it's a bug in
+the toolchain creating liblzma.a. However, perhaps the main bug is that
+XZ Utils build puts symbol versions into a static liblzma. :-(
+
+&gt; I think we can waive for CentOS 7 compatibility on Debian unstable
+&gt; ia64 😉.
+
+There is no official CentOS 7 for ia64 but that isn't the whole story
+as the broken patch has been used elsewhere too. Not having those extra
+symbols would still be fine in practice. :-)
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00615.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00616">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00616">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00617.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00610.html">[xz-devel] RHEL7 ABI patch (913ddc5) breaks link...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00611.html">Re: [xz-devel] RHEL7 ABI patch (913ddc5) br...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00613.html">Re: [xz-devel] RHEL7 ABI patch (913ddc5...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00614.html">Re: [xz-devel] RHEL7 ABI patch (913...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00615.html">Re: [xz-devel] RHEL7 ABI patch (913...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] RHEL7 ABI patch ...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00617.html">Re: [xz-devel] RHEL7 ABI p...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00618.html">Re: [xz-devel] RHEL7 A...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00624.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00627.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00626.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00619.html">Re: [xz-devel] RHEL7 A...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00620.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00621.html">Re: [xz-devel] RHEL7 A...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00622.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">John Paul Adrian Glaubitz</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00623.html">Re: [xz-devel] RHE...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] RHEL7 ABI patch (913ddc5) breaks linking on ia64">
+<input type="hidden" name="msgid" value="20221123133147.512ece44@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00616.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+RHEL7+ABI+patch+%5C%28913ddc5%5C%29+breaks+linking+on+ia64%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00615.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00617.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20221123133147.512ece44@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

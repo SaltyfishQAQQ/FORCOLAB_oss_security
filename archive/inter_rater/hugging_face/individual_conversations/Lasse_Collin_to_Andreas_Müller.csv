@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Andreas Müller,issue_18.csv,"Would Visual Studio + Clang-cl be worth trying too? The inline x86-64
+assembly code in 5.6.x is compatible with GCC and Clang, so I hope that
+compiling with Clang-cl would result in better decompression speed than
+compiling with MSVC. (LZMA SDK has MSVC compatible assembly but then
+one needs to use LZMA SDK's C code and APIs too.)",positive,0.7616956457495689

@@ -1,0 +1,38 @@
+event,from,created_at,body,to
+thread_started,sebastianas,2024-02-16T21:02:20Z,"The x32 port has a x86-64 ABI in term of all registers but uses only 32bit pointer like x86-32. The assembly optimisation fails to compile on x32. Given the state of x32 I suggest to exclude it from the optimisation rather than trying to fix it.
+
+## Pull request type
+
+Please check the type of change your PR introduces:
+- [X] Bugfix
+
+## What is the current behavior?
+https://buildd.debian.org/status/fetch.php?pkg=xz-utils&arch=x32&ver=5.5.2beta-1&stamp=1708036388&raw=0
+
+```
+In file included from ../../../../src/liblzma/lzma/lzma_decoder.c:17:
+In function ‘lzma_decode’,
+    inlined from ‘lzma_decode’ at ../../../../src/liblzma/lzma/lzma_decoder.c:235:1:
+../../../../src/liblzma/rangecoder/range_decoder.h:644:9: error: invalid 'asm': operand is not a condition code, invalid operand code 'c'
+  644 |         __asm__( \
+      |         ^~~~~~~
+../../../../src/liblzma/rangecoder/range_decoder.h:671:9: note: in expansion of macro ‘rc_asm_bittree_n’
+  671 |         rc_asm_bittree_n(probs_base_var, final_add, \
+      |         ^~~~~~~~~~~~~~~~
+../../../../src/liblzma/lzma/lzma_decoder.c:75:17: note: in expansion of macro ‘rc_bittree3’
+   75 |                 rc_bittree3(ld.low[pos_state], \
+      |                 ^~~~~~~~~~~
+../../../../src/liblzma/lzma/lzma_decoder.c:421:25: note: in expansion of macro ‘len_decode_fast’
+  421 |                         len_decode_fast(len, coder->match_len_decoder,
+      |                         ^~~~~~~~~~~~~~~
+../../../../src/liblzma/rangecoder/range_decoder.h:644:9: error: invalid 'asm': operand is not a condition code, invalid operand code 'c'
+…
+```
+
+
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No",['sebastianas']
+commented,JiaT75,2024-02-17T14:31:22Z,Omitting assembly from x86-32 is certainly much simpler than trying to adapt for it. Thanks for the PR! This is merged in master as e9053c907250c70d98b319d95fa54cb94fc76869. ,['sebastianas']

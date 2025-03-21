@@ -1,0 +1,17 @@
+from,to,file_name,message,mood,score
+Vincent Fazio,vfazio2,pr_32.csv,"Again, i'm not totally convinced the gcc toolchain itself shouldn't be fixed to include `elfos.h` if it's generating ELF binaries.
+
+https://github.com/gcc-mirror/gcc/blob/master/gcc/config.gcc#L2369
+
+I do not see ""elfos.h"" in any of the microblaze targets.
+
+Note that our target is:
+
+```
+vfazio@vfazio2 ~/development/buildroot :( $ output/host/bin/microblazeel-linux-cc.br_real -v
+Using built-in specs.
+COLLECT_GCC=output/host/bin/microblazeel-linux-cc.br_real
+COLLECT_LTO_WRAPPER=/mnt/development/buildroot/output/host/opt/ext-toolchain/bin/../libexec/gcc/microblazeel-buildroot-linux-gnu/12.2.0/lto-wrapper
+Target: microblazeel-buildroot-linux-gnu
+
+```",negative,-0.549275

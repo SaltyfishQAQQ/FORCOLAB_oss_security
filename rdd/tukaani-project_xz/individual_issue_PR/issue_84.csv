@@ -1,0 +1,68 @@
+event,from,created_at,body,to
+thread_started,satmandu,2024-02-24T16:21:05Z,"### Describe the bug
+
+Fails to build on armv7l. built with `--enable-shared`
+
+
+### Version
+
+5.6.0
+
+### Operating System
+
+ChromeOS, M91
+
+### Relevant log output
+
+```shell
+make  all-recursive
+make[1]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0'
+Making all in src
+make[2]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src'
+Making all in liblzma
+make[3]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma'
+Making all in api
+make[4]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma/api'
+make[4]: Nothing to be done for 'all'.
+make[4]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma/api'
+make[4]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma'
+make[4]: Nothing to be done for 'all-am'.
+make[4]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma'
+make[3]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/liblzma'
+Making all in xzdec
+make[3]: Entering directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/xzdec'
+armv7l-cros-linux-gnueabihf-gcc -DHAVE_CONFIG_H -I. -I../..  -DTUKLIB_GETTEXT=0 -I../../src/common -I../../src/liblzma/api -I../../lib  -pthread -fvisibility=hidden -Wall -Wextra -Wvla -Wformat=2 -Winit-self -Wmissing-include-dirs -Wshift-overflow=2 -Wstrict-overflow=3 -Walloc-zero -Wduplicated-cond -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wwrite-strings -Wdate-time -Wsign-conversion -Wfloat-conversion -Wlogical-op -Waggregate-return -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -O2 -pipe -ffat-lto-objects -fPIC -mfloat-abi=hard -mthumb -mfpu=vfpv3-d16 -march=armv7-a+fp -fuse-ld=mold  -flto=auto -c -o xzdec-xzdec.o `test -f 'xzdec.c' || echo './'`xzdec.c
+xzdec.c: In function ‘sandbox_enter’:
+xzdec.c:329:36: error: ‘SYS_landlock_create_ruleset’ undeclared (first use in this function)
+  329 |         int landlock_abi = syscall(SYS_landlock_create_ruleset,
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+xzdec.c:329:36: note: each undeclared identifier is reported only once for each function it appears in
+xzdec.c:349:29: error: ‘SYS_landlock_restrict_self’ undeclared (first use in this function)
+  349 |                 if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+make[3]: *** [Makefile:610: xzdec-xzdec.o] Error 1
+make[3]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src/xzdec'
+make[2]: *** [Makefile:427: all-recursive] Error 1
+make[2]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0/src'
+make[1]: *** [Makefile:597: all-recursive] Error 1
+make[1]: Leaving directory '/usr/local/tmp/crew/xzutils.20240224160935.dir/xz-5.6.0'
+make: *** [Makefile:487: all] Error 2
+There was a build error.
+```",['satmandu']
+commented,satmandu,2024-02-24T16:35:21Z,(Older versions build just fine.),['satmandu']
+commented,satmandu,2024-02-24T17:10:07Z,"Same issue building with `cmake`:
+```
+FAILED: CMakeFiles/xzdec.dir/src/xzdec/xzdec.c.o
+/usr/local/bin/cc -DHAVE_CHECK_CRC32 -DHAVE_CHECK_CRC64 -DHAVE_CHECK_SHA256 -DHAVE_CLOCK_GETTIME -DHAVE_CLOCK_MONOTONIC -DHAVE_DECODERS -DHAVE_DECODER_ARM -DHAVE_DECODER_ARM64 -DHAVE_DECODER_ARMTHUMB -DHAVE_DECODER_DELTA -DHAVE_DECODER_IA64 -DHAVE_DECODER_LZMA1 -DHAVE_DECODER_LZMA2 -DHAVE_DECODER_POWERPC -DHAVE_DECODER_RISCV -DHAVE_DECODER_SPARC -DHAVE_DECODER_X86 -DHAVE_ENCODERS -DHAVE_ENCODER_ARM -DHAVE_ENCODER_ARM64 -DHAVE_ENCODER_ARMTHUMB -DHAVE_ENCODER_DELTA -DHAVE_ENCODER_IA64 -DHAVE_ENCODER_LZMA1 -DHAVE_ENCODER_LZMA2 -DHAVE_ENCODER_POWERPC -DHAVE_ENCODER_RISCV -DHAVE_ENCODER_SPARC -DHAVE_ENCODER_X86 -DHAVE_INTTYPES_H -DHAVE_LINUX_LANDLOCK_H -DHAVE_LZIP_DECODER -DHAVE_MF_BT2 -DHAVE_MF_BT3 -DHAVE_MF_BT4 -DHAVE_MF_HC3 -DHAVE_MF_HC4 -DHAVE_MICROLZMA -DHAVE_PROGRAM_INVOCATION_NAME -DHAVE_PTHREAD_CONDATTR_SETCLOCK -DHAVE_STDBOOL_H -DHAVE_STDINT_H -DHAVE__BOOL -DHAVE___BUILTIN_ASSUME_ALIGNED -DHAVE___BUILTIN_BSWAPXX -DMYTHREAD_POSIX -DPACKAGE_BUGREPORT=\""xz@tukaani.org\"" -DPACKAGE_NAME=""\""XZ Utils\"""" -DPACKAGE_URL=\""https://xz.tukaani.org/xz-utils/\"" -DTUKLIB_FAST_UNALIGNED_ACCESS -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -I/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/common -I/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/liblzma/api -I/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/builddir/lib -I/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/lib -O2 -pipe -ffat-lto-objects -fPIC -mfloat-abi=hard -mthumb -mfpu=vfpv3-d16 -march=armv7-a+fp -fuse-ld=mold  -flto=auto -O2 -DNDEBUG -std=gnu99 -flto=auto -fno-fat-lto-objects -Wall -Wextra -pthread -MD -MT CMakeFiles/xzdec.dir/src/xzdec/xzdec.c.o -MF CMakeFiles/xzdec.dir/src/xzdec/xzdec.c.o.d -o CMakeFiles/xzdec.dir/src/xzdec/xzdec.c.o -c /usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/xzdec/xzdec.c
+/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/xzdec/xzdec.c: In function ‘sandbox_enter’:
+/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/xzdec/xzdec.c:329:36: error: ‘SYS_landlock_create_ruleset’ undeclared (first use in this function)
+  329 |         int landlock_abi = syscall(SYS_landlock_create_ruleset,
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/xzdec/xzdec.c:329:36: note: each undeclared identifier is reported only once for each function it appears in
+/usr/local/tmp/crew/xzutils.20240224170549.dir/xz-5.6.0/src/xzdec/xzdec.c:349:29: error: ‘SYS_landlock_restrict_self’ undeclared (first use in this function)
+  349 |                 if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[6*1/70] Linking C executable lzmainfo                                                                                                                                                                        ninja: build stopped: subcommand failed.
+```",tukaani
+commented,satmandu,2024-02-25T02:52:43Z,Building with `cmake` and `-DENABLE_SANDBOX=OFF` solved this problem for us.,['satmandu']
+commented,JiaT75,2024-02-26T12:02:09Z,"This Issue was duplicated [here](https://github.com/tukaani-project/xz/issues/88), so you can follow that thread if you want more information about how we are addressing this :)",['satmandu']

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH] xz: Multithreaded mode now always uses stream_encoder_mt to ensure reproducible builds</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00521" id="c">
+<link rel="index" href="maillist.html#00521" id="i">
+<link rel="prev" href="msg00519.html" id="p">
+<link rel="next" href="msg00522.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00521.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Multithreaded+mode+now+always+uses+stream_encoder_mt+to+ensure+reproducible+builds%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH] xz: Multithreaded mode now always uses stream_encoder_mt to ensure reproducible builds</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20211129" rel="nofollow">Mon, 29 Nov 2021 14:25:17 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2021-11-29 Jia Tan wrote:
+&gt; This patch addresses the issues with reproducible builds when using
+&gt; multithreaded xz. Previously, specifying --threads=1 instead of
+&gt; --threads=[n&gt;1] creates different output. Now, setting any number of  
+&gt; threads forces multithreading mode, even if there is only 1 worker
+&gt; thread.</pre><pre>
+
+This is an old problem that should have been fixed long ago.
+Unfortunately I think the fix needs to be a little more complex due to
+backward compatibility.
+
+With this patch, if threading has been enabled, no further option on
+the command line (except --flush-timeout) will disable threading.
+Sometimes there are default options (for exampe, XZ_DEFAULTS) that
+enable threading and one wants to disable it in a specific situation
+(like running multiple xz commands in parallel via xargs). If
+--threads=1 always enables threading, memory usage will be quite a bit
+higher than in non-threaded mode (94 MiB vs. 166 MiB for the default
+compression level -6; 674 MiB vs. 1250 MiB for -9).
+
+To be backward compatible, maybe it needs extra syntax within the
+--threads option or a new command line option. Both are a bit annoying
+and ugly but I don't have a better idea.
+
+Currently one-thread multi-threading is done if one specifies two or
+more threads but the memory limit is so low that only one thread can be
+used. In that case xz will never switch to non-threaded mode. This
+ensures that the output file is always the same even if the number of
+threads gets reduced.
+
+When -T0 is used, that is broken in sense that threading mode (and
+thus encoded output) depends on how many hardware threads are supported.
+So perhaps -T0 should mean that multi-threaded mode must be used even
+for single thread (your patch would do this too).
+
+A way to explicitly specify one-thread multi-threaded mode is still
+needed but I guess it wouldn't need to be used so often if -T0 handles
+it already. -T0 needs improvements in default memory usage limiting too,
+and both changes could make the default behavior better.
+
+The opposite functionality could be made available too: if the number
+of threads becomes one for whatever reason, an option could tell xz to
+always use single-threaded mode to get better compression and to save
+RAM.
+
+&gt; +#include &quot;common.h&quot;
+[...]
+&gt; // The max is from src/liblzma/common/common.h.
+&gt; hardware_threads_set(str_to_uint64(&quot;threads&quot;,
+&gt; - optarg, 0, 16384));
+&gt; + optarg, 0, LZMA_THREADS_MAX));
+
+common.h is internal to liblzma and must not be used from xz. Maybe
+LZMA_THREADS_MAX could be moved to the public API, I don't know right
+now.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00519.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00521">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00521">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00522.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00519.html">[xz-devel] [PATCH] xz: Multithreaded mode now always uses str...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH] xz: Multithreaded mode now always...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00522.html">Re: [xz-devel] [PATCH] xz: Multithreaded mode now al...</a></span> <span class="sender italic">Jia Tan</span></li>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH] xz: Multithreaded mode now always uses stream_encoder_mt to ensure reproducible builds">
+<input type="hidden" name="msgid" value="20211130002508.0bf9170e@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00521.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+xz%5C%3A+Multithreaded+mode+now+always+uses+stream_encoder_mt+to+ensure+reproducible+builds%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00519.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00522.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20211130002508.0bf9170e@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] java array cache fill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00481" id="c">
+<link rel="index" href="maillist.html#00481" id="i">
+<link rel="prev" href="msg00472.html" id="p">
+<link rel="next" href="msg00482.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00481.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+java+array+cache+fill%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] java array cache fill</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210216" rel="nofollow">Tue, 16 Feb 2021 05:42:25 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>We found in LZDecoder that using System.arrayCopy with doubling size
+is faster than Arrays.fill (especially for larger arrays).
+We can apply that knowledge in the BasicArrayCache, where there are
+some use cases which require clearing out the array prior to returning
+it.</pre><pre>
+
+
+diff --git a/src/org/tukaani/xz/BasicArrayCache.java
+b/src/org/tukaani/xz/BasicArrayCache.java
+index 90ebe1f..0148fbe 100644
+--- a/src/org/tukaani/xz/BasicArrayCache.java
++++ b/src/org/tukaani/xz/BasicArrayCache.java
+@@ -11,7 +11,6 @@ package org.tukaani.xz;
+
+ import java.lang.ref.Reference;
+ import java.lang.ref.SoftReference;
+-import java.util.Arrays;
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+
+@@ -239,8 +238,13 @@ public class BasicArrayCache extends ArrayCache {
+
+         if (array == null)
+             array = new byte[size];
+-        else if (fillWithZeros)
+-            Arrays.fill(array, (byte)0x00);
++        else if (fillWithZeros) {
++            array[0] = (byte)0x00;
++            array[1] = (byte)0x00;
++            array[2] = (byte)0x00;
++            array[3] = (byte)0x00;
++            fillArrayFromFirstFourValues(array, array.length);
++        }
+
+         return array;
+     }
+@@ -263,8 +267,13 @@ public class BasicArrayCache extends ArrayCache {
+
+         if (array == null)
+             array = new int[size];
+-        else if (fillWithZeros)
+-            Arrays.fill(array, 0);
++        else if (fillWithZeros) {
++            array[0] = 0;
++            array[1] = 0;
++            array[2] = 0;
++            array[3] = 0;
++            fillArrayFromFirstFourValues(array, array.length);
++        }
+
+         return array;
+     }
+@@ -278,4 +287,21 @@ public class BasicArrayCache extends ArrayCache {
+     public void putArray(int[] array) {
+         putArray(intArrayCache, array, array.length);
+     }
++
++    /**
++     * Repeats the first 4 values in the array to fill the contents.
++     */
++    private static void fillArrayFromFirstFourValues(Object array,
+int length) {
++        int toCopy = 4;
++        int remaining = length - toCopy;
++        do {
++            System.arraycopy(array, 0, array, toCopy, toCopy);
++            remaining -= toCopy;
++            toCopy &lt;&lt;= 1;
++        } while (remaining &gt;= toCopy);
++
++        if (remaining != 0) {
++            System.arraycopy(array, 0, array, toCopy, remaining);
++        }
++    }
+ }
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00472.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00481">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00481">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00482.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] java array cache fill</span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00482.html">Re: [xz-devel] java array cache fill</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00486.html">Re: [xz-devel] java array cache fill</a></span> <span class="sender italic">Brett Okken</span></li>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] java array cache fill">
+<input type="hidden" name="msgid" value="CANBJVOGWw-s69Z_k6yTnsLqEJjHuT1N=zxH7SL+LyP5ZLq=fMg@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00481.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+java+array+cache+fill%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00472.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00482.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOGWw-s69Z_k6yTnsLqEJjHuT1N=zxH7SL+LyP5ZLq=fMg@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

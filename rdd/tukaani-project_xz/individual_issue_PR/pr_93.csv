@@ -1,0 +1,11 @@
+event,from,created_at,body,to
+thread_started,yarikoptic,2024-03-29T18:39:58Z,This way  `codespell -i 0`  is silent and feasible to CI for typos -- added github action.,['yarikoptic']
+commented,Larhzu,2024-05-01T11:01:07Z,"I merged the first commit with trivial edits. Thanks!
+
+I'm not very familiar with the GitHub workflows files. Running spellcheck automatically could make sense, on the other hand it's easy to run it manually every once in a while.
+
+I gave up with spellcheckers a very long time ago as the false positives were too annoying. I know I've made quite a few spelling errors over the years though and other people have sent fixes. So I might run codespell now and then in the future.
+
+Note that I'm not able to reopen this PR as GitHub suspended most forks the xz repository.
+
+Thanks!",['yarikoptic']

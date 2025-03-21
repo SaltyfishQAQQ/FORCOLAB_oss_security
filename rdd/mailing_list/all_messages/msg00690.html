@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [BUG] Issue with xz-java: Unknown Filter ID</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00690" id="c">
+<link rel="index" href="maillist.html#00690" id="i">
+<link rel="prev" href="msg00672.html" id="p">
+<link rel="next" href="msg00691.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00690.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BBUG%5C%5D+Issue+with+xz%5C-java%5C%3A+Unknown+Filter+ID%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [BUG] Issue with xz-java: Unknown Filter ID</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20240718" rel="nofollow">Thu, 18 Jul 2024 07:14:00 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>On 2024-03-07 Lasse Collin wrote:
+&gt; On 2024-03-05 Dennis Ens wrote:
+&gt; &gt; &gt; I hope 1.10 could be done in a month or two but I don't want to
+&gt; &gt; &gt; make any promises or serious predictions. Historically those
+&gt; &gt; &gt; haven't been accurate at all.    
+&gt; &gt; 
+&gt; &gt; I'll hope it's on the sooner side then.</pre><pre>
+
+1.10 is getting closer to being ready. I'd like to fix this-escape
+warnings still as those are a sign of design errors. More info here:
+
+    <a  rel="nofollow" href="https://github.com/tukaani-project/xz-java/pull/18">https://github.com/tukaani-project/xz-java/pull/18</a>
+
+I also created a branch rc_dec_speed but didn't create a PR for it. It
+speeds up decompression on x86-64 with OpenJDK 22 roughly 4 %. I'm not
+sure if it should be included in 1.10 in some form. If there is
+interest, let's create a separate thread for it, or I can create a PR if
+that is preferred.
+
+So now you and other people with Java knowledge can easily help because
+especially the PR #18 doesn't need much knowledge of the project
+internals. Thanks!
+
+I currently don't know what I should post to xz-devel and what to
+GitHub. Many public communication channels makes things hard to follow.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00672.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00690">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00690">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00691.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00665.html">[xz-devel] [BUG] Issue with xz-java: Unknown Filter ID</a></span> <span class="sender italic">Dennis Ens</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00666.html">Re: [xz-devel] [BUG] Issue with xz-java: Unknown Filter ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00667.html">Re: [xz-devel] [BUG] Issue with xz-java: Unknown Fil...</a></span> <span class="sender italic">Dennis Ens</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00668.html">Re: [xz-devel] [BUG] Issue with xz-java: Unknown...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00669.html">Re: [xz-devel] [BUG] Issue with xz-java: Unk...</a></span> <span class="sender italic">Dennis Ens</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00672.html">Re: [xz-devel] [BUG] Issue with xz-java...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [BUG] Issue with xz-...</span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00691.html">Re: [xz-devel] [BUG] Issue with...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00692.html">Re: [xz-devel] [BUG] Issue with...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00693.html">Re: [xz-devel] [BUG] Issue with...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00694.html">Re: [xz-devel] [BUG] Issue with...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [BUG] Issue with xz-java: Unknown Filter ID">
+<input type="hidden" name="msgid" value="20240718171346.592f8639@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00690.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BBUG%5C%5D+Issue+with+xz%5C-java%5C%3A+Unknown+Filter+ID%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00672.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00691.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20240718171346.592f8639@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

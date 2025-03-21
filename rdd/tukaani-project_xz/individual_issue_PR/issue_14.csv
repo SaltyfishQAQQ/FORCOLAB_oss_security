@@ -1,0 +1,53 @@
+event,from,created_at,body,to
+thread_started,JiaT75,2023-01-07T13:39:13Z,"### Describe the bug
+
+If --format is set to anything other than raw, xz will only print the list information, or an error (--list works only on .xz files (--format=xz or --format=auto)). When --format=raw, xz will print:
+Filter chain: --lzma2=dict=8MiB,lc=3,lp=0,pb=2,mode=normal,nice=64,mf=bt4,depth=0 [or the actual filter chain specified]
+9 MiB of memory is required. The limiter is disabled.
+--list works only on .xz files (--format=xz or --format=auto)
+
+This is not a critical bug, but it is a small inconsistency.
+
+### Version
+
+master @ 8d372bd94066b1a5b05
+
+### Operating System
+
+Ubuntu
+
+### Relevant log output
+
+```shell
+./src/xz/xz --format=raw --suffix=.xz --lzma2 -lvv  config.h.xz
+xz: Filter chain: --lzma2=dict=8MiB,lc=3,lp=0,pb=2,mode=normal,nice=64,mf=bt4,depth=0
+xz: 9 MiB of memory is required. The limiter is disabled.
+xz: --list works only on .xz files (--format=xz or --format=auto)
+
+-----------------------------------------------
+
+./src/xz/xz --format=lzma --suffix=.xz --lzma2 -lvv  config.h.xz
+xz: --list works only on .xz files (--format=xz or --format=auto)
+
+-----------------------------------------------
+
+./src/xz/xz --format=xz --suffix=.xz --lzma2 -lvv  config.h.xz
+config.h.xz (1/1)
+  Streams:            1
+  Blocks:             1
+  Compressed size:    4,044 B
+  Uncompressed size:  16.5 KiB (16,852 B)
+  Ratio:              0.240
+  Check:              CRC64
+  Stream padding:     0 B
+  Streams:
+    Stream    Blocks      CompOffset    UncompOffset        CompSize      UncompSize  Ratio  Check      Padding
+         1         1               0               0           4,044          16,852  0.240  CRC64            0
+  Blocks:
+    Stream     Block      CompOffset    UncompOffset       TotalSize      UncompSize  Ratio  Check      CheckVal          Header  Flags        CompSize    MemUsage  Filters
+         1         1              12               0           4,008          16,852  0.238  CRC64      b4fdba2a9a1834bb      12  --              3,987       9 MiB  --lzma2=dict=8MiB
+  Memory needed:      9 MiB
+  Sizes in headers:   No
+  Minimum XZ Utils version: 5.0.0
+```",['JiaT75']
+commented,JiaT75,2023-01-16T13:37:39Z,Solved by commit to master 123255b6ed15f4428b2aa92e4962015a5362f6bf,['JiaT75']

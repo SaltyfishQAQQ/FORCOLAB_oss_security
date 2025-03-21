@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] Re: java LZDecoder small improvement</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00488" id="c">
+<link rel="index" href="maillist.html#00488" id="i">
+<link rel="prev" href="msg00487.html" id="p">
+<link rel="next" href="msg00489.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00488.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Re%5C%3A+java+LZDecoder+small+improvement%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] Re: java LZDecoder small improvement</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210301" rel="nofollow">Mon, 01 Mar 2021 09:05:51 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>&gt; With a quick try I got a feeling that my worry about short repeats was
+&gt; wrong. It doesn't matter because decoding each LZMA symbol is much more
+&gt; expensive. What matters is avoiding multiple tiny arraycopy calls
+&gt; within a single run of the repeat method, and that problem was already
+&gt; solved.</pre><pre>
+
+My observation is basically the same. Individual tiny array copy calls
+do not really matter, but tiny array copy calls in a tight loop is
+quite bad.
+My /guess/ is that the optimizer is not able to unroll these loops
+effectively, possibly because of the arraycopy intrinsic.
+
+&gt;
+&gt; &gt; &gt; I came up with the following. I haven't decided yet if I like it.
+&gt; &gt;
+&gt; &gt; On the 3 files I have been testing with, this change is a mixed bag.
+&gt; &gt; Compared to trunk 1 regresses by ~8%. While the other 2 do improve,
+&gt; &gt; neither are better than my last patch.
+&gt;
+&gt; OK, thanks. So it isn't great. I wonder which details make the
+&gt; difference.
+
+I think some of the problem is too many branches, making
+prediction/speculative execution less useful.
+Another issue is the absence of the single byte optimization, which I
+will address more below.
+
+&gt; One thing that confuses me in your version is the special handling of
+&gt; the first byte:
+&gt;
+&gt;         buf[pos++] = buf[back++];
+&gt;         --left;
+&gt;
+&gt; If there are two bytes to copy, then one will be copied above and the
+&gt; other with arraycopy later. If there are more bytes to copy and
+&gt; distance is very small, incrementing &quot;back&quot; above can mean that an
+&gt; extra arraycopy call might be needed in the loop because the first copy
+&gt; will be one byte smaller.
+&gt;
+&gt; I understand that it might help when there is just one byte to repeat
+&gt; because then the while-loop will be skipped. In all other situations it
+&gt; sounds like that the special handling of the first byte would in theory
+&gt; be harmful. Note that I don't doubt your test results; I already saw
+&gt; with the CRC64 code that some changes in the code can affect
+&gt; performance in weird ways.
+
+The image1.dcm is the most impacted by this optimization. Again, this
+file is basically a large greyscale bmp. This results in a significant
+number of single byte repeats. Optimizing for the single byte improves
+performance in that file by 3-5%, while having smaller effects on the
+other 2 files (ihe_ovly_pr.dcm slightly slower, large.xml slightly
+faster)
+
+&gt; Your code needs
+&gt;
+&gt;             if (back == bufSize)
+&gt;                 back = 0;
+&gt;
+&gt; in the beginning of the while-loop and later checking for tmp &gt; 0. My
+&gt; version avoids these branches by handling those cases under &quot;if (back &lt;
+&gt; 0)&quot; (which is equivalent to &quot;if (dist &gt;= pos)&quot;). On the other hand,
+&gt; under &quot;if (back &lt; 0)&quot; all copies, including tiny copies, are done with
+&gt; arraycopy.
+&gt;
+&gt; Another tiny difference is that your code uses left shift to double the
+&gt; copy size in the loop while I used Math.min(pos - back, left).
+&gt;
+&gt; &gt; I was able to improve this a bit by pulling the handling of small
+&gt; &gt; copies outside of the while loop. This eliminates the regressions
+&gt; &gt; compared to trunk, but still does not feel like an improvement over my
+&gt; &gt; last patch.
+&gt;
+&gt; Yeah, the switch isn't worth it. If I understand it correctly now,
+&gt; trying to avoid arraycopy for the tiny copies wasn't a useful idea in
+&gt; the first place. So the code can be simplified (&quot;version 3&quot;):
+&gt;
+&gt;         int back = pos - dist - 1;
+&gt;         if (back &lt; 0) {
+&gt;             // The distance wraps around to the end of the cyclic dictionary
+&gt;             // buffer. We cannot get here if the dictionary isn't full.
+&gt;             assert full == bufSize;
+&gt;             back += bufSize;
+&gt;
+&gt;             // Here we will never copy more than dist + 1 bytes and
+&gt;             // so the copying won't repeat from its own output.
+&gt;             // Thus, we can always use arraycopy safely.
+&gt;             int copySize = Math.min(bufSize - back, left);
+&gt;             assert copySize &lt;= dist + 1;
+&gt;
+&gt;             System.arraycopy(buf, back, buf, pos, copySize);
+&gt;             pos += copySize;
+&gt;             back = 0;
+&gt;             left -= copySize;
+&gt;
+&gt;             if (left == 0)
+&gt;                 return;
+&gt;         }
+&gt;
+&gt;         assert back &lt; pos;
+&gt;         assert left &gt; 0;
+&gt;
+&gt;         do {
+&gt;             // Determine the number of bytes to copy on this loop iteration:
+&gt;             // copySize is set so that the source and destination ranges
+&gt;             // don't overlap. If &quot;left&quot; is large enough, the destination
+&gt;             // range will start right after the last byte of the source
+&gt;             // range. This way we don't need to advance &quot;back&quot; which
+&gt;             // allows the next iteration of this loop to copy (up to)
+&gt;             // twice the number of bytes.
+&gt;             int copySize = Math.min(left, pos - back);
+&gt;             System.arraycopy(buf, back, buf, pos, copySize);
+&gt;             pos += copySize;
+&gt;             left -= copySize;
+&gt;         } while (left &gt; 0);
+&gt;
+&gt; I know I may sound stubborn for not accepting your version as is but
+&gt; the special handling of the first byte and the readability of the
+&gt; while-loop (how easy it is to understand on the first reading) make me
+&gt; hesitate.
+
+I agree your approach is more readable. From your version of it, I was
+expecting that simplicity in reading to translate into better
+performance.
+This latest version actually does appear to do that. The image1.dcm
+performance matches my version and the other 2 are a bit faster.
+Adding the single byte optimization still speeds up image1.dcm (~8ms,
+~2%) and large.xml (~3ms, 2%), while slowing ihe_ovly_pr.dcm (~.008ms,
+~1%).
+
+&gt; For example, for dist = 0, len = 23 and assuming that copying
+&gt; doesn't wrap:
+&gt;
+&gt;   1. One byte is copied before the while-loop.
+&gt;   2. The inner do-while-loop copies 1, 2, 4, and 8 bytes.
+&gt;   3. The outer while-loop starts from the beginning and
+&gt;      the latter arraycopy is used to copy the remaining 7 bytes.
+&gt;
+&gt; In contrast my new simplified version above has just one loop in it
+&gt; where it copies 1, 2, 4, 8, and 8 bytes.
+
+I think getting rid of the inner loop entirely is the key to the
+improvement in this version. This seems quite obvious a change in
+hindsight.
+
+&gt; Just to play around, here's yet another method which has only one
+&gt; arraycopy. The size difference is very minimal though after you ignore
+&gt; the comments and assertions. For readability I prefer &quot;version 3&quot; over
+&gt; the version below (&quot;version 4&quot;).
+&gt;
+&gt;         int back = pos - dist - 1;
+&gt;         int backNext = back;
+&gt;
+&gt;         do {
+&gt;             int copySize;
+&gt;             if (back &lt; 0) {
+&gt;                 back += bufSize;
+&gt;                 copySize = bufSize - back;
+&gt;                 backNext = 0;
+&gt;             } else {
+&gt;                 copySize = pos - back;
+&gt;             }
+&gt;
+&gt;             if (copySize &gt; left)
+&gt;                 copySize = left;
+&gt;
+&gt;             System.arraycopy(buf, back, buf, pos, copySize);
+&gt;             pos += copySize;
+&gt;             left -= copySize;
+&gt;             back = backNext;
+&gt;         } while (left &gt; 0);
+&gt;
+&gt; It would be nice if you could compare the versions again. Thanks!
+
+Version 3 is better for all 3 files.
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00487.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00488">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00488">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00489.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00448.html">[xz-devel] Re: java LZDecoder small improvement</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00455.html">Re: [xz-devel] Re: java LZDecoder small improvement</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00456.html">Re: [xz-devel] Re: java LZDecoder small improvement</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00457.html">Re: [xz-devel] Re: java LZDecoder small improvem...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00460.html">Re: [xz-devel] Re: java LZDecoder small impr...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00462.html">Re: [xz-devel] Re: java LZDecoder small...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00471.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00473.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00475.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00487.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] Re: java LZDecoder s...</span> <span class="sender italic">Brett Okken</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00489.html">Re: [xz-devel] Re: java LZDecoder s...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] Re: java LZDecoder small improvement">
+<input type="hidden" name="msgid" value="CANBJVOGTGoOaBBrL0Rd+HeL4CA58vx43VCj94tGmFj_e=87ybg@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00488.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+Re%5C%3A+java+LZDecoder+small+improvement%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00487.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00489.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOGTGoOaBBrL0Rd+HeL4CA58vx43VCj94tGmFj_e=87ybg@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

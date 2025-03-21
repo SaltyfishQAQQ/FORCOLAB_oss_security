@@ -1,0 +1,66 @@
+event,from,created_at,body,to
+thread_started,Larhzu,2024-02-08T16:03:26Z,"# Short version
+
+Public domain has (real or perceived) legal issues in some jurisdictions. To avoid those issues, a widely-accepted public-domain-equivalent license that requires no attribution is considered for future versions. Feedback is wanted to know if this idea is good.
+
+
+# Why the XZ projects are in the public domain
+
+[LZMA SDK](https://7-zip.org/sdk.html) used to be available under the GNU LGPL and a few other license choices.
+In late 2008, LZMA SDK became public domain (PD). Since XZ Utils, XZ Embedded, and XZ for Java are derived from the LZMA SDK code, I felt that it made no sense to have more restrictions on the XZ projects code than what LZMA SDK had. Thus the XZ projects have been PD as well.
+
+For example, the [MIT License](https://spdx.org/licenses/MIT.html), [BSD 2-Clause ""Simplified"" License](https://spdx.org/licenses/BSD-2-Clause.html), or [ISC License](https://spdx.org/licenses/ISC.html) would have been more restrictive than PD as those require keeping the copyright notice and license notice when distributing copies. Pure PD has no such requirements.
+
+I knew even in 2008 that PD might be legally complicated in some jurisdictions but I didn't see ideal alternatives (a common advice was to not create a new license). In practice it seemed that PD projects were accepted in major distros with strict policies (like Debian and Fedora). A few discussions around the problems of PD have occurred over the years though and in general it's waste of everyone's time.
+
+
+# Public-domain-equivalent licenses
+
+In 2008 there were no _widely-recognized_ and _widely-accepted_ [public-domain-equivalent licenses](https://en.wikipedia.org/wiki/Public-domain-equivalent_license). Nowadays there are at least [BSD Zero Clause License](https://spdx.org/licenses/0BSD.html) (0BSD) and [MIT No Attribution license](https://spdx.org/licenses/MIT-0.html) (MIT-0) which look good.
+
+A few other PD-equivalent licenses exist too. For example:
+
+* [WTFPL](https://spdx.org/licenses/WTFPL.html) uses unprofessional language (and lacks a warranty disclaimer in case it matters).
+
+* [CC0](https://creativecommons.org/publicdomain/zero/1.0/) is also a PD dedication with a fallback license. It explicitly lacks patent license which has made [Fedora consider it unacceptable for free software in 2022](https://www.mail-archive.com/legal@lists.fedoraproject.org/msg02944.html) (still fine for files other than code).
+
+* [The Unlicense](https://unlicense.org/) is a PD dedication with a fallback license. Compared to 0BSD and MIT-0, a PD dedication doesn't seem to add much practical value but it can fuel discussions about how the PD-dedication, fallback license, and warranty disclaimer interact with each other and so on.
+
+Both 0BSD and MIT-0 are simple modifications to existing license texts and thus more than one person might have created the same variants independently over the years. The difficult thing is making the license texts widely accepted. 0BSD came from [toybox](https://www.landley.net/toybox/) which is [included in Android](https://www.landley.net/toybox/faq.html#opensource). MIT-0 got visibility because [Amazon uses it for example code](https://github.com/aws/mit-0). 0BSD is slightly shorter than MIT-0 while both should have the same legal effect. 0BSD got wide recognition a little earlier:
+
+* 0BSD in [SDPX license list v2.2 on 2015-09-30](https://spdx.org/licenses/archive/archived_ll_v2.2/index.html) and [OSI approval on 2015-10-14](https://opensource.org/license/0bsd/)
+
+* MIT-0 in [SDPX license list v3.1 in 2018](https://spdx.org/licenses/archive/archived_ll_v3.1/index.html) and [OSI approval in 2020](https://opensource.org/license/mit-0/)
+
+GitHub has over four times [0BSD-licensed repositories](https://github.com/search?q=license%3A0bsd&type=repositories) than [MIT-0-licensed repositories](https://github.com/search?q=license%3Amit-0&type=repositories).
+
+[Google doesn't allow contributions to PD projects](https://opensource.google/documentation/reference/patching#forbidden) or certain PD-equivalent projects: WTFPL, CC0, and The Unlicense are explicitly mentioned as _prohibited_. However, 0BSD is explicitly listed as _allowed_. (It's spelled as BSD0 on that page but it links to 0BSD.) MIT-0 isn't mentioned at all.
+
+So clearly the legal department in one large company is happy with 0BSD. And since Android contains 0BSD-licensed code, a few other companies must be OK with 0BSD too. Even [Microsoft has released code under 0BSD](https://github.com/microsoft/tslib).
+
+With the above considerations, my impression is that 0BSD is currently be the best of the well-known public-domain-equivalent licenses for software although the difference to MIT-0 is minuscule. The reasons to prefer 0BSD are that it's more popular, clearly accepted by legal departments of more than one large company, and that it's slightly shorter while being equivalent in legal meaning.
+
+
+# The Plan
+
+The change would affect future versions only. The public domain code in the old releases would obviously remain in the public domain.
+
+For simplicity, all currently-PD code would be marked as 0BSD (with per-file SPDX license identifiers). If one wishes to know which parts are available as PD, one can look at the old releases or Git commit history. Those aren't going away.
+
+We have already asked a few authors that they indeed are OK that their code would be under 0BSD. It feels a bit silly to ask since PD allows this already, but this way only a fairly small amount of code will rely solely on PD dedications. In any case, some code would remain that is from PD-only source.
+
+Switching to 0BSD should affect users and distributors very little. PD code can be distributed without any notices about where the code came from. The same can be done with 0BSD.
+
+(There is one tiny difference still: With 0BSD-licensed code, one shouldn't claim that it is in the public domain. Code under 0BSD is copyrighted, thus it's not literally in the public domain. Example: It is fine to take PD code and re-release it under The Unlicense. But one cannot re-release someone else's 0BSD-licensed code under The Unlicense because The Unlicense has a PD dedication and one cannot dedicate code into PD if one isn't its copyright holder. 0BSD to MIT-0 should be fine because there is no PD dedication in MIT-0.)
+
+
+# Questions
+
+1. Would using 0BSD instead of PD make legal considerations easier for distributors and contributors, even if some code still relies on PD dedications?
+
+2. Should the XZ projects switch from PD to 0BSD for future releases?
+
+When answering, if you represent an organization, please mention it. Otherwise the answer is assumed be an opinion of a private person.
+
+Thank you!",lists
+commented,Larhzu,2024-02-14T18:46:18Z,"Thank you to everyone for the discussion and feedback! The core parts of the XZ Utils master branch are now under 0BSD as is the 5.5.2beta release. Assuming that people are fine with it in XZ Utils, similar change will be done later in XZ for Java and XZ Embedded.",['Larhzu']

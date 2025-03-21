@@ -1,0 +1,1656 @@
+from,to,file_name,message,rater1_mood,rater1_score,rater2_mood,rater2_score,rater3_mood
+Andreas Müller,Jia Tan,issue_18.csv,"Hi @JiaT75 
+
+I had no problems compiling with MSVC only (cmake and tools shipped by Visual Studio 2022). Thanks a lot for setting the cmake files up for this.
+
+Are there any plans adding MSVC CI Builds (including binary releases) to the CI pipeline?
+There is a demo for VS2022/x64 build+artifacts on the ndu2/xz fork . Testing, etc is missing but this could be a start.
+
+I can help out on this, if there is any interest.
+
+Best
+ndu
+
+Link to the mentioned CI action: https://github.com/ndu2/xz/actions/runs/8224685611 (see also the files windows/build-with-vs2022.bat, .github/workflows/windows-vs2022-ci.yml)",positive,0.510636,positive,0.932976239,positive
+Andreas Müller,Jia Tan,issue_18.csv,"Thank you @JiaT75  and @Larhzu for the quick feedback.
+
+
+
+Yes, I think so. I added Clang-cl builds. There is just one include missing (Originally I required more patches due to my inability to properly generate the vsxproj with cmake)
+
+Patch: https://github.com/ndu2/xz/commit/5fb2ace8369ca30c17e772ce3d4a3d6fd99e2bf1
+
+
+
+
+
+I just updated the demo pipeline to ""somewhat complete"" state that suffices my own purposes:
+
+ * 4 Build Configuration with Visual Studio 2022 (x64 MSVC, x86 MSVC, x64 Clang-cl, x86 Clang-cl)
+ * execution of the test executables
+ * publishing of xz.exe and co (disabled per default)
+
+Well, I'm neither familiar with github actions nor with windows batch (nor powershell). But I stuck to the ""out of the box"" tools for better compatibility with VS2022/Windows only setups.
+
+You'll find the implementation it those 2 files:
+
+ * windows/build-with-vs2022.bat
+ * .github/workflows/windows-vs2022-ci.yml
+
+
+I found 13 test-executables (test_*.exe). I added calls to those in `build-with-vs2022.bat` and to the pipeline. Not sure if there is a way to standardise test-execution over all platforms w/o rewriting the tests to some test-framework?
+
+
+
+OK. To be honest, Windows releases for v5.6.x is what brought me here at the first place :-)
+
+Please let me know if any of this work is of your interest and how to proceed.
+
+I'm more than happy to create PRs, adapt the scripts to the projects needs and clean things up as required. Feel also free to grab what you need.
+
+
+Best
+ndu2
+",positive,0.43081,positive,0.506634329,positive
+Andreas Müller,Lasse Collin,issue_18.csv,"Good point, I wasn't aware of that assembly code. I did a quick test on a virtual windows 10:
+
+MSVC against clang-cl (needed ~~a couple of code adaptions~~ one include for _get_osfhandle).
+
+1. uncompressable 40MB input 
+2. compressable 214MB input (compressed =24.3MB)
+
+using xz with all default settings (xz.exe -z raw, xz.exe -d raw.xz) and took the timings:
+
+1: almost identical (differences <2%)
+2: compressing is similar (<2%), decompressing: clang-cl is 10% to 15% faster
+
+I will bench with a ""real"" windows later and update here
+
+update: i see a performance increase of up to 25% on windows 11 AMD Ryzen 7 PRO 7840U. ",positive,0.538928,positive,0.755345183,positive
+Anton Kochkov,Jia Tan,issue_48.csv,"@JiaT75 it fixed the problem, thanks!",positive,0.983955,positive,0.943767331,positive
+Arthur S,Jia Tan,issue_18.csv,"@JiaT75 Could you specify which flavors of msys2 would you like to support?
+
+There are different combinations of arch, compiler, c standard library: https://www.msys2.org/docs/environments/
+
+I had recent experience of setting GitHub workflows for Windows builds and msys2, I might be able to help.
+
+Update 1: ""MinGw and CMake"", ok, I see that `MinGw` might mean that you are not using msys2 version of toolchain yet.
+
+Update 2: Here is GH Action to setup msys2 https://github.com/msys2/setup-msys2 with pretty detailed README.",positive,0.456365,positive,0.818936361,positive
+Arthur S,Jia Tan,issue_18.csv,"@JiaT75 I did something. At least it runs full autotools set on Windows host. I don't yet understand CMake part and also VisualStudio parts, but might be able to take another look some time later. Any additional context, what you think could help is highly appreciated.",positive,0.715826,positive,0.884506559,positive
+Arthur S,Jia Tan,issue_18.csv,Hi @JiaT75  Thank you for the ping. Got it out of my focus. I will revisit the topic this weekend and update. I hope to get Windows part done.,positive,0.935424,neutral,0.044238042,positive
+Ashish Shirodkar,Arthur S,issue_18.csv,"Hi @arixmkii , @JiaT75 ,
+
+I was trying to compile XZ with cmake(included in Visual Studio 2022) and below was my observation:
+
+**Step 1: Set build environment**
+
+```
+D:\build>""C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat""
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.6.4
+** Copyright (c) 2022 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+
+D:\build>
+```
+
+**Step 2: Configure build environment:**
+
+`D:\build>cmake -S xz-master -B xz-build`
+
+**Setp 3: Start build:**
+`D:\build>cmake --build xz-build --config Release`
+
+**Result:**
+```
+D:\build>dir xz-build\Release
+ Volume in drive D is New Volume
+ Volume Serial Number is DE48-AF3E
+
+ Directory of D:\build\xz-build\Release
+
+10/19/2023  03:22 AM    <DIR>          .
+10/19/2023  03:22 AM    <DIR>          ..
+10/19/2023  03:21 AM           498,446 liblzma.lib
+10/19/2023  03:22 AM           230,912 xz.exe
+10/19/2023  03:22 AM            86,016 xzdec.exe
+               3 File(s)        815,374 bytes
+               2 Dir(s)  214,589,665,280 bytes free
+
+D:\build>
+```
+
+I found **liblzma.dll** is not getting generated.
+
+Then I configured using:
+`D:\build>cmake -S xz-master -B xz-build -D BUILD_SHARED_LIBS=ON`
+
+And the **liblzma.dll** was generated.
+
+Looks like you need to put following in CMakeLists.txt:
+`option(BUILD_SHARED_LIBS ""Build shared libraries"" ON)`
+Most opensource libs like **libxml2** have this ON by default. And before cmake when I compiled XZ it was generating liblzma.dll by default.
+",positive,0.303416,neutral,0.019909642,neutral
+Ashish Shirodkar,Jia Tan,issue_18.csv,"
+Ok, Thanks.",positive,0.989746,positive,0.670483467,positive
+Benjamin Buch,Jia Tan,pr_51.csv,"@JiaT75 Unfortunately I don't know if this can be done online on GitHub and I'm too stressed right now to make an offline change using Git.
+
+I have given you access to my fork. Would be nice if you could do that.",negative,-0.431607,negative,-0.943750224,negative
+ChanTsune,Jia Tan,pr_57.csv,"Thank you for your kind review!
+
+I am honored to contribute to your project!",positive,0.989615,positive,0.990759699,positive
+ChanTsune,Jia Tan,pr_57.csv,Thank you! I updated my profile name. I would appreciate it if you could add this name to the THANKS file!,positive,0.942458,positive,0.982246958,positive
+ChanTsune,Jia Tan,pr_56.csv,"It's a little redundant description, but how about adding the following changes
+
+`common.h`
+```diff
+-#include ""mythread.h""
++// If any type of threading is enabled, #include ""mythread.h"".
++#if defined(MYTHREAD_POSIX) || defined(MYTHREAD_WIN95) \
++		|| defined(MYTHREAD_VISTA)
++#	include ""mythread.h""
++#endif
+```
+
+I think this will solve 2.",positive,0.250611,neutral,-0.007666074,neutral
+ChanTsune,Jia Tan,pr_56.csv,"Thanks for review!
+
+Sorry. The error message I pasted was the wrong one
+
+This is correct
+```
+  running: ""clang"" ""-O0"" ""-ffunction-sections"" ""-fdata-sections"" ""-fPIC"" ""-g"" ""-fno-omit-frame-pointer"" ""--target=wasm32-wasi"" ""--sysroot"" ""/wasi-sdk-20.0/share/wasi-sysroot"" ""-D_WASI_EMULATED_SIGNAL"" ""-I"" ""xz-5.2/src/liblzma/api"" ""-I"" ""xz-5.2/src/liblzma/lzma"" ""-I"" ""xz-5.2/src/liblzma/lz"" ""-I"" ""xz-5.2/src/liblzma/check"" ""-I"" ""xz-5.2/src/liblzma/simple"" ""-I"" ""xz-5.2/src/liblzma/delta"" ""-I"" ""xz-5.2/src/liblzma/common"" ""-I"" ""xz-5.2/src/liblzma/rangecoder"" ""-I"" ""xz-5.2/src/common"" ""-I"" ""/xz2-rs/lzma-sys"" ""-std=c99"" ""-pthread"" ""-DHAVE_CONFIG_H=1"" ""-o"" ""/xz2-rs/target/wasm32-wasi/debug/build/lzma-sys-7bbeecf3b4119da3/out/xz-5.2/src/liblzma/check/check.o"" ""-c"" ""xz-5.2/src/liblzma/check/check.c""
+  cargo:warning=In file included from xz-5.2/src/liblzma/check/check.c:13:
+  cargo:warning=In file included from xz-5.2/src/liblzma/check/check.h:16:
+  cargo:warning=In file included from xz-5.2/src/liblzma/common/common.h:17:
+  cargo:warning=xz-5.2/src/common/mythread.h:87:33: error: unknown type name 'sigset_t'
+  cargo:warning=mythread_sigmask(int how, const sigset_t *restrict set,
+  cargo:warning=                                ^
+  cargo:warning=xz-5.2/src/common/mythread.h:88:3: error: unknown type name 'sigset_t'
+  cargo:warning=                sigset_t *restrict oset)
+  cargo:warning=                ^
+  cargo:warning=xz-5.2/src/common/mythread.h:90:12: warning: call to undeclared function 'sigprocmask'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  cargo:warning=        int ret = sigprocmask(how, set, oset);
+  cargo:warning=                  ^
+  cargo:warning=1 warning and 2 errors generated.
+  exit status: 1
+```",negative,-0.70895,neutral,-0.134634793,neutral
+ChanTsune,Jia Tan,pr_56.csv,"I am using the latest WASI-SDK.
+WASI is trying to provide a project that provides a POSIX compatible API as WASIX but it seems it's not perfect yet.
+
+There is no deep meaning in using it via Rust, so if you can use Docker, I think you can reproduce the equivalent environment with the following `Dockerfile`
+
+```dockerfile
+FROM ghcr.io/webassembly/wasi-sdk:latest
+
+RUN apt update && apt install -y git
+
+RUN git clone https://github.com/tukaani-project/xz.git
+
+RUN ./xz/build-aux/ci_build.sh -b cmake -d threads,shared -p all
+
+```
+
+```sh
+$ docker build -t xz .
+```
+
+WASI-SDK can download from https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-20",negative,-0.503503,neutral,0.042073945,neutral
+Chenxi Mao,Lasse Collin,pr_75.csv,"
+Yes, you are correct, I disassemble the code, not only memcpy but also UNSAFE_TYPE_PUNNING are all interpreted as below:
+```
+ 640:	f9400000 	ldr	x0, [x0]
+ 644:	d65f03c0 	ret
+```
+
+So the 2nd patch is useless, we can keep the 1st patch only.
+
+",negative,-0.786282,negative,-0.472728925,negative
+Christian Hesse,Lasse Collin,issue_44.csv,Thanks a lot for the quick fix!,positive,0.983723,positive,0.963276101,positive
+DavidKorczynski,mvatsyk,pr_73.csv,"Thanks for reaching out @mvatsyk-lsg -- I didn't go through the whole discussion here so am trying to give an OSS-Fuzz perspective from a limited understanding of this PR.
+
+Regarding OSS-Fuzz resources, then I think by default it makes sense to not be too concerned about this. OSS-Fuzz relies on [Clusterfuzz](https://github.com/google/clusterfuzz) which has a set of scheduling/prioritisation strategies. A single fuzzer for CRC may be a bit much. However, it's also possible to merge a bunch of simple fuzzers into a single larger function:
+
+```cpp
+int LLVMFuzzerTestOneInput(uint8_t *data, size_t size) {
+
+  if (size < 1) {
+    return 0;
+  }
+  uint8_t decider = data[0];
+  data++;
+  size--;
+  switch decider {
+      case 1: { fuzz_first_entrypoint(data, size); break; }
+      case 2: { fuzz_second_entrypoint(data, size); break; }
+      ...
+      case N
+    }
+}
+```
+
+This is often a common strategy for hitting smaller functions. In fact, you can even do this by throwing the same smaller fuzzers into the larger meaningful fuzzers -- the fuzzer will through it's mutational genetic algorithm start exploring the code where there is more code to explore, so more efforts will be ""put in the right places"".
+
+The scheduling in Clusterfuzz will be responsible for dividing time allocated to each of the targets.
+
+That said, it's often less meaningful to fuzz code which has essentially no data processing, since the code execution will happen independent of the data provided by the fuzzer. Targeting this type of code is probably not the best and I wouldn't recommend fuzzing that sort of code.",negative,-0.514763,positive,0.350536258,neutral
+Dimitri Papadopoulos Orfanos,Jia Tan,pr_58.csv,"You're welcome. A manual step might be preferable to start with, as there are often false positives, and of course false negatives. You can install codespell using `pip install codespell` and run it locally. Create a `.codespellrc` file if you need specific configuration.
+
+Once you are accustomed to it, you may try the [GitHub action](https://github.com/codespell-project/actions-codespell).",positive,0.401037,neutral,0.151512484,positive
+Gabriela Gutierrez,Jia Tan,pr_67.csv,Yes sure! Will do!,positive,0.911695,positive,0.970778118,positive
+Gabriela Gutierrez,Jia Tan,pr_67.csv,See if it looks better now ,positive,0.594651,positive,0.74913081,positive
+Gabriela Gutierrez,Jia Tan,pr_66.csv,"Ok, thanks for the confirmation, Jia!",positive,0.988907,positive,0.984278105,positive
+Gabriela Gutierrez,Jia Tan,issue_38.csv,@JiaT75 Perfect! You are absolutely right. Changing to the restrictive workflow settings is enough. No need to make it explicit in the workflow :) I hope I can come back soon with other security recommendations!,positive,0.876579,positive,0.423586393,positive
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Hi Jia! Ok, nice, I'll open a PR! And yes, there's this downside of having to keep an eye to update the actions. You can update it manually or there's also the option to use [dependabot](https://github.blog/2020-06-01-keep-all-your-packages-up-to-date-with-dependabot/) or [renovatebot](https://docs.renovatebot.com/#why-use-renovate).",positive,0.680063,positive,0.947200616,positive
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Very interesting problem the Clang release one. I took a look at the commits and discussions, thanks for sharing! It seems like they are resolving the problems in the new patch and thanks for looking into this Jia! I'll retry the PR.",positive,0.458881,neutral,0.059955817,neutral
+Gabriela Gutierrez,Jia Tan,pr_47.csv,@JiaT75 Can you take a look to see if all your comments were addressed?,neutral,0,neutral,-0.020905904,neutral
+Gabriela Gutierrez,Lasse Collin,pr_67.csv,Thanks for the advice! I will follow that for future commit messages!,positive,0.908717,positive,0.965316484,positive
+Gabriela Gutierrez,めら,issue_65.csv,"### Describe the Feature
+
+Referencing actions by commit SHA in GitHub workflows guarantees you are using an immutable version. Actions referenced by tags and branches are more vulnerable to attacks, such as the tag being moved to a malicious commit or a malicious commit being pushed to the branch.
+
+Although there are pros and cons for each reference, GitHub understands [using commit SHAs is more reliable](https://docs.github.com/en/actions/learn-github-actions/finding-and-customizing-actions#using-shas), as does [Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md#pinned-dependencies) security tool.
+
+If you agree, this would change, for example, `actions/checkout@v3` to `actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744` followed by a comment `# v3.6.0` to keep the version readable. Additionally, we can take this moment to bump `actions/checkout` to `v4` and other actions.
+
+### Expected Complications
+
+None.
+
+### Will I try to implement this new feature?
+
+Yes
+
+##### Additional Context
+
+Hi! I'm Gabriela and I work on behalf of Google and the OpenSSF suggesting supply-chain security changes :)",negative,-0.262992,neutral,0.07876261,neutral
+Hans Jansen,Jia Tan,pr_64.csv,"
+Thank you for the update, and I agree that it should not be much extra work to incorporate the changes into the code I have already written. ",positive,0.984614,positive,0.230363382,positive
+Hans Jansen,Jia Tan,pr_64.csv,I have made all of the changes listed above. I am also planning to work on implementations for arm versions of crc32_clmul and crc64_clmul after this is finished.,neutral,0,positive,0.67685052,neutral
+Hans Jansen,Jia Tan,pr_64.csv,"
+I tested the difference that using GCC and Clang made in general and found that when using Clang instead of GCC there was negligible difference.
+
+The difference that using GCC and Clang made on the inline assembly was a 2% increase on GCC and 1% or less for Clang. Since this increase is not very significant I can get rid of the changes if you would like.
+
+Replacing CRC_SIMD_BODY with an inline function had no change to the runtime. Ill upload the Inline function as an extra commit, and squash it once you decide which one you like better.",negative,-0.358096,neutral,0.04287803,neutral
+Hans Jansen,Jia Tan,pr_64.csv,"While working on implementing arm support for crc_clmul I found that the processor I am using does not have support for PMULL. I am not going to continue work on this at the moment since the devices I have can't test my code, but I might continue later if I get hardware that supports this.",negative,-0.597363,negative,-0.883677416,negative
+Hans Jansen,Lasse Collin,pr_64.csv,"I've started work on the changes. Don't worry about the delays, I appreciate that both of you are taking the time to look at this.
+
+I haven't tested on 32-bit x86 yet.",positive,0.33146,positive,0.92999386,positive
+Hans Jansen,Lasse Collin,pr_53.csv,"Thanks for the feedback!
+
+I could make the selection method a three tiered approach where ifunc is preferred, followed by the `__constructor__`, and followed again by the generic method. This way the behavior would remain unchanged on non-GNU/Linux systems. Yes, if `-fsantize=address` is set then you would want to set `--disable-ifunc`.
+
+The performance improvements are helpful if crc64 is called a large amount, e.g. for a large number of small files or a multi-threaded file with many blocks. I'm using the crc64 function a very large amount by itself since I noticed it is very fast for checksumming since the CLMUL update. There is also some benefit with branch prediction and it gave me one less instruction when I compiled it with GCC. Your right though, I was hoping to look into additional optimizations after this one.
+
+In regards to `__cplusplus` I wasn't sure if liblzma was being compiled with a C++ compiler anywhere. I can remove it if you don't think it's useful.",positive,0.655973,positive,0.648514406,positive
+Hans Jansen,Lasse Collin,pr_53.csv,"I have a large number of varying buffer sizes. With the larger buffers it doesn't make much of a difference, but with the smaller ~64B to ~256B buffers I was noticing a 4-5% improvement. I'm also running all of this on older hardware which may be contributing to the speedup. I benchmarked it for the standard .xz case, however the speedup there was within the bounds of being noise.
+
+liblzma works well since it's already present, and we're also locked into the existing checksums.",positive,0.306039,positive,0.881476237,positive
+Hans Jansen,Lasse Collin,pr_53.csv,Thanks for the advice. I made the requested change. I rebased the git commits and updated the commit messages.,positive,0.99091,positive,0.396192691,positive
+Hans Jansen,Lasse Collin,pr_53.csv,I ran it and it looks good. The performance seems to be a little bit better. I didn't notice any other differences. Thanks for taking the time to review everything.,positive,0.479154,positive,0.805032589,positive
+Hans Jansen,Lasse Collin,pr_53.csv,I made all of the requested fixes. Let me know if there are any other concerns.,neutral,0,positive,0.984279026,positive
+Hans Jansen,Lasse Collin,pr_64.csv,"
+I updated the PR with the squashing and comment change. I didn't try the crc_clmul.c idea but I believe it would result in cleaner code. I'll let you all handle it.
+
+
+I hadn't tested the assembly version before so I gave it a try since it seemed interesting. I compiled my test program and liblzma with the -m32 GCC flag and ran the benchmark on my 64-bit machine. I don't have a 32-bit machine to test on. The results were somewhat surprising considering how old the assembly implementation is. I didn't have time to make a pretty graph again, but here is a quick summary of my findings:
+
+| CRC version | Speed difference < 32 bytes | Speed difference > 1024 bytes |
+|------------------|----------------------------------------|------------------------------------------|
+| CRC32 Generic |  50% slower    | 75% slower |
+| CRC32 CLMUL  | 80% slower       | 30% slower |
+| CRC64 Generic | 60% slower |  65% slower |
+| CRC64 CLMUL | 80% slower |  40% faster |
+
+The CRC64 CLMUL version became faster with buffers around 512 bytes. The runtime differences started to change between 32 - 1024 bytes so it was most interesting to categorize them as < 32 bytes and > 1024 bytes. So for CRC32 you are better off using the assembly version but CRC64 depends.",negative,-0.298519,neutral,0.014703352,neutral
+Jia Tan,57464bb4ebd6c0,issue_16.csv,"### Describe the bug
+
+The CI/CD scripts detected this once the -werror was added. 
+
+### Version
+
+5.5.0 (master @57464bb4ebd6c0)
+
+### Operating System
+
+MacOS
+
+### Relevant log output
+
+```shell
+/Users/runner/work/xz/xz/build-aux/../src/xz/message.c:726:20: error: format string is not a string literal [-Werror,-Wformat-nonliteral]
+                vfprintf(stderr, fmt, ap);
+```",negative,-0.670911,neutral,-0.125375764,neutral
+Jia Tan,Andreas Müller,issue_18.csv,"Thanks @ndu2 for doing some benchmarking and the demo pipeline! I hadn't forgotten about this but we had higher priority things to work on instead. MSVC support for xz is still fairly recent, so adding it to the CI pipeline would be great. I'll take a look at your demo pipeline hopefully soon :)
+
+The existing CI tests likely need a bit of a clean up anyway, some parts were written hastily by me. They have proven to be great for catching bugs though. We don't have plans for using CI for releases.
+
+The assembly code is only for decoding so that explains your results. Using larger test files may help be sure that the results aren't due to noise.",positive,0.648303,positive,0.950848508,positive
+Jia Tan,Andreas Müller,issue_18.csv,"
+This will be really helpful to include since for now I just test things locally on a VM with x64 MSVC. Automating this plus extending coverage will save me some effort :)
+
+
+I haven't worked much with Windows Batch scripting or PowerShell either :/
+At a glance what you have makes sense but I will play around with it a bit.
+
+
+We currently just use the built-in test harnesses for our Autotools and CMake builds. The way you have it now seems logical, to just loop through the test executables and run them, although the best way to report the errors may need to be looked at. Maybe this is something we could add to `tuktest.h`, but at the moment I'm not sure how it would fit in.
+
+
+We had another recent request for Windows binaries, so we will more seriously consider this. We need to verify there are no license restrictions preventing us from distributing Windows binaries with the compiler we choose to use (MinGW-w64, MSVC, Clang-cl, etc.). Also, I would probably want to generate the Windows binaries locally instead of relying on GitHub runners. The GitHub CI runners are a common attack surface these days so it could be an extra risk. Currently, we only use CI for testing so if the GitHub runners are compromised then its not a security threat. 
+
+
+I cloned your fork already, so no need to make a PR unless you want to. I suppose it could be helpful to keep the conversation focused on various parts of the code. We usually don't merge PRs directly anyway. Instead we usually take commits we like and adapt the other parts as needed. Don't worry, you'll still be the Author on any commits that are mostly unchanged :)",positive,0.433693,positive,0.647531371,positive
+Jia Tan,Anton Kochkov,issue_48.csv,"Thanks for the bug report! I created a new branch [tuklib integer fix](https://github.com/tukaani-project/xz/tree/tuklib_integer_fix) with a potential fix for this. Can you test this to see if it builds correctly? Only the first commit should be needed for this bug, but the second should possibly silence some warnings for other users (MSVC builds).
+
+Also, I noticed in the liblzma.wrap file that you linked uses a different mirror to pull the release. I would advise against this, since that mirror is not affiliated with us and is not as up to date as this repository. The hashes between the tag on the mirror and the tukaani.org link are different because the GitHub generated .tar.gz does not go through the same release steps that our official source code release does. For your purposes, the differences from the source code release are probably not important since they are mostly for users building with Autotools. We sign both the tags and the source code release, so either should be secure. We have released 5.4.2 a few weeks ago, so 5.4.1 is no longer the most recent stable release.",positive,0.287707,positive,0.610403146,positive
+Jia Tan,Anton Kochkov,issue_48.csv,"Commits have been pushed to master, so the fix will be in our next release. Thanks for verifying the fix!",positive,0.974079,neutral,0.121195544,positive
+Jia Tan,Arthur S,issue_18.csv,"@arixmkii Eventually, I would like to support the MSYS, UCRT64, and MINGW64 flavors in CI runners. Along with MSVC CMake of course. The other ones either don't run on x86-64 (which is what the GitHub-hosted runners support), or are the same but just use clang. The clang build is already tested by the MacOS runner, so its probably not necessary to test it on Windows. 
+
+I don't develop or use xz or liblzma on Windows, but we have a few users who do. My note about MinGw and CMake was more about testing the autotool and CMake builds on Windows. So, I think using msys2 makes sense since it is likely many of our users do so.
+
+To start, I think just picking one environment would be great. I feel the most useful one would be MINGW64 (msvcrt) if we also have CMake testing ucrt. Our README-Windows.txt suggests that we only support msvcrt, but this is likely outdated. Since we already have a lot of runners and configurations, maybe the other environments could be in a separate Workflow that we run manually pre-release or if we are addressing a Windows specific bug.
+
+Thanks for offering to help with this! I was planning on working on this soon, but I kept delaying it to work on other things. Your help would be greatly appreciated if you have the time to do it :)",positive,0.290962,positive,0.252872033,positive
+Jia Tan,Arthur S,issue_18.csv,"@arixmkii I ended up making the Windows-CI work with MSYS2, but it would be great if things worked with MSVC (which is why I left the Issue open). If you have experience working with MSVC that is great.
+
+I imagine this would require writing a Windows PowerShell or Batch script to do things similar to what ci_build.sh does, and then refactoring windows-ci.yml to utilize the script. We need to use CMake to generate Windows Visual Studio files (using CMake's `-G` option to select the generator) and then compile everything and run the tests from Windows PowerShell or Command Prompt.
+
+Recently we ported the xz command line tool to work with MSVC so making sure we can continue to build on MSVC as the codebase changes is certianly valuable. ",positive,0.493185,positive,0.867421891,positive
+Jia Tan,Arthur S,issue_18.csv,"
+I am not sure how experienced you are with CMake, but we shouldn't need anything too complicated. I haven't fully thought through it, but here are a few ideas I have had so far:
+- The GitHub Windows runner comes with CMake by default. You will not need to install it manually (https://github.com/actions/runner-images/blob/main/images/win/Windows2022-Readme.md)
+- It's probably a good idea to make most of the work be done in a separate script in the build-aux folder, similar to the concept of build-aux/ci_build.sh. The reason to do this is because the GitHub Workflow .yml files are harder to test/debug since you cannot run them locally. It's a lot easier to develop the script and then use the GitHub Workflow to wrap around it.
+- In the script, you should be able to specify the Visual Studios build with the -g option (https://cmake.org/cmake/help/latest/generator/Visual%20Studio%2017%202022.html).
+- After the generating step, `cmake --build` should compile and project
+- As of right now, CMake should not build the xz command line tool, just liblzma. The same number of tests should still build and pass, but I have not run these tests personally on MSVC so I cannot guarantee they will work as expected. If any of them fail unexpectedly, send us the log and we will fix it :)
+
+I hope this helps! Thanks again for your contributions so far. Let me know what other questions you may have.
+",negative,-0.288033,neutral,0.157781673,neutral
+Jia Tan,Arthur S,issue_18.csv,"@arixmkii Are you still working on this? If you don't have time to finish it, no need to worry. I can finish up the last few changes and close this out. ",negative,-0.531756,neutral,0.046219068,neutral
+Jia Tan,Ashish Shirodkar,issue_18.csv,"Hi! This question doesn't exactly belong on this issue. This issue is for discussing changes to our Continuous Integration scripts for improving Windows support (which I still need to improve/finish). Anyways, I will still answer your question here.
+
+
+We have always had the `BUILD_SHARED_LIBS` option defined in `CMakeLists.txt` since we first supported a CMake build. You can search for the line `option(BUILD_SHARED_LIBS ""Build liblzma as a shared library instead of static"")` if you are curious. In general, CMake defaults to `BUILD_SHARED_LIBS` not being set. Other projects can choose to override this by default but since we have always had it OFF by default it is difficult to change. Applications may be relying on this default behavior if they only want the static library to be built. So changing the default to instead build the shared library could cause their build pipelines to fail.
+
+Thank you for this report, but we will not be changing this.",positive,0.317188,neutral,-0.018163867,negative
+Jia Tan,Benjamin Buch,pr_51.csv,"Thanks the for PR! This is a great addition. It seems like the FindLibLZMA module has something similar to protect against multiple find_package() calls, so it seems like a common protection to include.
+
+Can you wrap your commit message with newlines around 73 character width? The first sentence in your commit message is a bit long. The reason we care is because in our releases the Changelog is generated from the commit messages. In order to keep this and the commit log itself looking nice, we have a few standards we try to enforce.",positive,0.808575,positive,0.967186587,positive
+Jia Tan,Benjamin Buch,pr_51.csv,"@bebuch I was able to make the commit message change during the Squash and Merge. The commit is in your name and I only made stylistic edits to the message (I did not change the meaning).
+
+Thanks for your contribution!",positive,0.52253,positive,0.749315162,positive
+Jia Tan,ChanTsune,pr_57.csv,"Hi! Thanks again for the very detailed PR. I looked more into wasm signal support since at first I thought it was some sort of bug that the signal emulation did not define `sigset_t` or `sigprocmask()`. This seems intentional however so your PR is certainly needed for a successful port to web assembly.
+
+What you have so far seems like it is enough for liblzma to build, but we also should support an xz port. This should be easy to add just by following the example of VMS in src/xz/signal.*. Since the only functions in xz that use `mythread_sigmask()` it should be enough to define signals_block() and signals_unblock() as no-ops in signal.h (and remove implementation from signal.c).
+
+Let me know if you have questions or if something else is preventing us from building xz with wasi-sdk",positive,0.705604,positive,0.83707488,positive
+Jia Tan,ChanTsune,pr_57.csv,"On second thought, will be more complicated that I initially thought since `signals_init()` needs to be disabled too. I will merge what you have once I make a fix for the xz side. Thanks for you contributions!",positive,0.643076,positive,0.599608533,positive
+Jia Tan,ChanTsune,pr_57.csv,"@ChanTsune We would like to add you to our THANKS file in the repository but were not sure what your name was. If you are interested in being credited in the THANKS file please let us know the name you would like credited since we could not find it on your GitHub profile.
+
+Thanks again for your contribution!",positive,0.993924,neutral,-0.04872177,positive
+Jia Tan,ChanTsune,pr_56.csv,"Hi! Thanks for the PR. Unfortunatly, I do not think this PR solves a problem. I am guessing the issue is with your build setup instead. If you look at `mythread.h`, the functions referenced in your error message are in the `#elif defined(MYTHREAD_POSIX)` block and should be removed by the preprocessor.
+
+If you are using our `CMakeLists.txt`, then setting `ENABLE_THREADS=OFF` will ensure `MYTHREAD_POSIX` is never added to the compile definitions. Its possible a `make clean` or removing the `CMakeCache.txt` could solve your problem.
+
+Compiling liblzma with WebAssembly sounds like a great project though!",positive,0.616223,negative,-0.237212799,positive
+Jia Tan,ChanTsune,pr_56.csv,"Thanks for the updated error message. Can I ask more about your build environment? The `<signal.h>` header file should provide definitions for `sigset_t` and `sigprocmask()` in a POSIX compliant system and the preprocessor should filter out Windows builds that do not set the `__CYGWIN__` macro.
+
+The reason I want to avoid removing `#include ""mythread.h""` from `common.h` is
+1. Avoid breaking something unexpectedly
+2. It allows referencing `MYTHREAD_ENABLED` just by including `common.h`. Our `common.h` header files includes `config.h` (when building with autotools) and that contains all of the configurations. So it makes the liblzma files simpler since they only need to include `common.h` to get all configurations.
+
+Usually only including the header files you actually need is a good idea. In this case, there are few other files that would need to include `mythread.h` for it to work. But I would like to avoid this if possible.",positive,0.374776,negative,-0.712798561,neutral
+Jia Tan,DavidKorczynski,pr_73.csv,"Thank you @DavidKorczynski for the explanation and the advice for combining fuzzers. I had not thought of using a byte from the fuzz input to control the fuzzer's entry point.
+
+With that in mind, @mvatsyk-lsg we should combine `fuzz_encode_stream.c` and `fuzz_encode_stream_light.c` into just one fuzzer. We can use the same name `fuzz_encode_stream.c` for this fuzz target. We can use the first byte of input to help us determine the preset level. So the function could look like:
+
+```c
+extern int
+LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+{
+	if (size == 0)
+		return 0;
+
+	lzma_stream strm = LZMA_STREAM_INIT;
+
+	uint32_t preset_level;
+
+	uint8_t decider = inbuf[0];
+
+	switch (decider) {
+	case 0:
+	case 1:
+	case 5:
+		preset_level = (uint32_t)decider;
+		break;
+	case 6:
+		preset_level = 0 | LZMA_PRESET_EXTREME;
+		break;
+	case 7:
+		preset_level = 3 | LZMA_PRESET_EXTREME;
+		break;
+	default:
+		return 0;
+	}
+
+	lzma_options_lzma opt_lzma;
+	if (lzma_lzma_preset(&opt_lzma, preset_level)){
+		fprintf(stderr, ""lzma_lzma_preset() failed\n"");
+		abort();
+	}
+
+	// Initialize filter chain for lzma_stream_decoder() call
+	// Use single LZMA2 filter for encoding
+	lzma_filter filters[2];
+	filters[0].id = LZMA_FILTER_LZMA2;
+	filters[0].options = &opt_lzma;
+	filters[1].id = LZMA_VLI_UNKNOWN;
+
+	// Initialize the stream encoder using the above
+	// filter chain and CRC64.
+	if (lzma_stream_encoder(&strm,
+			filters, LZMA_CHECK_CRC64) != LZMA_OK) {
+		fprintf(stderr, ""lzma_stream_encoder() failed\n"");
+		abort();
+	}
+
+	fuzz_code(&strm, inbuf  + 1, inbuf_size - 1);
+
+	// Free the allocated memory.
+	lzma_end(&strm);
+	return 0;
+}
+```
+
+This can test a few different dictionary sizes, match finders, nice length, modes, and depth levels with the same fuzzer.",positive,0.56319,positive,0.696174577,positive
+Jia Tan,Dimitri Papadopoulos Orfanos,pr_58.csv,Thanks for the typo fixes! Maybe we should include codespell as part of the CI pipeline or a local git hook. Or even a manual step for myself before pushing...,positive,0.979117,positive,0.472699463,positive
+Jia Tan,Gabriela Gutierrez,pr_67.csv,"Thanks for remaking the PR!
+
+Everything looks great except can you tweak your commit messages slightly? If you could prepend ""CI:"" before the first line of your commit message (""Bump and ref actions..."") that would be great. We like to do that to help search/filter commits by category. Also, in the first commit can you mention the reason why this change is needed? Something like the text from #65 could be enough:
+
+""Referencing actions by commit SHA in GitHub workflows guarantees you are using an immutable version. Actions referenced by tags and branches are more vulnerable to attacks, such as the tag being moved to a malicious commit or a malicious commit being pushed to the branch.""
+
+Or if you want to reword it at all.",positive,0.46592,positive,0.828231664,positive
+Jia Tan,Gabriela Gutierrez,pr_67.csv,It looks great! Thanks,positive,0.983475,positive,0.990425803,positive
+Jia Tan,Gabriela Gutierrez,issue_38.csv,"Hi Gabriela!
+
+Thank you for notifying us about this important security practice. I had not set the more restrictive Workflow permissions, so I have just updated the default to be read-only. Our CI tests are quite simple, so read-only is enough permissions for us.
+
+Specifying the permissions explicitly in the ci.yml file probably isn't needed now that the default permissions have been updated, but it also doesn't hurt. I suppose it will keep us safe in case GitHub updates their default permission policy. If you submit a PR to update it, I will be happy to review and accept it :)
+
+XZ Utils is still new to GitHub, so if you have any other security recommendations for us, please notify us.",positive,0.671163,positive,0.868453331,positive
+Jia Tan,Gabriela Gutierrez,issue_65.csv,"Hello!
+
+Thanks again for the security advice. I suppose the only downside for this is not receiving potential bugfixes for the version we reference for the action. This can be mitigated by me not being lazy and subscribing to receive notifications when these repositories publish a release, so I have done that :)
+
+Feel free to provide a PR for this. I believe all that needs changing is:
+
+ci.yml
+- actions/checkout
+- actions/upload-artifact
+
+windows-ci.yml
+- actions/checkout
+- actions/upload-artifact
+- msys2/setup-msys2",positive,0.564008,positive,0.855070056,positive
+Jia Tan,Gabriela Gutierrez,issue_65.csv,"The issues preventing Windows-CI from passing have been fixed on master. There were actually two problems, both related to Clang 17.0.1 release. If you are curious, [this](https://github.com/tukaani-project/xz/commit/0570308ddd9c0e39e85597ebc0e31d4fc81d436f) and [this](https://github.com/tukaani-project/xz/commit/01e34aa1171b04f8b28960b1cc6135a903e0c13d) are the commits. The related bugs for Clang are in the commit messages :)
+
+So feel free to continue your work on a PR now that the issues are resolved. Thanks for bringing this to our attention!",positive,0.619258,positive,0.990495339,positive
+Jia Tan,Gabriela Gutierrez,pr_47.csv,"Thanks for the PR! I recently enabled GitHub's Security Advisories feature so we should list that as a reporting option. Email is the preferred option, so we should list that option first. 
+
+Can you move the SECURITY.md to the .github folder? Since this is a GitHub specific file and the rest of our documentation is .txt files, this would fit better.
+
+The 90 day timeline to fix security reports is plenty of time for us, so I think that is very reasonable for us to adhere to.",positive,0.829215,neutral,0.100362763,positive
+Jia Tan,Gabriela Gutierrez,pr_47.csv,Looks great. Thanks for the contribution!,positive,0.982171,neutral,-0.000903156,positive
+Jia Tan,Gabriela Gutierrez,pr_66.csv,"@gabibguti It looks like Windows CI is broken on the master branch, so thanks for letting us know. I have it set it up to only run manually because it runs much slower than Ubuntu and Mac OS runners. I suppose I should manually run it more often.
+
+We have been doing a few Windows related changes for xz recently so thats likely what broke it. I will investigate the issue and let you know when  it is fixed.",negative,-0.337551,negative,-0.408124261,neutral
+Jia Tan,Hans Jansen,pr_64.csv,"Hello!
+
+Thanks for the PR, this is something we have wanted to implement since CLMUL was added for CRC64. 70% speed up over the generic method is a great speedup!
+
+If you are willing, can you do some additional benchmarks for us since you already have a framework setup? We are wondering what impact the compiler has, so can you show us differences between using GCC and Clang? This especially matters when it comes to the 3% speed up you mentioned for the inline asm. 3% isn't that significant, especially if its only for CRC32. It adds extra complexity to the code and makes it harder to maintain long-term, so we want to make sure it is worth it. Similarly, can you try making CRC_SIMD_BODY an inline function instead of a macro? This could make it easier to read/maintain. If it has a significant impact on performance then we should stick to a macro.
+
+So in summary, can you benchmark:
+
+- Impact of using GCC versus Clang in general
+- Impact of  removing the inline asm (GCC and Clang both)
+- Impact of replacing CRC_SIMD_BODY macro with inline function (GCC and Clang both)
+
+You don't need to make this change now, but before merging it would be great if you can clean up the commits:
+
+- Label each commit with ""liblzma:"". We do this since it helps keep the commit log consistent and organized.
+- Please squash commits 1, 3, and 5 into a single commit. I understand this is how you developed it and the thought process makes sense. But it will help the commit log stay cleaner if we don't have to create crc_clmul_macros.h just to later rename its variables and rename the file itself.
+
+Feel free to add fix up commits as we go through the review process but at the end we will need these changes.",positive,0.833104,positive,0.966795844,positive
+Jia Tan,Hans Jansen,pr_64.csv,"
+Thanks for the updates!
+
+
+Thanks for benchmarking the 32-bit version. I would have expected the CLMUL version to be much better than the assembly or the generic to be fairly close to the assembly. We'll take that into account when deciding how to proceed with 32-bit builds.",positive,0.773085,positive,0.887846208,positive
+Jia Tan,Hans Jansen,pr_64.csv,"@hansjans162 We committed some changes to reorganize the CLMUL code. We refactored things so all the CLMUL specific code is in a new `crc_clmul.c` file. Also, we created a macro `crc_always_inline` to force inline of `crc_simd_body()` since it was 50% slower on my benchmarks if the function is not properly inlined.
+
+A few small changes were made to `crc_simd_body()` but the speed performance was not affected. I hope if you had already started working on ARM64 versions this does not add much extra work to incorporate the code reorganzation. These changes should make the code much better organized for the future ARM64 optimizations. Thanks for all your contributions and feel free to reply here or reach out over email (the email in the project README will redirect to Lasse and I) if you have comments or questions.",positive,0.587696,positive,0.984464987,positive
+Jia Tan,Hans Jansen,pr_53.csv,"Thanks for the PR and the helpful links! Overall this seems like a nice improvement to our function picking strategy for CRC64. It will likely be useful when we implement CRC32 CLMUL too :)
+
+I want to do a bit more research about the GNU indirect functions to make its right for this project before we decide to merge. Before that, there are a few style changes that need to be made. I will comment them separately.",positive,0.948349,positive,0.83909033,positive
+Jia Tan,Hans Jansen,pr_53.csv,@hansjans162 Just merged from the other branch Thanks for your contribution! ,positive,0.957441,neutral,0.039261522,positive
+Jia Tan,Jamaika1,pr_59.csv,"@Jamaika1 Thanks for the PR! Looks like this typo had been in the code for some time, so your fix is very appreciated.
+
+If you would like your name to appear in the `THANKS` file, I will need the name you wish to appear there since I could not find it on your profile. If you wish to stay anonymous that is ok too :)",positive,0.843751,positive,0.819542436,positive
+Jia Tan,Kelvin Lee,pr_60.csv,"Hello!
+
+Thank your for the PR. I have been wanting to add MSVC support to xz but have not had the time yet. Unfortunately this cannot be accepted in its current state because many things are preventing this from building with MSVC.
+
+First, there are no build system changes. We are moving away from supporting the Visual Studio Solution Files starting with the upcoming 5.6.0 release planned for the end of this year. Instead we would like our Windows users to use CMake instead to generate the Visual Studio files.
+
+Second, there are functions that I don't think Visual Studio default C libraries support. Specifically the functions in mytime.c would still need to be ported for this to compile.
+
+I did not try to build this yet since the build system changes were not made. I did not review closely yet the changes that were made to alias functions and structs in file_io.* so I cannot comment one way or another on those.
+
+I don't mean to discourage your efforts on this. I do want xz to build with MSVC eventually but it should be done small stages. The first stage I would start with is by adding CMake support for getopt_long() replacement. The Autotools build has support for this and the replacement files are in /lib. The next stage could be porting the file_io functions, perhaps what you have already works for that. Then maybe the mytime.c functions. Eventually, we can remove the ""NOT MSVC"" check for CMake building the xz target in CMakeLists.txt when we are confident things are working well.",positive,0.2703,negative,-0.467678208,negative
+Jia Tan,Kian-Meng Ang,pr_74.csv,"Hello!
+
+Thanks for the PR. Could you please separate this into two separate commits? One for the typo fix in `file_io.c` and another for the typo fixes in the test files. 
+
+In the commit messages, the first should be prefixed with ""xz:"" instead of ""Docs:"". We use the ""Docs:"" prefix when referring to changes to things like the README, man pages, INSTALL, etc. The second commit should be prefixed with ""Tests:"".",positive,0.898565,positive,0.971451895,positive
+Jia Tan,Kian-Meng Ang,pr_74.csv,Thanks for making the changes!,positive,0.987078,neutral,0.028419971,positive
+Jia Tan,Kian-Meng Ang,pr_74.csv,"
+Two separate commits is fine.",neutral,0,neutral,0.006316004,neutral
+Jia Tan,Ricky Tigg,issue_72.csv,"Hello!
+
+
+There is a section in INSTALL.generic ""Installation Names"". This describes when using the Autotools build system where the installation files go (defaults to `/usr/local/`). Your Linux distribution should install/update your packages in a different directory so these should not conflict.
+
+You may already know this, but typically to build and install a package with Autotools the steps are (and should be covered in INSTALL.generic already):
+
+1. `./configure [options]`. The options can enable/disable features, dependencies, set installation locations, etc.
+2. `make`. This will compile the project.
+3. `make check`. This will compile and run the test framework to be sure the binaries work as expected.
+4. `make install`. This will install the binaries and documentation (unless disabled).
+5. `make uninstall`. This will remove the installed artifacts.
+
+You can set a different installation location when running configure by passing `--prefix=[path to install directory]` or during installation `make install DESTDIR=[path to install directory]`.
+
+I hope this explanation was clear. Let me know if you have more questions.
+",positive,0.432211,positive,0.98914603,positive
+Jia Tan,Ricky Tigg,issue_72.csv,There is no shame in asking question. I'm glad we were able to help :),positive,0.510534,neutral,0.028673593,positive
+Jia Tan,Ricky Tigg,issue_71.csv,"I can understand the confusion here. While GitHub does a lot of things well, unfortunately maintainers on GitHub have no control over the naming of the ""Source code"" release files, but we can add extra files to the release. Some projects choose to add pre-compiled binaries to the release, so it is more obvious in those projects which files you want to download (and to be sure that the source is always easily available for every release without having to clone the entire project).
+
+It is my understanding that under the hood GitHub is using `git archive` to generate the ""Source code"" archives based on the tag of the release. So it would be possible for us to exclude most or all files from `git archive` using a `.gitattributes` file to make it clear that the GitHub auto-generated archives are not meant to be consumed by users. This would be annoying for anyone who has already been using `git archive` though so I don't see us doing this.
+
+Like many projects, when we generate our source code releases, we essentially run Automake's `dist-gzip` target to prepare our documentation, translations, etc. and, as you know, generate the configure script. `git archive` does not run these steps and so the GitHub archives are best thought of as a snapshot of the git repository at the time of the release.
+
+So, its best to ignore the GitHub generated archives for a majority of repositories on GitHub. I hope this helps!",negative,-0.335689,neutral,-0.151403895,neutral
+Jia Tan,Sam James,pr_22.csv,I am working on redesigning it. It was going to have a lot of merge conflicts since the port to MSVC and I had some better ideas on how to do the directory processing. So its still a work in progress. We ended up not using Pull Requests for things that Lasse and I develop and have each other review. So the next iteration of this will probably on a different branch and not a PR,positive,0.325116,neutral,0.114128456,neutral
+Jia Tan,Tuukka Rouhiainen,issue_46.csv,"Hi Gabriela! This seems like a great idea, thanks for the suggestion. At the moment, users are expected to report security reports to our project's email address (xz@tukaani.org). Since we moved to GitHub, it is probably less clear that is our expectation, especially for users who find the project through GitHub. So setting up a SECURITY.md file will be helpful.
+
+You are welcome to suggest an initial version for the Security Policy through a PR. Thanks for the help!",positive,0.883995,positive,0.930076685,positive
+Jia Tan,Vincent Fazio,pr_32.csv,"@vfazio Thanks for the bug report and PR! I am not familiar with the Microblaze platform and I am surprised that `__has_attribute` can report a false positive like this.
+
+Do you know if GCC on Microblaze supports symver? I am asking because if  `__attribute__((__symver__ ...))` is not supported then `__asm__("".symver "" ...)` is used instead with your patch. If symver is not supported on Microblaze, then the better solution would be to disable HAVE_SYMBOL_VERSIONS_LINUX in configure.ac (and in CMakeLists.txt) for Microblaze.
+
+By the way, as a temporary workaround, you can configure with --disable-symbol-versions and the build should work.",positive,0.659032,positive,0.927716692,positive
+Jia Tan,Vincent Fazio,pr_32.csv,Thanks for reporting this and helping us fix @vfazio and reporting to gcc! I am closing this since the issue seems resolved with our workaround. Let us know if there are any other issues that you find :),positive,0.836745,negative,-0.607417536,positive
+Jia Tan,Xin Li,pr_43.csv,"Hi @delphij! Thanks for the notifying us about the issue and for the PR. I solved it a slightly different way with the newest commits on master to avoid unneeded function calls after ENOSYS and to issue a warning message. Can you verify this solves the problem? Additionally, an extra check should be added to ax_check_capsicum.m4, but that can be added later.",positive,0.630765,positive,0.243864391,positive
+Jia Tan,Xin Li,pr_43.csv,"Silly mistake by me. I just pushed up [01587dd](https://github.com/tukaani-project/xz/commit/01587dda2a8f13fef7e12fd624e6d05da5f9624f) with your suggestion of hiding it in the `#else` clause.
+
+This seems like the most efficient solution, although I'm guessing compilers would be smart enough to optimize the jump out of your second suggestion.
+
+Hopefully it works this time! Let me know if there are any other issues.",positive,0.475874,neutral,0.005883485,positive
+Jia Tan,autoantwort,pr_42.csv,"Hi! Thanks for the bug report and PR.
+
+All of the targets that need to be compiled require C99, so it would be better to just set the CMAKE_C_STANDARD variable at the top of CMakeLists.txt like this:
+
+```
+set(CMAKE_C_STANDARD 99)
+```",positive,0.505194,positive,0.230338361,positive
+Jia Tan,autoantwort,pr_42.csv,"This should be fixed as of commit 4b7fb3bf41a0ca4c97fad3799949a2aa61b13b99 on master. @autoantwort can you let us know if this does not solve the bug?
+
+This will be in a new stable 5.4.2 release in the near future. Thanks again for reporting this!",positive,0.486301,neutral,0.049244242,positive
+Jia Tan,autoantwort,pr_42.csv,"The liblzma API headers should be compatible with C89, but the internal headers used by the source code are not. ",negative,-0.471709,negative,-0.721781482,negative
+Jia Tan,boofish,issue_20.csv,"Hi! Thank you for the bug report, but I will close this bug report because it is a documented feature of XZ Utils. 7zip and XZ Utils are almost completely compatible with how they treat .xz and .lzma files, but here is an example of where they differ.
+
+My quick maths determined this file has the settings pb = 1, lp = 3, lc = 5, which is unsupported by XZ Utils. XZ Utils will only compress or decompress .lzma and .xz files if lp + lc <=4.
+
+This is is documented in doc/lzma-file-format.txt (~ line 105 as of 2022-07-13) and src/liblzma/api/lzma/lzma12.h (~ line 280 as of version 5.4.1). I was not part of the project when this decision was made, but my understanding is that files with lc + lp > 4 are unlikely to improve compression significantly and will use a lot more memory and computation time when compressing or decompressing. 
+
+Since .lzma has been a legacy format since 2009 and .xz does not support these types of settings, we do not plan to change this. Old .lzma files that have been created with these settings can still be decompressed with 7zip and new files should be using the .xz format anyway.",positive,0.435057,neutral,-0.004403163,neutral
+Jia Tan,cblc,issue_54.csv,Thanks @cblc for reporting this! We had a similar report recently (mentioned by @thesamesam) so we made a much needed update to the INSTALL file. I hope this update helps you and future users with similar questions.,positive,0.904109,positive,0.884951106,positive
+Jia Tan,duerpei,pr_52.csv,"Hi! Thank you for the code suggestion. In order for us to accept a change like this, we need more information about the problem that is solves. What is the need to compile the tests programs locally without running them? Is it a cross-compile situation where you want to copy over the test binaries after everything else is built?
+
+If this is the case, then a better solution is to override the TESTS variable in a make check command to be empty on your build machine:
+
+`make check TESTS=`
+
+The TESTS variable, from the Automake docs: 
+
+""If the special variable TESTS is defined, its value is taken to be a list of programs or scripts to run in order to do the testing.""
+
+So, this is the list of tests to execute. If you leave it empty, it will still build all of the tests and then not execute any. Would this solve the issue?",positive,0.617932,neutral,0.100538397,neutral
+Jia Tan,mgood7123,issue_70.csv,"
+The default build options need to create a working build on all of our supported platforms. Right now people can just disable ifunc for a working musl build as you discovered with `-DALLOW_ATTR_IFUNC=OFF`. That is only a temporary workaround since we want to make our build systems as easy to use for people as possible.
+
+I have been working a [branch](https://github.com/tukaani-project/xz/tree/ifunc_detect_fix) to address this. The idea is to change the ifunc option for our CMake and Autotools build from ON/OFF or enable/disable to auto/ON/OFF. 'auto' will try to enforce using ifunc with glibc or BSD platforms only. ON will always try to use ifunc and OFF will obviously disable ifunc completely. Both auto and ON will still test the compiler if it supports `__attribute__((__ifunc__()))`.
+
+If you can test the new branch on Alpine that would be very helpful. I tested with `musl-gcc` wrapper and things seemed to work. We haven't decided 100% if this is the approach we want to take but it seems promising so far.
+
+Thanks for all of your help so far!",positive,0.461771,positive,0.86471656,positive
+Jia Tan,mgood7123,issue_70.csv,"@mgood7123 Thanks again for reporting and helping us test this. I would like to add you to our `THANKS` file, but I did not see your name on your GitHub profile. Is there a name you would like us to use for you in our `THANKS` file? Otherwise you may remain anonymous :)",positive,0.826081,neutral,0.033441788,positive
+Jia Tan,mgood7123,issue_68.csv,"Our CMake support is considered unstable and is undergoing a lot of improvements. Many of these improvements are already on master but have not made it into a stable release. If you only need `liblzma`, then using a release from the 5.4 branch will work. We will have a new `5.4.5` release later today and that will include a few small CMake changes. We recently ported the command line tools `xz` and `xzdec` to MSVC but that will not be part of any of the 5.4 releases
+
+We are planning to release 5.6.0 this December which may change the default library to being a shared library. We may consider our CMake support stable at that point. So, to be safe you should explicitly set the `BUILD_SHARED_LIBS` option if you do build `liblzma` through CMake since this option's default value specifically might not be stable.
+
+If you can use our Autotools build system on Windows through something like Cygwin or MSYS2, that is recommended over CMake at the moment. If not, our CMake build will likely still work for you, but be careful of minor things changing in the future. We generally don't break things with our CMake build and are usually just adding more features. I hope this answers your question!",positive,0.609835,neutral,-0.075224284,neutral
+Jia Tan,mgood7123,issue_70.csv,"
+I don't think this will work for us since a tool like `musl-gcc` (a GCC wrapper for using musl libc) still outputs `x86_64-linux-gnu` with `-dumpmachine`. So this would fix things for Alpine, but our builds would still be broken for anyone compiling for musl libc using a wrapper like this.
+",negative,-0.638151,negative,-0.878084078,negative
+Jia Tan,mvatsyk-lsg,pr_73.csv,"Hello!
+
+Thanks for the PR. This is a great start to improving the fuzz testing. I will start with a few overall comments here and then add some more specific comments directly on the commits themselves.
+
+First, we need to be sure that we are using the fuzz resources in the best way we can. Its easy to think of the OSS-Fuzz resources as unlimited, but each project can only be fuzzed so much. We should only include a fuzz target if it provides clear value and is testing an important part of liblzma that isn't being covered by a different fuzz target. Otherwise, less useful fuzz targets will take away compute time from the more useful ones. So, can you justify the reasoning behind each of the new fuzz targets? For instance, I am not sure that the raw encoder and decoder fuzz targets are useful since their important code paths are already covered by every other fuzz target. The raw coders don't have important header data, its just raw LZMA data. I am likely missing an important fuzz case, but in my mind I can think of three useful things to fuzz in our library:
+
+- Metadata encoding/decoding (magic bytes, file headers, block headers, lzma2 chunk headers, etc.)
+- Filter data encoding/decoding (LZMA1, BCJ, delta)
+- Check functions (CRC32, CRC64, SHA256)
+
+Next, the code itself has a lot of repeated boilerplate. Each of the fuzz targets has very little unique code. For instance, this could be reorganized into a shared header file that provides a function for encoding and a function for decoding. These functions can take the coder init function (lzma_alone_decoder(), lzma_auto_decoder(), etc.) as a function pointer arg and any needed flags or options.
+
+We could also consider fuzzing the various BCJ filters (x86, PowerPC, ARM64, etc). These filters are designed to be applied to executable data, but will be run on non-executable data very often. So its possible that there are hidden data corruption bugs on an unexpected input sequence since they are mostly tested on executable data, making it a good candidate for fuzz testing. These filters cannot be used as raw coders at this time, so they will have to be combined in a filter chain with LZMA1/2. If we want to look for data corruption bugs, we should encode a chunk, then decode it and compare if the decoded version exactly matches the original data.
+
+For your commit messages, we like to keep a consistent format. When we release, our Changelog is generated automatically from the contents of the commit messages. Also it helps us maintain our codebase better when the commit messages are descriptive and clear. For your commits, please have them start with the category of what they are changing. For these, I would prepend ""Tests:"" to the first line of each commit. The first line of each commit should be a brief description of the purpose of the commit. The following lines should explain what was changed and why. Make sure to wrap the lines of the commit message to at most 73 characters since different commit log viewers may or may not wrap long lines and it helps keep a consistent look in our Changelog.",positive,0.663239,positive,0.977326537,positive
+Jia Tan,mvatsyk-lsg,pr_73.csv,"
+Makes perfect sense. I noted the BCJ filter fuzzing as option to consider. We don't necessarily need to implement it or implement it right away. Just an idea of something we could also be fuzzing if we agree the value is there.
+
+
+I think the simplest approach would be to use a common separate header file. Creating a dynamic template would take some extra build logic whereas an extra header file would only require updating the Makefile.",positive,0.631539,positive,0.678681877,positive
+Jia Tan,mvatsyk-lsg,pr_73.csv,"
+We like to keep our commits small and focused, so we will likely want more than one commit for this many changes. For now, don't worry about squashing your commits until the review is basically done. At the end we can figure out how many commits are appropriate for this and squash accordingly. So feel free to keep adding fix up commits as we go.
+
+I'll start reviewing your new changes.",positive,0.65464,positive,0.266170269,positive
+Jia Tan,mvatsyk-lsg,pr_73.csv,"
+Its safe to remove the `.lzma_raw` files and the `tests/files/README` changes.
+
+Thanks for all the changes so far! I feel we are getting close to this being ready.",positive,0.457775,positive,0.955397343,positive
+Jia Tan,mvatsyk-lsg,pr_73.csv,"
+I believe what was meant was that we have built up a very large corpus over the years on the `fuzz.c` fuzz target. Since that is renamed to `fuzz_decode_stream.c` in this PR, we would lose that large corpus if we do not take the proper steps to prevent that. We can either not rename this fuzz target or download a copy and restore it. I prefer the latter, and I have already downloaded a recent version of the corpus so it can be restored later.
+
+
+I don't see us incorporating CIFuzz since features get integrated into OSS-Fuzz soon after they are committed anyways. The real question is how OSS-Fuzz divides up time between fuzz targets. I have not seen any description of this on the OSS-Fuzz online documentation so we would likely have to look into their internals to truly answer that question.
+
+
+The point here is that we don't want to over-emphasize the importance of code coverage. Fuzzing is computationally expensive so increasing the code coverage should only be done if we are increasing **meaningful** code coverage. I would much rather fuzz 1 complicated function that 10 simple ones.
+
+So the goal shouldn't be to hit a certain percentage of code coverage. The goal should be to fuzz 100% of critical complicated code. And we don't expect you to know what all the critical complicated code in our project is, thats where we need to work together.
+
+We do appreciate your efforts so far. I know it doesn't feel great to remove things, but in this case less is more.
+
+The LZMA encoder certainly counts as critical complex code and that fuzz target adds a lot of value :)
+
+
+Each fuzz target needs to provide justifiable value outside of just extra code coverage. With the above points in mind, it feels safe to only consider the following fuzz targets:
+
+- fuzz_decode_alone. This test focuses on LZMA1 header/data fuzzing and EOPM handling.
+
+- fuzz_decode_lzip. This test focuses on LZIP header fuzzing. The LZIP header parsing is fairly simple and we have tests for it in the test framework, but maybe its still worth fuzzing.
+
+- fuzz_decode_stream_crc. This test focuses on portions not covered by fuzz_decode_stream. So mainly when the code leading to the check functions and the check functions themselves. The check functions are complicated and may deserve fuzzing, but the code leading to them may not really need fuzzing. So a more focused fuzz target that just calls the CRC and SHA256 functions directly could be more efficient since it avoids the LZMA decoding (which is covered by the other fuzzers).
+
+- fuzz_decode_stream. This test focuses on fuzzing .xz headers, block headers, index, etc. Additionally it fuzzes LZMA2 and LZMA1 decoding.
+
+- fuzz_encode_stream. This test focuses on encoding a .xz file including all of the things in fuzz_decode_stream, except on the encoder side.
+
+There are a few areas where fuzzing could be expanded if we agree these are critical complex code paths:
+
+- BCJ Filters (already partially covered by fuzz_decode_stream)
+
+- Delta Filter (already partially covered by fuzz_decode_stream)
+
+- Different encoder settings (different match finders, dictionary sizes, LZMA properties, etc.). This could be accomplished by having an additional fuzz target for the encoder using preset 1. Instead of the default preset in `fuzz_encode_stream.c` we could use preset 5 since it should be a little faster (smaller `nice_len`) but have almost all the same settings. 
+
+The fuzzer machines do not have multiple cores, so unfortunately it doesn't make sense to fuzz the multithreaded stream encoder/decoder code. Otherwise that would be another candidate for critical complex code.",positive,0.503879,neutral,0.141453486,neutral
+Jia Tan,mvatsyk-lsg,pr_73.csv,"
+Thanks for looking into this!
+
+After some thought, it seems like a better use of resources to omit `fuzz_decode_stream_crc.c` and `fuzz_decode_lzip.c`. If we think the CRC code should be fuzzed we can add a fuzz target to directly test the various check functions. I'm not sure this will be needed since the input data to the check functions doesn't have much impact on the code path taken. On the Lzip side, this feature isn't used much and the header is very simple. We have tests that cover this in the test framework already so it doesn't feel worth the resources to fuzz it when we already have two other fuzz targets that hit the interesting code paths (alone and stream decoder).
+
+Instead, we should split `fuzz_encoder_stream` into two separate fuzz targets. The first could be called `fuzz_encode_stream` and the second `fuzz_encode_stream_light`. `fuzz_encode_stream` should use preset level 5 and `fuzz_encode_stream_light` should use preset level 1. 
+
+After this, I think we are ready to squash the commits. As long as the commits are well organized it doesn't matter exactly how you choose to squash them. Here is one suggestion:
+
+1. Move `fuzz.c` to `fuzz_decode_stream.c`
+2. Separate logic from `fuzz_decode_stream.c` into `fuzz_common.h`
+3. Makefile changes
+4. Add `fuzz_decode_alone` fuzz target
+5. Add `fuzz_encode_stream` fuzz target
+6. Add `fuzz_encode_stream_light` fuzz target
+
+Commits 5 and 6 could be combined, up to you.",positive,0.601463,negative,-0.243102627,neutral
+Jia Tan,mvatsyk,pr_73.csv,"@mvatsyk-lsg Thanks! Things are looking pretty good now. I created a separate [branch](https://github.com/tukaani-project/xz/tree/oss_fuzz) with all of your commits plus a minor cleanup commit. Can you test this branch to be sure I didn't break anything during my changes?
+
+As I'm sure you know, the draft PR in OSS-Fuzz needs updating from all the changes we made here. I want to do a quick local test before merging but it will be easier if the OSS-Fuzz changes are updated on that PR.",positive,0.717294,positive,0.980003149,positive
+Jia Tan,mvatsyk,pr_73.csv,"@mvatsyk-lsg Thanks for the commands to use for a local test. You caught my mistake but testing locally also highlighted it. I just merged your commits into master.
+
+Great work with this! Thanks for being so flexible and responsive with all the changes.",positive,0.807145,positive,0.981213325,positive
+Kelvin Lee,Jia Tan,pr_60.csv,"Added all the changes that I have made to build xz/xzdec with MSVC.
+Mostly for your reference.
+All code are in public domain (following the original license), please feel free to take anything if they fit.",neutral,0,positive,0.343959826,neutral
+Kelvin Lee,Jia Tan,pr_60.csv,Added a commit to fix build break in suffix.c when NOT using MSVC.,neutral,0,neutral,0.043460801,neutral
+Kelvin Lee,Jia Tan,pr_60.csv,"I happen to have a fix for mytime.c too in my own repo. Already forgot about that.
+see: https://github.com/kiyolee/xz-win-build/blob/main/src/xz/mytime.c
+Would you want a PR for that?
+I totally understand the preference of cmake. My way of building things with VS is rather personal and I wouldn't submit that at all as PR.
+The purpose of my PR is only for when you get to build things on Windows, the code is readily buildable, through whatever build system that you prefer.",negative,-0.398009,negative,-0.4682038,negative
+Kelvin Lee,Lasse Collin,pr_60.csv,"All sounds good and reasonable.
+You branch does build and work.
+I guess I can close this PR.
+P.S. I think you are right that Windows build would need to handle those legacy DOS special filenames like `con`, `prn`, `com1`, etc.",positive,0.986269,positive,0.916279589,positive
+Kelvin Lee,Lasse Collin,pr_60.csv,"As per C11/C17 requirement, as you are already requiring VS2015 or later, that pretty much likes requiring Windows 10 or later.
+However, compiling using a specific Windows SDK version does not necessarily limits the Windows version that the output binaries can run on. That's more depending on what Windows APIs you have used. If say no Windows 10 or later only APIs is used, the binaries could likely work on Windows 8 or before. That's what _WIN32_WINNT can help. Define _WIN32_WINNT to the minimum Windows version you want to support, whatever version Windows SDK you use should expose only APIs available for that targeted Windows version.
+But I think requiring a specific Windows SDK could be annoying for users only having older VS. There could be reasons that newer version of Windows SDK cannot be installed.
+If I am correct, the current cmake build would just use the latest Windows SDK available and that is handy. Especially if you limit _WIN32_WINNT to say Windows 8, that means any Windows 10 SDK should work.
+I have not tried though, cmake might have intelligence to sort things out when you require C11/C17. cmake could just complain if the required SDK does not exist.",positive,0.283703,positive,0.293705276,positive
+Kelvin Lee,Lasse Collin,pr_60.csv,"Except a small bug in ""getopt.in.h"" for MSVC (https://github.com/tukaani-project/xz/pull/63), cmake build for MSVC works for all VS2015, VS2017, VS2019 and VS2022.",neutral,0,neutral,0.046323014,neutral
+Kelvin Lee,Lasse Collin,pr_60.csv,"https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=msvc-170
+In case that can be helpful, you can get the HANDLE behind a file descriptor with function `_get_osfhandle()`.",neutral,0,neutral,0.105288377,neutral
+Kelvin Lee,Lasse Collin,pr_60.csv,"https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfiletype
+A quick search and I find this Windows API that may help to detect special named files on Windows.
+Note: MinGW build can target either msys2 or native-windows. For msys2, special filenames may be less of a problem (inherited cygwin capability). For native-windows, special filenames are indeed problematic.",negative,-0.723254,neutral,-0.005139343,neutral
+Kian-Meng Ang,Jia Tan,pr_74.csv,@JiaT75 Done.,positive,0.573428,positive,0.911081566,positive
+Kian-Meng Ang,Jia Tan,pr_74.csv,@JiaT75 Two separate commits or PRs?,neutral,0,neutral,-0.007846211,neutral
+Kian-Meng Ang,Jia Tan,pr_74.csv,:partying_face: :partying_face: :partying_face: :partying_face: :partying_face: ,negative,-0.885919,neutral,-0.027601223,positive
+Kostadin,Lasse Collin,issue_55.csv,"I am testing a git snapshot of mold at the commit mentioned in the original report. And you are indeed right it affects other packages too, I am reporting bugs for those too. Thanks for taking your time and testing this. Going to open a bug on mold's tracker and link it here. ",positive,0.427008,positive,0.321149862,positive
+Kostadin,Lasse Collin,issue_55.csv,Solved by https://github.com/rui314/mold/commit/4b42f38257068f2a3f0dbb102904519d85c9dcb2,positive,0.826332,neutral,0.058195696,neutral
+Lasse Collin,Agostino Sarubbo,issue_62.csv,"Thanks!
+
+It's fixed in the master branch now. The problem is that `crc64_clmul` uses 16-byte-aligned reads and this unavoidably trips the address sanitizer. The CI builds used `-fsanitize=address` but ci.yml worked around the problem with `--disable-clmul-crc`. Now there is `__attribute__((__no_sanitize_address__))` so the workaround isn't needed anymore.
+
+After 5.4.x (including the current master branch) you will need `--disable-ifunc` to make `-fsanitize=address` work. This is because `__attribute__((__ifunc(..)))` isn't compatible with address sanitizer. See [this](https://sourceware.org/glibc/wiki/GNU_IFUNC), search for ""asan"". The ifunc code likely won't be included in 5.4.x releases.",positive,0.99095,neutral,0.113861039,neutral
+Lasse Collin,Andreas Müller,issue_18.csv,"Would Visual Studio + Clang-cl be worth trying too? The inline x86-64
+assembly code in 5.6.x is compatible with GCC and Clang, so I hope that
+compiling with Clang-cl would result in better decompression speed than
+compiling with MSVC. (LZMA SDK has MSVC compatible assembly but then
+one needs to use LZMA SDK's C code and APIs too.)",negative,-0.578798,positive,0.761695646,neutral
+Lasse Collin,BAR_1,pr_32.csv,"
+Thanks! So it's a normal ELF target that supports symbol versioning. It's just the `__symver__` attribute that is broken in GCC on MicroBlaze.
+
+There are two possible solutions:
+
+1. Use the old `asm("".symver ..."")` method on MicroBlaze (and possible other platforms that don't support `__symver__` attribute).
+  - With this method LTO (`-flto`) will be silently broken on MicroBlaze.
+  - This requires a test in configure.ac and CMakeLists.txt.
+2. Only use simple/basic/generic symbol versioning on MicroBlaze.
+  - Before the compatibility symbols for the patch from RHEL/CentOS 7 were added, this was the only method. The patch had spread outside CentOS 7 but even then I guess these symbols probably aren't useful on MicroBlaze and omitting them should do no harm.
+  - This is simpler than the option 1 above. It sounds likely that MicroBlaze is a special case (GCC issue) so adding a special case for MicroBlaze in configure.ac is OK.
+  - This way there is no risk of silent LTO breakage with GCC >= 10 since no test for the `__symver__` attribute is needed in configure.ac or CMakeLists.txt.
+
+I committed a fix using the second method. I didn't do it for CMake-based build but I guess building liblzma with CMake on MicroBlaze isn't so important.
+
+
+My Meson skills are non-existent for now so I don't know if the method in libfuse is correct. If user-supplied `CFLAGS` don't affect the test then it probably is good.
+
+The other two first declare the function and then define it so they work even with `-Wmissing-prototypes` or `-Wmissing-declarations`. The test in this XZ Utils PR missed the declaration and thus it was more fragile (wrong test result and thus broken LTO if `configure` is run with `CFLAGS=-Wmissing-declarations`).
+
+In case Clang some day happened to support the attribute then being future-compatible with `clang -Weverything` would matter too. It gives warnings from what `AC_LANG_SOURCE` outputs. This test doesn't need `AC_LANG_SOURCE` or `AC_LANG_PROGRAM` so a test like the following is enough:
+
+```
+AC_COMPILE_IFELSE([
+    void foo(void);
+    __attribute__((__symver__(""foo@BAR_1.2"")))
+    void foo(void) { return; }
+], [
+    ...
+```
+
+A somewhat similar test is already used in XZ Utils for the `__constructor__` attribute. It uses a static function so it doesn't need a separate declaration.
+
+Of course there are multiple slightly different ways to write a working test. One just has to be really careful that the test program will never give a warning about an unrelated thing in the test program which would make the test fail when it shouldn't. Perhaps `-Werror=attributes` instead of `-Werror` would be more robust if the attribute is supported only by compilers that support `-Werror=attributes`. When testing for attributes that are supported by ancient GCC versions (like `__constructor__`) then this doesn't work as the ancient GCC versions don't support `-Werror=attributes`.
+
+
+I have no idea, sorry.
+
+Thanks!",negative,-0.398153,positive,0.3622756,neutral
+Lasse Collin,Chenxi Mao,pr_75.csv,The 8-byte version is now enabled in memcmplen.h for ARM64 in the master branch. It will be included in XZ Utils 5.6.0. Thanks!,positive,0.99095,positive,0.979131617,positive
+Lasse Collin,Chenxi Mao,pr_75.csv,"I created a branch memcmplen_arm64 which should do the same as your first commit and also adds MSVC support on ARM64 (untested).
+
+The commit message of your second commit has significantly higher numbers on the memcpy line. I'm not familiar with lzbench but I wonder if 10 % difference in memcpy could indicate that there was something different on the test computer and thus the benchmark results could be slightly different too. The difference in compression speed is small so it would be good to be sure that it's not due to noise.
+
+In any case, the second patch cannot be accepted. Unfortunately you have misunderstood the problem with type punning. It's about the C programming language and how modern compilers optimize while still staying within the exact requirements of the C standard. Unsafe use of type punning breaks strict aliasing rules and might result in broken executables. The instruction set being used doesn't matter; even if unaligned access wasn't supported by the hardware, type punning would be problematic with modern compilers when accessing aligned data.
+
+The memcpy method used by tuklib_integer.h should compile to a single instruction with modern GCC and Clang/LLVM versions when building for a target that supports fast unaligned access. Thus the use of type punning shouldn't make a difference on ARM64. However, it's possible that compilers do something slightly differently still and thus there could be a difference in practice, or the violation of aliasing rules allows compilers to do something that happens to work but could cause problems some day. It's a bit annoying situation but I don't know any better way.
+
+Thanks!",negative,-0.445688,neutral,0.054326399,negative
+Lasse Collin,Christian Hesse,issue_44.csv,"Sorry. :-( I added a few warning flags since I thought I had silenced them all.
+
+Arch uses --enable-werror so that's why warnings make the build fail. This is good for testing :-) although it can cause annoyances like this. It was only recently that -Wno-format-truncation could be removed from the PKGBUILD file in Arch.
+
+It's fixed in master and v5.4 now. Thanks!",negative,-0.48352,neutral,-0.031212464,negative
+Lasse Collin,Gabriela Gutierrez,pr_67.csv,"@gabibguti
+
+Thanks for your contributions! Friendly advice for the future:
+
+It is a good practice to manually wrap the lines in commit messages. With very long lines, `gitk` requires scrolling side ways and `git log` relies on `less` (or similar tool) to do the wrapping which typically isn't the most readable (`less --wordwrap` helps though). Even in the GitHub web UI where autowrapping is done in the web browser, the autowrapped lines can be as long as the browser window is wide, and thus the text is a bit hard to read.
+
+`git log` indents the messages by four spaces, thus 76 chars is the very maximum to keep things within 80 columns. The text box in `git gui` is conveniently 76 chars wide. Shorter lines (at most 72 chars or even shorter) are nicer though.
+
+Thanks!",positive,0.633998,positive,0.853796758,positive
+Lasse Collin,Hans Jansen,pr_64.csv,"I'm sorry for the delay. Neither Jia or I have been able to look at this in the past days. :-( We are both happy to see CLMUL version of CRC32 and it's great if you plan to do ARM64 versions too. :-)
+
+The inline function version is definitely nicer when the speed is the same. So those changes should be squashed accordingly, thanks!
+
+For a moment I thought that keeping crc_macros.h as is and adding crc_clmul.h would be nicer but, as Jia has pointed out, crc_common.h defines CRC_GENERIC and such too so I guess it is better this way. Many small bits of code depend on each other in such ways that it seems impossible to make things look very pretty.
+
+In my experience it's nice if file renames are done as separate commits with only the mandatory edits. For example, the `\file` comment at the top would need changing to crc_common.h, and similarly the #include lines in the two .c files, Makefile.inc, and CMakeLists.txt. Any other changes would be in later commit(s).
+
+Small commits in are preferred whenever doing so makes sense.
+
+I wonder if it made sense to have crc_clmul.c with both CRC32 and CRC64 because then the binary wouldn't end up with two copies of is_clmul_supported() and crc_simd_body(). However, it's possible that crc_simd_body() has to be inlined if the function call overhead is too high for tiny input buffers.
+
+I feel it might be good to merge this after the inline function change has been squashed so that we have some good version committed in xz.git. So feel free to try the crc_clmul.c idea if you wish but it's not required for merging.
+
+Have you tested on 32-bit x86? If not, it's fine. :-) If yes: I haven't checked performance on 32-bit x86 in years and wonder if the assembly files still make sense compared to what GCC and Clang can do (for processors that don't support CLMUL). Those files were written in GCC 3.3/3.4 times. It shouldn't be hard to make 32-bit x86 autodetect between the assembly code and CLMUL so I can do it if it is worth it.
+
+Thanks!",positive,0.330365,positive,0.685517829,positive
+Lasse Collin,Hans Jansen,pr_64.csv,"Thank you for letting us know. If you are able to continue, please let us know too to ensure that no duplicate work will happen (unlikely but still).",positive,0.656494,positive,0.756697397,positive
+Lasse Collin,Hans Jansen,pr_53.csv,"I understand that ifunc avoids loading a function pointer and an indirect branch. liblzma uses function pointers a lot so, for (de)compression performance, avoiding one pointer in the call stack likely doesn't matter (but I haven't benchmarked it). Many `lzma_crc64` calls can process a few kilobytes of data per call but I understand that in non-compression uses tiny buffers may be the most common.
+
+How big difference in speed does your patch make with your code? I would like understand the real-world improvement that ifunc can make specifically with `lzma_crc64`.
+
+
+C++ compiler isn't used so the check should be removed.
+
+By the way, have you checked xxhash if you need a very fast hash?
+
+Thanks!",positive,0.776431,positive,0.966951994,positive
+Lasse Collin,Hans Jansen,pr_53.csv,4-5 % isn't a huge difference but it's around the threshold where it becomes interesting. Jia and I discussed this and ifunc support is welcome while keeping the constructor attribute as the second choice. Thanks!,positive,0.769886,neutral,0.000860333,neutral
+Lasse Collin,Hans Jansen,pr_53.csv,"When fixing commits in a patchset / pull request, it usually should be done by editing the original commits instead of adding fix-up commits at the end. For example, in this case the commits first remove a feature and then add it back. This makes it harder to see what changes were _actually_ made in the end. This applies to both reviewing the changes before the merge and to people who read xz's commit log afterwards. I think this should be fixed.
+
+Thanks!",positive,0.291567,negative,-0.399345381,negative
+Lasse Collin,Jia Tan,pr_64.csv,"I'm glad this has been merged. Thanks!
+
+A few thoughts about 32-bit x86: Testing on modern 64-bit processor running 32-bit code was what I had in mind, so that part is fine. The results look strange though.
+
+The 32-bit assembly code implements the same algorithm as the generic C code. The CLMUL version should easily be faster with 1024-byte buffers, even if those were unaligned.
+
+With GCC 3.3/3.4 I remember that GCC couldn't fit all hot variables in registers and the resulting extra stack access was bad for speed. On x86-64 this isn't a problem anymore. My expectation is that the 32-bit x86 assembly code for CRC32 should have similar speed as the generic C code has on x86-64. I don't have clear expectations of the speed of the C code on 32-bit x86.
+
+On 32-bit x86, CRC64 benefits more from CLMUL because 32-bit x86 doesn't have 64-bit general-purpose registers. With the generic method, including the assembly implementation, the 64-bit CRC value needs two registers and updating it needs more instructions.
+
+I wondered if eight xmm registers could be a limiting factor on 32-bit x86. However, on x86-64 exactly eight xmm registers are used by both CRC32 and CRC64 CLMUL implementations with GCC 13.2.1. So I suppose the number of xmm registers shouldn't be a problem.
+
+We (or likely it's mostly Jia) will do a few tests later.
+
+Thanks again!",positive,0.352761,positive,0.853917426,positive
+Lasse Collin,Jia Tan,issue_68.csv,"Quite a few changes have been made to CMake support in the `master` branch in the past week. For example, configuration variables have been renamed and added. A few changes are pending still.
+
+Question: How old CMake version should be supported? Currently 3.14 is the minimum except that 3.20 is required to support message and man page translations and to create a relocatable `liblzma.pc`. **Is it OK to require CMake 3.20** in XZ Utils 5.8.0 (and 5.7.1alpha)?",positive,0.345027,neutral,-0.025637117,neutral
+Lasse Collin,Jia Tan,issue_61.csv,"There's now a little more information in the NVD. The [entry in Debian](https://security-tracker.debian.org/tracker/CVE-2020-22916) is somewhat informative:
+
+
+That makes me wonder if it could have been a file which uses a 4 GiB LZMA2 dictionary and thus needs lots of RAM even in single-threaded mode. xz has had memory usage limiting options for such files since the first stable version because high memory usage could be a denial of service. Strict limits (which would make xz refuse to decompress) aren't enabled by default because of the strong feedback I got before 5.0.0 was released: a too low limit can also result in a denial of service. The [Memory usage](https://tukaani.org/xz/man/xz.1.html#DESCRIPTION:_Memory_usage) section on the xz man page has been there since 5.0.0 too.
+
+This was just a guess; the CVE could be about something else, of course. With the information I currently have, I consider this CVE to be incorrect (not a bug or a security issue).",negative,-0.656339,neutral,0.124507044,neutral
+Lasse Collin,Jia Tan,issue_61.csv,"The snappyJack repository is available again. It contains a corrupt .lzma file which uses a tiny 256-byte dictionary. So decompression needs very little memory. The reporter claims that decompressing it ""could cause endless output"".
+
+Both XZ Utils and even the long-deprecated LZMA Utils produce 114,881,179 bytes of output from the payload before reporting an error. This is not ""endless output"". The decompression speed is good too.
+
+There is no denial of service or other bug with this file.",negative,-0.410146,neutral,-0.001728511,neutral
+Lasse Collin,Jia Tan,issue_61.csv,The CVE has been marked as disputed so I'm closing this issue.,negative,-0.651534,negative,-0.761677812,negative
+Lasse Collin,Jia Tan,pr_53.csv,"My understanding is that ifunc is specific to glibc. `__constructor__` works on many ELF platforms, not just GNU/Linux.
+
+According to your link, ifunc is incompatible with `-fsanitize=address`. And indeed it makes `make check` fail with segfaults. (I also see that two tests fail with `-fsanitize=address` before your patch due to memory leaks but no segfaults.)
+
+Also, checking for `__cplusplus` isn't needed as this is C code and not a public header.
+
+How much difference (speed or memory or anything else) does ifunc make in this specific use case? I understand that the function pointer is an extra step on each call but the function itself is more expensive than `memcpy` or such which get called a lot with tiny buffers. Currently I feel the extra complication isn't worth it in liblzma as `__constructor__` is good to keep around too for ELF platforms that lack ifunc support.
+
+
+Thanks!",negative,-0.53351,negative,-0.906309933,neutral
+Lasse Collin,Jia Tan,pr_43.csv,"@JiaT75: I apologize for the inappropriate harsh message above. I shouldn't post when in bad mood.
+
+@delphij: OK, so avoiding non-zero exit status is essential.
+
+Is a warning message good or bad? I thought it's not good to print a warning on `ENOSYS` since the reason for the error is clearly outside of xz (kernel or emulator not supporting the syscall) and it could be annoying if all Capsicum processes showed such warnings on every invocation. But it can be argued that it's good to inform users about the situation.
+
+If cap_rights_limit(2) can return `ENOSYS` then I suppose it doesn't hurt to check it even after a successful call to cap_enter(2).
+
+Other OSes with Capsicum support I hadn't thought about. So I guess for now it's simplest to avoid capsicum_helpers(3).
+
+I tested the new cap_rights_limit calls on FreeBSD 13.1 and they seem to work even with `sysctl kern.trap_enotcap=1` so I guess they *might* be safe to add even to the next stable release but it can be decided later.",negative,-0.589513,negative,-0.528486521,negative
+Lasse Collin,Kai Pastor,issue_68.csv,"@dg0yt @Neumann-A @teo-tsirpanis: There are quite a few changes to CMake support in the `master` branch now, including renaming most of the options to use `XZ_` prefix. Hopefully it's possible to implement vcpkg's `BUILD_TOOLS` on top of the `XZ_TOOL_foo` options. I suppose these are too big changes for 5.6.x so they won't be in a stable release until 5.8.0. I'm highlighting you just in case you wish to give feedback now when it's easy to change things instead of when these are already in a stable release. Thanks!",positive,0.531811,neutral,0.065636108,neutral
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks for the updates!
+
+Based on this PR I created a branch `xz_for_msvc`. I put some of the commits in your name even though they were modified a little. If you prefer otherwise please let me know.
+
+Unless I missed something, `xz_for_msvc` should have everything from this PR except `__declspec(noreturn)` and the VS2013 fallback for `snprintf`.
+
+I feel the noreturn could be handled in a more generic way. `noreturn` from `<stdnoreturn.h>` could be ideal. According to docs, it seems to be supported by VS2015 too. It's currently not used in XZ Utils, only the GNU C `__attribute__((__noreturn__))` is, but this could be changed.
+
+Unless there is a good reason, I feel VS2013 support shouldn't be added to the command line tools to keep the MSVC patches as simple as easily possible. By the time this code is in a stable XZ Utils release, VS2013 will only have 5-7 months of support remaining (if April 2024 is the true end date for VS2013 support).
+
+The changes to file_io.* I made quite differently and it's quite possible that my approach cannot work. It would be great if you could test it and tell if it works or can be made to work. Otherwise I will adapt your version from this PR.
+
+DOS/DJGPP build checks for special filenames like `prn` in file_io.c which could happen in weird cases like `xz -S_xz -d prn_xz`. I wonder if something like that should be done on Windows builds too (not just MSVC).",positive,0.288196,positive,0.488235916,positive
+Lasse Collin,Kelvin Lee,pr_60.csv,"xz_w2k includes simple commits that remove pre-W2k support. Very likely it will be merged but I didn't want to put it to master directly.
+
+The getopt.in.h question will be reconsidered. I don't know yet if it will be changed.
+
+I think everything from this PR and discussion has been handled now. Thanks a lot!",positive,0.723373,positive,0.935447799,positive
+Lasse Collin,Kelvin Lee,pr_63.csv,"
+getopt.in.h is done like that in Gnulib. A package that uses Gnulib may have many .in.h files. Which files will be needed is detected when running `configure` and copied to .h name. Gnulib has replacements for many system headers to aid portability. With the .in.h -> .h method only the specificic headers can be overriden.
+
+Obviously XZ Utils only include getopt from Gnulib at the moment. In the early days I didn't know if more modules would be needed. So moving the getopt files to lib/getopt/ and putting that to include path when needed could be fine if we are certain that the module list won't grow. If many Gnulib modules (or similar things from other sources) were needed then this wouldn't work because the include path would grow too long and the modules can have intermodule dependencies too.
+
+I will discuss this with Jia. We plan to update getopt code with the current Gnulib too (it's still LGPLv2.1 so no license changes).
+
+I have seen your other messages. I will get back to them later this week.",positive,0.463777,positive,0.866234329,positive
+Lasse Collin,Kelvin Lee,pr_63.csv,The getopt.in.h change is in xz_for_msvc branch now. Thanks!,positive,0.99095,positive,0.823105127,positive
+Lasse Collin,Kelvin Lee,pr_60.csv,I merged xz_for_msvc to master except the tuklib_physmem W2k commits.,neutral,0,neutral,0.097687915,neutral
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks for testing! There are more commits in `xz_for_msvc` now, including CMake support. It would be awesome if you could test it with MSVC again. If you don't have time etc. then feel free to say so or ignore this. :-)
+
+I think xzdec should build now with VS2013. xz is set to require VS2015 (_MSC_VER >= 1900, that is, MSVC_VERSION >= 1900 in CMake). I don't know if a more recent VS version should be recommended in the docs, like, if there are compatibility fixes that matter.
+
+`_Noreturn` needs `/std:c11` or `/std:c17`. CMake likely doesn't set it because CMakeLists.txt only requires a C99 compiler. There is `__declspec(noreturn)` too for this case.
+
+I wonder if C11/C17 mode would be preferred for other reasons, for example, if standards conformance would be stricter and thus risk of weird bugs would be lower. [Microsoft docs](https://learn.microsoft.com/en-us/cpp/overview/install-c17-support?view=msvc-170) say that C11/C17 needs an updated Windows SDK and UCRT though. I don't have much clue about these. Would using C11/C17 mode affect how old Windows versions can run the resulting binaries?
+
+About `con` and friends. At least with MinGW-w64 builds it seems to be a problem (possibly a security issue). `xz -d -S_xz con_xz` decompresses to console even though `open` is used with `O_EXCL`. I'm not sure how to fix. I would expect Windows to have an API to check for problematic filenames instead of apps needing to roll their own checking code. The code used with DJGPP isn't compatible with anything else.",negative,-0.300831,neutral,0.048307402,neutral
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks again for testing!
+
+I included the unistd.h fix from PR 63 in the xz_for_msvc branch.
+
+With CMake 3.27 and its new default [policy CMP0149](https://cmake.org/cmake/help/latest/policy/CMP0149.html) the xz_for_msvc branch uses the latest Windows SDK by default.
+
+CMakeLists.txt currently requires a C99 compiler:
+
+```
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+```
+
+If the first line was set to C11 and the second line was omitted then CMake would attempt to find a C11 compiler but would accept older standard too if C11 isn't available. So that would be a way to get C11 mode when using new enough MSVC. But maybe it's not nice if it limits SDK choices.
+
+Since it works now, maybe it's fine to leave it as it is.
+
+About he commit to tuklib_physmem.c that avoids building the pre-W2k code: I suspect that this
+
+```
+#if defined(_WIN32_WINNT_WIN2K) && _WIN32_WINNT >= _WIN32_WINNT_WIN2K
+```
+
+isn't correct. Now the old code will never be built.
+
+`_WIN32_WINNT` is about exposing newer features from the API headers, it doesn't mean that the program will automatically require that version of Windows. Earlier the builds used `#define _WIN32_WINNT 0x0500` (which is `_WIN32_WINNT_WIN2K`) to make `MEMORYSTATUSEX` visible in the API headers. Those binaries could still run even on Win95 if msvcrt.dll was available because `GlobalMemoryStatusEx` was loaded dynamically.
+
+Maybe at this point it could be best to just omit pre-W2K support from that file. Even when it was written, it was just a fun distraction to check if Windows build of xz could easily run even on Win95 and it did.
+
+The win95 threading option, despite its name, exist for WinXP support. Those APIs just happen to be in Win95 already. The threading APIs from WinVista are closer to pthreads than the older APIs but, as far as I know, there shouldn't be any significant difference in practice in case of liblzma since it needs only a small subset of features. Requiring WinVista would simplify things though but on the other hand the support for the ancient things already exists and works fine.
+
+`GetTickCount64` in mytime.c needs WinVista so MSVC builds of the xz command line tool will need at least WinVista.
+
+`GetFileType` needs a `HANDLE` so one would first need `CreateFile` and so on. It's unfortunate if `_stat64` doesn't return any info in `st_mode` or `st_dev` or other member. I think I won't work on this problem now. If I have understood correctly, it helps slightly that the problem can only occur if using `--suffix` as the default suffixes have a dot and thus if the input file is valid then the output is too since both `con` and `con.xz` are invalid names for regular files.",negative,-0.375933,neutral,-0.064774197,neutral
+Lasse Collin,Kelvin Lee,pr_60.csv,"Thanks! Now I realized that I had misidentified the problem. `S_ISREG` is enough but it has to be used with `_fstat64`. With `_stat64`, `con` is a regular file. So the method used for DJGPP is at the wrong location for Windows.
+
+I pushed a commit to xz_for_msvc which should fix it. I tested it with MinGW-w64.
+
+There is another special case in the DJGPP-specific code but I think it's not needed on Windows. It's possible that the output filename is the same as the input filename. On DOS with only 8.3 names it can happen if an overlong name is given on the command line. But it can happen on modern Windows too if 8.3 names are enabled. For example:
+
+```
+echo foo | xz > foobar~1zoo
+xz --suffix=zoo --decompress --force foobar~1zoo
+```
+
+It should fail because it cannot remove `foobar~1` because the file is already open. It's the same file as `foobar~1zoo` due to 8.3 names.",negative,-0.580539,neutral,0.008076305,neutral
+Lasse Collin,Marcin Kowalczyk,issue_36.csv,"I have read about this a bit now. Sounds like it probably needs to be fixed. Quite a few functions have to be reviewed to spot all such cases as there definitely are more than those you already found. XZ Embedded needs to be reviewed too.
+
+At least with a trivial test program, the method in `in_start != 0 ? in + in_start : in;` seems to be optimized to the same code as `in + in_start`, at least with modern GCC and Clang. So there won't be an extra branch in reality.
+
+To me this seems like a bug in the standard that could have been fixed by adding an extra sentence to explicitly allow null-pointer + 0. Based on search engine results, it seems that it was decided that it's better to change hundreds of codebases instead, hopefully spotting every problematic case. Feels a bit similar to the `memcpy(NULL, NULL, 0)` issue that was (hopefully) fixed in XZ Utils in 2019.
+
+Thanks for reporting this!",positive,0.253678,neutral,-0.057430761,neutral
+Lasse Collin,Marcin Kowalczyk,issue_36.csv,"It should be fixed now. Thanks!
+
+XZ Embedded has the same problem. The initial plan is to fix it by changing the API documentation to say that the input and output buffer pointers must not be NULL even for empty buffers. First the code in the Linux kernel has to be checked if NULLs are used in xz_dec_* calls.",negative,-0.338949,neutral,-0.072240226,neutral
+Lasse Collin,PLT,pr_53.csv,"Using ifunc for a static `crc64_func` means that `lzma_crc64` becomes a single-instruction function that just does a jump via PLT:
+
+```
+jmp    45a0 <*ABS*+0x15e00@plt>
+```
+
+I suppose it's better to make `lzma_crc64` itself the ifunc. This has been done in [v2](https://github.com/tukaani-project/xz/tree/ifunc-crc64-fast-v2) branch. Can you test it and tell if you notice any difference (speed or anything else) compared to your version. Thanks!",positive,0.375384,neutral,0.005517937,neutral
+Lasse Collin,Ricky Tigg,issue_72.csv,"INSTALL.generic [does mention](https://github.com/tukaani-project/xz/blob/f481523baac946fa3bc13d79186ffaf0c0b818a7/INSTALL.generic#L85) `make uninstall`. Note that for it to work you practically need to keep the matching build tree around. Builds made with different options or builds of different package versions can install and thus uninstall a different set of files.
+
+`--prefix` sets the location where the files are expected to be when the programs or libraries are used. This matters because some paths may get hardcoded (like translations or library search path (rpath)).
+
+`DESTDIR` allows doing a kind of fake install to a temporary directory from which a distro-specific package (`.deb`, `.rpm`, `.txz` etc.) can be created. In general one cannot run the program in the `DESTDIR` directory.
+
+One option is to use
+
+```
+./configure --prefix=/home/foo/local-xz
+make install
+```
+
+and then put /home/foo/local-xz/bin to `PATH`. This way uninstallation is simple: just `rm -r /home/foo/local-xz`.
+
+In case of XZ Utils, if you only want the latest `xz` command line tool, build it against static liblzma without translation support. In case of `xz` there will then be no dependencies that rely on `--prefix`. With many other packages it's not so; this tip is specific to XZ Utils. You can also use the `-j` option with `make` to use multiple processor cores for a shorter build time.
+
+```
+./configure --disable-shared --disable-nls
+make -j4
+cp src/xz/xz /home/foo/bin/
+```
+
+The `/home/foo/bin/` is a directory of your choosing. That is, no need to use `make install` if you only need `xz`.",negative,-0.519947,neutral,0.018449881,neutral
+Lasse Collin,Ricky Tigg,issue_71.csv,"xz-5.4.5.tar.gz does have configure. Perhaps you downloaded ""Source code (tar.gz)"" which is what GitHub creates from the associated git tag and thus it contains only the files from the git repository and not all the generated files.
+
+There also are no signature files (.sig) for the generated files.
+
+I have understood that it's general knowledge that those Github-generated .tar.gz files should be ignored when other files are available in a release. Those generated files cannot be disabled.",negative,-0.626689,neutral,-0.027316008,neutral
+Lasse Collin,Ricky Tigg,issue_71.csv,"
+I hadn't realized this. When hovers of the link, it points to _v5.4.5.tar.gz_. If copy the link and use it with `wget` I will get _v5.4.5.tar.gz_. But if I click the link with Firefox, the name gets converted to _xz-5.4.5.tar.gz_.
+
+Having a way to get a tarball of the git tag is useful in general and for some projects it's all they need. But for many other projects it's confusing especially since the link is forcefully named _Source code_. The icons differ but a cube vs. a zipper doesn't convey any meaning to me at least.",negative,-0.508481,neutral,-0.106415428,neutral
+Lasse Collin,Sam James,issue_70.csv,"In CMake-based build, the test for attributes both compiles and links. Perhaps the problem is that linker can omit the function as it's not used in the program.
+
+CMakeLists.txt line 810:
+
+```
+int main(void) { return 0; }
+```
+
+I wonder if this would help:
+
+```
+int main(void) { func_ifunc(); return 0; }
+```
+
+(Edited: Accidental Ctrl-Enter submits in GH. That's a dangerously easy keyboard shortcut for such a critical action. Oh well.)",negative,-0.348113,negative,-0.445180275,negative
+Lasse Collin,Sam James,issue_70.csv,"My above comment is wrong. The failure is from the dynamic linker, not static linker, sorry.
+
+Perhaps it's that GCC knows that ifunc isn't supported with musl. [config.gcc](https://gcc.gnu.org/git?p=gcc.git;a=blob;f=gcc/config.gcc;h=c1460ca354e8f7baea3229312b17c63bd45f760a;hb=HEAD#l3637) doesn't set `default_gnu_indirect_function` with musl. Maybe Clang/LLVM needs to learn this too if it currently doesn't warn.",negative,-0.780699,negative,-0.915270963,negative
+Lasse Collin,Siarhei Siamashka,issue_50.csv,"In principle, adding a filter for UTF-8 text files is fine. It just has to be done carefully as decoder support can never be removed (I don't want to end up with ""text filter"", ""a little better text filter"", ""hopefully the best text filter""...).
+
+Old tools cannot decompress new filters but that's just how it is. Once a new filter is official, it takes some time until it can be used widely.
+
+Your example with ukrainskakuhnya1998_djvu.txt uses `CP1124//TRANSLIT` which means that it's not reversible: converting it back to UTF-8 gives 2838134 bytes, 0.8 % smaller than the original file. It still gives an indication how much a filter might help though.
+
+Similarly, the pg70694.html isn't reversible and becomes 739319 bytes when restored to UTF-8, 0.4 % smaller than the original. I guess Finnish, Swedish, German, and such languages likely won't see big enough savings with a filter like this. The amount of non-ASCII characters is fairly low.
+
+Using LZMA2 option `pb=0` tends to help with text files but with these files it makes no significant difference.
+
+Converting to UTF-16BE helps with ukrainskakuhnya1998_djvu.txt (it's 2-byte-aligned data thus `pb=1,lp=1`):
+
+```
+$ iconv -f utf8 -tutf16be < ukrainskakuhnya1998_djvu.txt > ukrainskakuhnya1998_djvu.txt.utf16be
+$ xz -k --lzma2=pb=1,lp=1 ukrainskakuhnya1998_djvu.txt.utf16be
+$ du -b --apparent ukrainskakuhnya1998_djvu.txt*
+2860770 ukrainskakuhnya1998_djvu.txt
+3343440 ukrainskakuhnya1998_djvu.txt.utf16be
+427884  ukrainskakuhnya1998_djvu.txt.utf16be.xz
+
+$ xz -k --lzma2=preset=6e,pb=1,lp=1 ukrainskakuhnya1998_djvu.txt.utf16be
+$ du -b --apparent ukrainskakuhnya1998_djvu.txt.utf16be.xz 
+426312  ukrainskakuhnya1998_djvu.txt.utf16be.xz
+```
+
+So it's not as good as your result but this is completely reversible as long as the original is valid UTF-8. Note that when compressing integers, big endian is usually better input than little endian.
+
+Have you looked at existing Unicode compression schemes like [SCSU](https://www.unicode.org/reports/tr6/tr6-4.html)? It may not be good here but perhaps some ideas can be had still, perhaps not.
+
+I understood that your idea could take a 8-bit codepage as an argument and then convert as much as possible using that, encoding unconvertible binary data via escape sequences or such. This could be fairly simple. On the other hand, it requires user to tell which codepage to use. In any case, character mapping should be done so that the decoder doesn't need to know any codepages: Filter Properties or the filtered raw stream itself should encode the mapping in some compact form instead.
+
+A more advanced idea could be to detect non-ASCII UTF-8 characters as they come in and assign a 8-bit replacement code for them. The advantage would be that then the filter would work with many languages without any configuration from the user. This is much more complex though. It should ensure that the same UTF-8 codepoint consistently gets mapped to the same 8-bit value, otherwise compression could be terrible. It matters if the input file has like 300 codepoints and thus not all of them can have an 8-bit mapping active at the same time. On the other hand, it's acceptable that compression ratio will be good only with certain languages.
+
+On the second thought, perhaps the above is just too complicated. At least some of the languages (where this kind of filter could be useful) need one or perhaps two small contiguous codepoint ranges above ASCII. CP1124 is almost 0x0401-0x045F, only 0x0490-0x0491 are missing.
+
+More random ideas: A two-byte UTF-8 sequence encodes 11-bit codepoint. It could be encoded as 0x10-0x17 followed by any 8-bit byte. Three-byte UTF-8 sequence encodes 16 bits so 0x18 followed by any two bytes would work (same length as in UTF-8). And four-byte UTF-8 could be 0x19 and three bytes. Then 0x80-0xFF could be used for language-specific 8-bit encodings and code points outside the language would still never use more space than in UTF-8 if the repurposed ASCII control codes aren't needed. A few more ASCII control codes would need to be repurposed for escaping binary data (including the repurposed control codes themselves) and possibly for configuring the 0x80-0xFF range (unless only using a static mapping from Filter Properties).
+
+A static mapping in Filter Properties could simply be a list of pairs <start><len>. For example, 0x0400 0x5F 0x0490 0x02 could put 0x0400-0x045F to 0x80-0xDF and 0x0490-0x0491 to 0xE0-0xE1, perhaps leaving 0xE2-0xFF to mean 0xE2-0xFF.
+
+The above are just some quick ideas and better ones likely exist. :-)
+
+When deciding the encoded format of the filter, xz-file-format.txt section 5.2 must be taken into account. Basically, 200 bytes of input to a decoder must produce at least 100 bytes of output for security reasons.
+
+For early prototypes, standalone filter programs that filter from stdin to stdout are probably the most convenient.
+
+If you wish to add prototype filters in .xz, please use a custom filter as described in xz-file-format.txt section 5.4. The small ID numbers must be used for final official filters only.
+
+How to add the actual code: Look how Delta filter hooks into the rest of the code. Delta filter is very simple and doesn't change the size of the data. A text filter would change the size of the data so it would likely need some internal buffering. XZ for Java has cleaner codebase than XZ Utils so, depending on your preferences, Java code might be nicer for prototyping than C in this case.
+
+We can talk on IRC on #tukaani at Libera Chat too, if you wish (and we happen to be online at the same time).",negative,-0.355895,neutral,-0.058074243,neutral
+Lasse Collin,Vincent Fazio,pr_32.csv,"Fixing GCC would be the best but I guess the current GCC versions have to be supported for some time anyway.
+
+I have understood that MicroBlaze is for embedded use so I feel quite OK by making it a special case. The way symbol versioning is used in XZ Utils means that the downsides are very small: it sounds fairly unlikely that the issues caused by the patch from RHEL/CentOS 7 would affect MicroBlaze use cases. So the solution I committed is specific to XZ Utils and not trivially usable for other projects.
+
+Checking for features is obviously better most of the time (instead of checking for CPU/OS/whatever) so in general I don't disagree with you. In this case I feel the problem likely exists on just one platform and a generic test would be more complex than what is currently used on other platforms. If there is a bug in the test for the `__symver__` attribute, then LTO builds can silently break if the fallback is `asm("".symver ..."")` or the compatibility symbols may silently be missing if the fallback is to use `liblzma_generic.map`. The method I committed has lower risk and it's simpler too.
+
+I plan to put the workaround in 5.4.2 and also 5.2.11 at the same time, whenever a new bugfix release will be made. Before that, it's safe to use the commit with both 5.2.10 and 5.4.1.
+
+If GCC is fixed this year, perhaps this workaround can be omitted 2-3 years later when a new major release of XZ Utils is made.
+
+Thanks for reporting the problem and testing!",positive,0.31834,positive,0.275346851,positive
+Lasse Collin,XZ_5,pr_32.csv,"The linked GCC bug 101766 gives an impression that `__has_attribute` is fairly broken and not usable without extra care. However, perhaps it's not the real problem in this case. I need to understand the big picture better first.
+
+The `__symver__` attribute is used when possible because with the traditional `asm("".symver..."")` method link-time optimization (LTO, `-flto`) with GCC breaks in a way that isn't obvious. The build will succeed without warnings but the shared library will have issues which sometimes won't be immediately visible.
+
+It's confusing if GCC doesn't support `__symver__` attribute but the platform still supports `.symver` in the assembly code. Are the binaries in the ELF format? What does `file src/liblzma/.libs/liblzma.*` say about the shared library after a successful build with your patch?
+
+If it is in ELF, what does this print?
+
+```
+readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 | grep lzma_stream_encoder_mt_memusage
+```
+
+It should print three lines whose rightmost column looks like this:
+
+```
+lzma_stream_encoder_mt_memusage@@XZ_5.2
+lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+
+If there are no `@@XZ...` or `@XZ...` then the platform doesn't support symbol versioning and the next few paragraphs aren't interesting.
+
+XZ Utils currently has two variants of symbol versioning:
+
+(1) A GNU/Linux-specific version with extra symbols for compatibility with a broken patch in RHEL/CentOS 7 which has also been copied to a few other places. The `@XZ_5.1.2alpha` and `@XZ_5.2.2` above exist due to this.
+
+(2) A generic version that works on GNU/Linux (without RHEL/CentOS 7 symbols) and FreeBSD (possibly also Solaris but not sure, it's not enabled by default on Solaris). With this the above list only has `@@XZ_5.2`. You can test this (without your patch) by omitting the `linux*)` section in configure.ac (lines 668-700 in XZ Utils 5.2.10; lines 723-755 in XZ Utils 5.4.1).
+
+It sounds very likely that the patch from RHEL/CentOS 7 (which was used somewhere else too) doesn't affect Microblaze users and thus (2) could be good **if** symbol versions are supported. The (2) method doesn't require anything in the C code, so no `__symver__` attribute or `asm("".symver..."")` and thus no LTO build issues.
+
+On the other hand, if symbol versioning isn't supported at all, then the default in configure.ac should be changed so that on Microblaze it's equivalent to `--disable-symbol-versions`. This is easy to do with `case $host_cpu in microblaze*)`. I base this on the configure message `checking host system type... microblaze-buildroot-linux-gnu` from your build log.
+
+The proposed patch has subtle problems:
+
+(1) Autoconf tests that require `-Werror` should be written very carefully. In this case if user has specified enough warning flags in `CFLAGS` (for example, `-Wmissing-prototypes`) then the test will fail even if the compiler supports the `__symver__` attribute. This means that an innocent extra warning flag in `CFLAGS` can silently break `-flto` with GCC!
+
+When writing this kind of tests, Clang's `-Weverything` is convenient for catching many issues like this. (Clang doesn't support `__symver__` so the test will fail for that reason still. `-flto` works with Clang with the traditional `.symver` method already.)
+
+While not too important for this particular test, `clang -Weverything` includes `-Wreserved-macro-identifier` which will warn about the macros added by `AC_LANG_SOURCE`. The test doesn't need anything from `AC_LANG_SOURCE` so it's better to avoid it when `-Werror` is needed. See also how support for `__constructor__` attribute is detected in configure.ac.
+
+(2) The CMake build isn't updated so with this patch CMake-based build will never use the `__symver__` attribute and thus `-flto` with GCC is silently broken again. While CMake-based build is not the primary build method on GNU/Linux, I want to keep the liblzma part of it working well at least on the most common platforms.
+
+Anyway, I want to understand the issue better before worrying about patches. Once the problem is understood, a patch is probably fairly easy to write.",negative,-0.502998,neutral,0.039115016,neutral
+Lasse Collin,XZ_5,issue_55.csv,"It works with these:
+  - GCC `-fuse-ld=bfd`
+  - GCC `-fuse-ld=gold`
+  - Clang `-fuse-ld=lld`
+
+In these cases the symbols are there:
+
+```
+$ readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 \
+    | grep lzma_stream_encoder_mt_memusage
+   127: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   128: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   129: 000000000000db90   222 FUNC    GLOBAL DEFAULT   13 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+
+Omitting `-Wl,--fatal-warnings` makes the build succeed with `-fuse-ld=mold` but the symbols are wrong:
+
+```
+$ readelf -W --dyn-syms src/liblzma/.libs/liblzma.so.5 \
+    | grep lzma_stream_encoder_mt_memusage
+    49: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@@XZ_5.2
+    56: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@XZ_5.2.2@XZ_5.2.2
+   104: 000000000001c690   222 FUNC    GLOBAL DEFAULT   20 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha@XZ_5.1.2alpha
+```
+
+Note how the non-default symbols (the last two) have a duplicated suffix. It happens with both GCC and Clang with `-fuse-ld=mold`, mold version 1.11.0. Disabling LTO makes it work. This makes me wonder if mold has a problem when LTO and symbol versioning are used at the same time.
+
+Can you test a git snapshot of mold and if it still doesn't work then discuss it with the mold developers? As far as I understand it, the symbol versioning in liblzma doesn't do anything weird so the problem may affect many other packages too.
+
+Thanks!",negative,-0.47778,negative,-0.669308309,negative
+Lasse Collin,Xin Li,pr_43.csv,"I fully agree with your reasoning. A warning message would also break `make check` in test_scripts.sh.
+
+I merged JiaT75's commits to master which remove the warning message and the changing of the exit status. Now master is effectively quite similar to what capsicum_improvements was except that master checks for ENOSYS for all `cap_*` calls.
+
+I squashed the commits to the v5.4 branch already for 5.4.2. It will be in 5.2.11 too.
+
+I think this issue should now have been solved. Thanks!
+
+Also thanks for updating the cap_*(2) man pages!",positive,0.797796,positive,0.212625079,positive
+Lasse Collin,Xin Li,pr_43.csv,"I think the Capsicum commits went to the master branch a bit hastily:
+
+1. It's not good to spam users with a warning message when their kernel doesn't support Capsicum. Similar spamming issue was fixed in the commit af0fb386ef55db66654ae39e2deec6e04190c4ff.
+2. `message_warning()` affects exit status so now xz will exit with status 2 if kernel lacks Capsicum support (unless `--no-warn` (`-Q`) is used). This breaks most use cases still.
+3. It seems unncessary to complicate `cap_rights_limit()` calls with checks for `ENOSYS` but I might be wrong.
+4. Setting `sandbox_allowed = false;` is OK but not needed as the code will be run only once anyway since Capsicum is used only if there is exactly one input file.
+
+I might have misunderstood the Capsicum API slightly in the past and thus I have put `cap_enter()` as the very last step. Seems that moving it to be the first one makes it easy to detect if Capsicum is supported by the kernel or not. So that idea in the master branch seems good.
+
+[cap_enter(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_enter&apropos=0&sektion=0&manpath=FreeBSD+14.0-CURRENT&arch=default&format=html) mentions `ENOSYS` but [cap_rights_limit(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_rights_limit&sektion=2&apropos=0&manpath=FreeBSD+14.0-CURRENT) doesn't. I wonder if it is a documentation error or if it is intentional to not mention `ENOSYS`. I'm a bit hesitant to add a check for an undocumented `errno` value (I see capsicum_helpers.h does check for `ENOSYS` though).
+
+I put a proposed fix to the branch [capsicum_improvements](https://github.com/tukaani-project/xz/commits/capsicum_improvements). These go before the new commits in the master branch which I think should be reverted so that clean patches can be cherry-picked to stable branches.
+
+I wonder if `STDIN_FILENO` and `STDERR_FILENO` should be restricted too. (`src_fd` may be `STDIN_FILENO`.) I added another commit for those. There is no worry about `EBADF` since xz ensures that the file descriptors are open. But perhaps having only `CAP_WRITE` for `STDERR_FILENO` can be too strict in some cases, I'm not sure. capsicum_helpers.h adds a few other capabilities too but on the other hand xz will only write to standard error with `fprintf` and friends.
+
+Moving to capsicum_helpers(3) could be an option but at this point I'm not sure if it is worth it as I think this should work fine too. Moving to capsicum_helpers(3) would need updating the configure test too for those who build xz from an upstream tarball.
+
+@delphij: What do you think about the commits in capsicum_improvements?
+
+@JiaT75: What kind of change did you have in mind for ax_check_capsicum.m4? One cannot check for kernel support at build time as the binary might be run on a different kernel too. Using capsicum_helpers(3) would need a change so that the build won't fail on FreeBSD 10 or 11 (which are out of support).",negative,-0.399704,negative,-0.792927113,negative
+Lasse Collin,Xin Li,pr_43.csv,"In contrast to v5.4, v5.2 (and thus 5.2.10) don't exit if enabling the sandbox fails. v5.2 only displays a message if double-verbose (`xz -vv`). The new stricter behavior was intentionally not backported to v5.2 since it seemed a risky change. So that's why the problem didn't appear until 5.4.x got into FreeBSD. I will discuss with JiaT75, perhaps it's best to not change the Capsicum code in v5.2 at all, we'll see.",negative,-0.547954,negative,-0.268846139,negative
+Lasse Collin,mgood7123,issue_70.csv,"
+Yes, I relealized this as I wrote in my next message. Since GCC upstream knows that musl doesn't support ifunc, I wonder if Clang/LLVM should know it too and then warn or error if the ifunc attribute is used. That is, I wonder if this could be a Clang/LLVM bug.
+
+
+In Autoconf, checking if `$host_os` equals `linux-musl` probably is the correct method. I don't know right now how to detect it in CMake.
+
+According to musl's FAQ, there intentionally is no easy `#ifdef` to detect musl in C code.
+
+Hacks like checking file paths wouldn't work when cross-compiling.
+
+On the second thought, uClibc might not support ifunc either. It could be better to detect glibc, so `linux-gnu` in case of Autoconf (maybe FreeBSD too). But once again I don't know right now how to detect the libc in CMake.",negative,-0.492703,negative,-0.231738729,negative
+Lasse Collin,mvatsyk-lsg,pr_73.csv,"Thanks to both of you for your work so far!
+
+There are a few things I would like to understand better. I have only skimmed OSS-Fuzz's docs so I might be asking silly questions, sorry.
+
+1. Seems that [renaming a fuzz target](https://google.github.io/oss-fuzz/faq/#what-happens-when-i-rename-a-fuzz-target-) requires renaming the accumulated corpora too.
+
+2. Does adding more fuzzers mean that the project-specific fuzzing resources (processor time) will be divided between the fuzzers? With a quick look I didn't find any advice about resource usage in OSS-Fuzz docs and it's not discussed much in this thread either.
+
+3. The value of code coverage in fuzzing is unclear. *If* extending coverage by a few simple lines of code could slow down fuzzing of more important parts of the code, does it make sense to extend fuzzing coverage in that case? I'm thinking of cases where an old-school code review shouldn't take a lot of time (code snippets that are about 200 lines each and do nothing unusually complicated). Or perhaps these should be fuzzed at first but disabled after some time if they find nothing?
+
+Examples of remaining significant overlap in the new fuzzing targets:
+
+* fuzz_encode_alone.c would test end of payload marker (EOPM) encoding in LZMA but otherwise it doesn't test much that won't be tested by fuzz_encode_stream.c. They both use the LZMA encoder in the end. So it seems that fuzz_encode_alone.c isn't useful and could _maybe_ even be harmful due to resource usage unless the fuzzers are smart enough to spot when code paths become identical.
+
+* fuzz_decode_alone.c splits into three different decoders depending on the input. Yet the three decoders are fuzzed separately too (stream, alone, lzip). So the only extra fuzzed thing is the small auto_decoder.c.
+
+I don't know enough about the fuzzing methods to know what actually makes sense. I would like to be assured that adding all these fuzzers adds real value.
+
+Thanks!",positive,0.305391,positive,0.748419425,positive
+Rayen Ouni,Lasse Collin,pr_64.csv,yall can you check this :3 uwu,neutral,0,positive,0.240500599,positive
+Ricky Tigg,Jia Tan,issue_72.csv,"Thanks to your quote, I could notice in it _installation_ while I had in mind  _uninstallation_ while reporting. Rectified in report.",positive,0.719917,positive,0.740625922,positive
+Ricky Tigg,Jia Tan,issue_71.csv,"I learned my lesson, I know i will ignore archives auto-generated by this platform. As we can conclude there is no case for an issue, hence closing accordingly.",negative,-0.548552,negative,-0.656684613,negative
+Ricky Tigg,Lasse Collin,issue_71.csv,"I feel that i am learning something. I have observed that on this platform, with no regard to the date before and after it was acquired by Microsoft, that the _Release_ section, when it contains items In the _Assets_ section, may display a _Source code_-named link, which is the one I referred to and you referred to as well, as downloaded though.
+
+I have always assumed, nonetheless without foundation, that all of the items that are present in this _Assets_ section provide the project's source code equally, however in various file formats. Hence I kept wondering the motivation for displaying a _Source code_-named link, The present project suits as an illustration.
+
+While focusing on the latest release, among the displayed items those ones are present:
+- `<icon> xz-5.4.5.tar.gz      | 2.75 MB | 2 weeks ago`
+- `<icon> Source code (tar.gz) |         | 2 weeks ago`
+
+_Notes:_ 
+1. The icons referred as `<icon> ` differ from each other; I suppose for a reason.
+2. The immediate mentions at the right side of the icons are links to files provided for download.
+
+Those links are **tied to a same named file** - _xz-5.4.5.tar.gz_. That represents a reasonable source of confusion.",positive,0.603772,positive,0.761677691,positive
+Ricky Tigg,Lasse Collin,issue_72.csv,"I just took care to enter ""_unin_"" in the web browser's search field and indeed it revealed that some targets exist. My bad, I had had to enter in it an irrelevant term at the time I reported. **That's no excuse**. This also means I wasted the time of the participants in this discussion. Not proud of myself. I am sorry.",negative,-0.856469,negative,-0.953052292,negative
+Sam James,Jia Tan,pr_22.csv,What happened with this in the end?,neutral,0,neutral,-0.061101038,neutral
+Sam James,cblc,issue_54.csv,Please see the discussion in https://github.com/tukaani-project/xz/pull/52.,neutral,0,neutral,0.021761721,neutral
+Sam James,mgood7123,issue_70.csv,I think we should keep this open so the build system can work around it.,positive,0.874842,neutral,0.040717877,neutral
+Vincent Fazio,Jia Tan,pr_32.csv,"
+I'm not an expert on Microblaze at all, but using the asm "".symver"" syntax seems to allow the compile to work fine since we've already ported this patch to buildroot for xz 5.2.10 
+
+Here's a failing build log http://autobuild.buildroot.org/results/4dc/4dc0c88c1ed250dd5e1be492138bd6e1781128b4/build-end.log
+
+it looks like the handling for `__attribute__(__symver__)` is around this macro: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/elfos.h#L259 and my _guess_ is that it's not included in microblaze gcc toolchains
+
+I didn't see any build/link errors when switching but i suppose that doesn't mean it's working as intended.",negative,-0.800262,neutral,0.011348926,neutral
+Vincent Fazio,Lasse Collin,pr_32.csv,I can try testing a build of your commit sans patch to see if it works sometime next week,positive,0.602321,positive,0.713518457,neutral
+Vincent Fazio,Lasse Collin,pr_32.csv,"GCC discussion
+
+https://gcc.gnu.org/pipermail/gcc/2023-February/240747.html",neutral,0,neutral,0.000541742,neutral
+Vincent Fazio,Lasse Collin,pr_32.csv,"@Larhzu 
+
+```
+vfazio@vfazio2 ~/development/buildroot $ file output/build/xz-5.2.10/src/liblzma/.libs/liblzma.*
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.la:        symbolic link to ../liblzma.la
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.lai:       libtool library file, ASCII text
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so:        symbolic link to liblzma.so.5.2.10
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5:      symbolic link to liblzma.so.5.2.10
+output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10: ELF 32-bit LSB shared object, Xilinx MicroBlaze 32-bit RISC, version 1 (SYSV), dynamically linked, with debug_info, not stripped
+
+```
+```
+vfazio@vfazio2 ~/development/buildroot $ readelf -W --dyn-syms output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10 | grep lzma_stream_encoder_mt_memusage
+   121: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   122: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   123: 0000f11c   676 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```
+
+The patch was largely based on how the check has been adapted other places:
+https://github.com/libfuse/libfuse/pull/620/commits/3aba09a5c56e017746c5c1652dbc845f4db7374a
+
+https://gitlab.com/cryptsetup/cryptsetup/-/merge_requests/275/diffs?commit_id=5f71b3d63181aa88a68f7f71eab8801f2d8d2cde
+
+https://github.com/smuellerDD/libkcapi/blob/master/m4/ac_check_attribute_symver.m4
+
+I'm open to doing this an alternative way if it's more appropriate
+",negative,-0.512242,neutral,0.031810549,neutral
+Vincent Fazio,Lasse Collin,pr_32.csv,"@Larhzu 
+
+i did a quick build off of master via buildroot without applying our patch and tested via qemu-system-microblazeel. Things _seem_ to work OK.
+
+```
+vfazio@Zephyrus:~/development/buildroot$ readelf -W --dyn-syms output/build/xz-b9f171dd00a3cc32b6d41ea8e082cf545640ec2a/src/liblzma/.libs/liblzma.so.5.5.99 | grep stream
+    46: 00013428   516 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_decode@@XZ_5.0
+    48: 00013f64   436 FUNC    GLOBAL DEFAULT   12 lzma_stream_footer_decode@@XZ_5.0
+    63: 00013e80   228 FUNC    GLOBAL DEFAULT   12 lzma_stream_header_decode@@XZ_5.0
+    64: 000063c8   240 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_flags@@XZ_5.0
+    75: 00007618   272 FUNC    GLOBAL DEFAULT   12 lzma_stream_flags_compare@@XZ_5.0
+    77: 0000be7c   108 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_bound@@XZ_5.0
+    78: 00013dc4   188 FUNC    GLOBAL DEFAULT   12 lzma_stream_decoder@@XZ_5.0
+    99: 000064b8   356 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_padding@@XZ_5.0
+   108: 0000bee8   932 FUNC    GLOBAL DEFAULT   12 lzma_stream_buffer_encode@@XZ_5.0
+   112: 0000cca8   336 FUNC    GLOBAL DEFAULT   12 lzma_stream_footer_encode@@XZ_5.0
+   114: 00006060    28 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_count@@XZ_5.0
+   120: 0000cb14   180 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder@@XZ_5.0
+   128: 0000ebfc   524 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   129: 00016670   156 FUNC    GLOBAL DEFAULT   12 lzma_stream_decoder_mt@@XZ_5.4
+   131: 0000eb58   164 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt@@XZ_5.2
+   132: 0000cbc8   224 FUNC    GLOBAL DEFAULT   12 lzma_stream_header_encode@@XZ_5.0
+   152: 00006118   160 FUNC    GLOBAL DEFAULT   12 lzma_index_stream_size@@XZ_5.0
+vfazio@Zephyrus:~/development/buildroot$ output/images/start-qemu.sh serial-only
+Ramdisk addr 0x00000000, 
+FDT at 0x90861a8c
+Linux version 5.15.18 (vfazio@Zephyrus) (microblazeel-buildroot-linux-gnu-gcc.br_real (Buildroot 2022.11-1506-g1d18e0245a) 11.3.0, GNU ld (GNU Binutils) 2.38) #5 Sun Feb 19 11:06:27 CST 2023
+setup_memory: max_mapnr: 0x8000
+setup_memory: min_low_pfn: 0x90000
+setup_memory: max_low_pfn: 0x98000
+setup_memory: max_pfn: 0x98000
+Zone ranges:
+  DMA      [mem 0x0000000090000000-0x0000000097ffffff]
+  Normal   empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000090000000-0x0000000097ffffff]
+Initmem setup node 0 [mem 0x0000000090000000-0x0000000097ffffff]
+setup_cpuinfo: initialising
+setup_cpuinfo: No PVR support. Using static CPU info from FDT
+wt_msr
+pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+pcpu-alloc: [0] 0 
+Built 1 zonelists, mobility grouping on.  Total pages: 32512
+Kernel command line: 
+Dentry cache hash table entries: 16384 (order: 4, 65536 bytes, linear)
+Inode-cache hash table entries: 8192 (order: 3, 32768 bytes, linear)
+mem auto-init: stack:off, heap alloc:off, heap free:off
+Memory: 120996K/131072K available (4176K kernel code, 505K rwdata, 748K rodata, 3074K init, 195K bss, 10076K reserved, 0K cma-reserved)
+SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+irq-xilinx: /plb/interrupt-controller@81800000: num_irq=4, edge=0xa
+ERROR: CPU CCF input clock not found
+/plb/timer@83c00000: irq=1
+ERROR: timer CCF input clock not found
+ERROR: Using CPU clock frequency
+clocksource: xilinx_clocksource: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 30580167144 ns
+xilinx_timer_shutdown
+xilinx_timer_set_periodic
+sched_clock: 32 bits at 62MHz, resolution 16ns, wraps every 34359738360ns
+Console: colour dummy device 80x25
+printk: console [tty0] enabled
+Calibrating delay loop... 3063.80 BogoMIPS (lpj=6127616)
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+devtmpfs: initialized
+random: get_random_u32 called from bucket_table_alloc.isra.0+0x70/0x1f0 with crng_init=0
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+futex hash table entries: 256 (order: -1, 3072 bytes, linear)
+NET: Registered PF_NETLINK/PF_ROUTE protocol family
+DMA: preallocated 128 KiB GFP_KERNEL pool for atomic allocations
+DMA: preallocated 128 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+pps_core: LinuxPPS API ver. 1 registered
+pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+PTP clock support registered
+clocksource: Switched to clocksource xilinx_clocksource
+NET: Registered PF_INET protocol family
+IP idents hash table entries: 2048 (order: 2, 16384 bytes, linear)
+tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes, linear)
+TCP established hash table entries: 1024 (order: 0, 4096 bytes, linear)
+TCP bind hash table entries: 1024 (order: 0, 4096 bytes, linear)
+TCP: Hash tables configured (established 1024 bind 1024)
+UDP hash table entries: 256 (order: 0, 4096 bytes, linear)
+UDP-Lite hash table entries: 256 (order: 0, 4096 bytes, linear)
+NET: Registered PF_UNIX/PF_LOCAL protocol family
+workingset: timestamp_bits=30 max_order=15 bucket_order=0
+io scheduler mq-deadline registered
+io scheduler kyber registered
+84000000.serial: ttyUL0 at MMIO 0x84000000 (irq = 4, base_baud = 0) is a uartlite
+printk: console [ttyUL0] enabled
+xilinx_emaclite 81000000.ethernet: Device Tree Probing
+xilinx_emaclite 81000000.ethernet: Failed to register mdio bus.
+xilinx_emaclite 81000000.ethernet: MAC address is now 02:00:00:00:00:00
+xilinx_emaclite 81000000.ethernet: Xilinx EmacLite at 0x81000000 mapped to 0x(ptrval), irq=2
+NET: Registered PF_INET6 protocol family
+Segment Routing with IPv6
+In-situ OAM (IOAM) with IPv6
+sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+NET: Registered PF_PACKET protocol family
+Freeing unused kernel image (initmem) memory: 3072K
+This architecture does not have kernel memory protection.
+Run /init as init process
+  with arguments:
+    /init
+  with environment:
+    HOME=/
+    TERM=linux
+Starting syslogd: OK
+Starting klogd: OK
+Running sysctl: OK
+Saving 2048 bits of non-creditable seed for next boot
+Starting network: random: fast init done
+udhcpc: started, v1.36.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.0.2.15, server 10.0.2.2
+udhcpc: lease of 10.0.2.15 obtained from 10.0.2.2, lease time 86400
+deleting routers
+adding dns 10.0.2.3
+OK
+
+Welcome to Buildroot
+buildroot login: root
+
+# xz -h
+Usage: xz [OPTION]... [FILE]...
+Compress or decompress FILEs in the .xz format.
+
+  -z, --compress      force compression
+  -d, --decompress    force decompression
+  -t, --test          test compressed file integrity
+  -l, --list          list information about .xz files
+  -k, --keep          keep (don't delete) input files
+  -f, --force         force overwrite of output file and (de)compress links
+  -c, --stdout        write to standard output and don't delete input files
+  -0 ... -9           compression preset; default is 6; take compressor *and*
+                      decompressor memory usage into account before using 7-9!
+  -e, --extreme       try to improve compression ratio by using more CPU time;
+                      does not affect decompressor memory requirements
+  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0
+                      to use as many threads as there are processor cores
+  -q, --quiet         suppress warnings; specify twice to suppress errors too
+  -v, --verbose       be verbose; specify twice for even more verbose
+  -h, --help          display this short help and exit
+  -H, --long-help     display the long help (lists also the advanced options)
+  -V, --version       display the version number and exit
+
+With no FILE, or when FILE is -, read standard input.
+
+Report bugs to <xz@tukaani.org> (in English or Finnish).
+XZ Utils home page: <https://tukaani.org/xz/>
+THIS IS A DEVELOPMENT VERSION NOT INTENDED FOR PRODUCTION USE.
+
+# xz -V
+xz (XZ Utils) 5.5.0alpha
+liblzma 5.5.0alpha
+
+# fallocate -l 100000 test.file
+# xz test.file 
+# ls -la
+total 8
+drwx------    2 root     root            80 Jan  1 00:00 .
+drwxr-xr-x   17 root     root           400 Feb 19  2023 ..
+-rw-------    1 root     root           102 Jan  1 00:00 .ash_history
+-rw-r--r--    1 root     root           148 Jan  1 00:00 test.file.xz
+# xzcat test.file.xz |  hexdump
+0000000 0000 0000 0000 0000 0000 0000 0000 0000
+*
+00186a0
+```
+
+While i think i personally prefer the compile time check, even if that means i need to tweak it to be more accurate, it's ultimately your call and i'm OK with closing this PR if quirking microblaze is the solution you're happy with. But if gcc gets fixed (assuming it's actually a gcc bug), that means microblaze is now an edge case different from other architectures.",negative,-0.360435,neutral,0.008322762,neutral
+Vincent Fazio,Zephyrus,pr_32.csv,"as a test, i patched gcc's `gcc/config/microblaze/microblaze.h` to add:
+
+```
+#define ASM_OUTPUT_SYMVER_DIRECTIVE(FILE, NAME, NAME2)		\
+  do								\
+    {								\
+      fputs (""\t.symver\t"", (FILE));				\
+      assemble_name ((FILE), (NAME));				\
+      fputs ("", "", (FILE));					\
+      assemble_name ((FILE), (NAME2));				\
+      fputc ('\n', (FILE));					\
+    }								\
+  while (0)
+```
+
+and recompiled xz 5.2.10 without the patch:
+
+```
+vfazio@Zephyrus:~/development/buildroot$ readelf -W --dyn-syms output/build/xz-5.2.10/src/liblzma/.libs/liblzma.so.5.2.10 | grep lzma_stream_encoder_mt_memusage
+   123: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@@XZ_5.2
+   124: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha
+   125: 0000c968   528 FUNC    GLOBAL DEFAULT   12 lzma_stream_encoder_mt_memusage@XZ_5.2.2
+```",negative,-0.561664,neutral,0.008508647,neutral
+Vincent Fazio,vfazio2,pr_32.csv,"Again, i'm not totally convinced the gcc toolchain itself shouldn't be fixed to include `elfos.h` if it's generating ELF binaries.
+
+https://github.com/gcc-mirror/gcc/blob/master/gcc/config.gcc#L2369
+
+I do not see ""elfos.h"" in any of the microblaze targets.
+
+Note that our target is:
+
+```
+vfazio@vfazio2 ~/development/buildroot :( $ output/host/bin/microblazeel-linux-cc.br_real -v
+Using built-in specs.
+COLLECT_GCC=output/host/bin/microblazeel-linux-cc.br_real
+COLLECT_LTO_WRAPPER=/mnt/development/buildroot/output/host/opt/ext-toolchain/bin/../libexec/gcc/microblazeel-buildroot-linux-gnu/12.2.0/lto-wrapper
+Target: microblazeel-buildroot-linux-gnu
+
+```",negative,-0.549275,negative,-0.394585208,negative
+Xin Li,Jia Tan,pr_43.csv,"
+Hi @JiaT75 thanks for the quick response!  Yes I _think_ your solution would work too.  I'll test it tonight (it would take several hours for the test to complete) and post an update here.",positive,0.730248,positive,0.946659119,positive
+Xin Li,Jia Tan,pr_43.csv,"
+build would fail if compiled with `-Wunused-label` as `error:` is not longer used.  Maybe hide it in a `#else` clause of `HAVE_CAPSICUM`, or have an explicit `goto error` after the `if` clause checking for `ENOSYS`?",negative,-0.7775,negative,-0.608409195,neutral
+Xin Li,Lasse Collin,pr_43.csv," @Larhzu yeah I like the [capsicum_improvements](https://github.com/tukaani-project/xz/commits/capsicum_improvements) changes better.  And `message_warning` did change the exit code so it would cause breakage in some scenarios, in our case it would still break gettext-tools build (as make is expecting xz to return 0).
+
+Regarding ""[cap_enter(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_enter&apropos=0&sektion=0&manpath=FreeBSD+14.0-CURRENT&arch=default&format=html) mentions ENOSYS but [cap_rights_limit(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_rights_limit&sektion=2&apropos=0&manpath=FreeBSD+14.0-CURRENT) doesn't."" -- yes, this is definitely a documentation issue and I'll fix it ASAP.
+
+For capsicum_helpers(3) -- I think it's totally dependent on whether the code would be used on other operating systems that have capsicum support; they are FreeBSD specific.  FreeBSD 10 / 11 is not really a concern as they are pretty old nowadays.",negative,-0.477448,positive,0.566576341,neutral
+Xin Li,Lasse Collin,pr_43.csv,"@Larhzu Regarding warning message -- it doesn't matter much as long as the return value is zero.  Personally, I'd prefer not having the warning message, because 1) Capsicum is enabled by default and user has to deliberately disable it with a custom built kernel; we are discussing about remove the option and make it mandatory, but right now for those who disabled it it can be quite annoying to see the message every invocation of xz, and 2) this behavior (no warning when capsicum is not supported) is what everyone else does currently, the preferred (capsicum_helper) wrapper even handled it for the developer.
+
+I've updated the manual page for other `cap_*` system calls for FreeBSD in https://github.com/freebsd/freebsd-src/commit/75798f9b01055261881938326a5c77e55f79c7f7 to reflect the fact that they do return `ENOSYS`.
+
+(Maybe we should close this PR and move the discussion somewhere else? :) )",negative,-0.488778,negative,-0.88079773,negative
+autoantwort,Jia Tan,pr_42.csv,Do the headers also require C99 or only the source code?,neutral,0,neutral,-0.025642078,neutral
+boofish,Jia Tan,issue_20.csv,thanks for your detailed explanation!,positive,0.990071,positive,0.911573783,positive
+cblc,Sam James,issue_54.csv,"You are free to close this issue, unless you feel that something could be added. Thank you very much!!",positive,0.994871,positive,0.951957747,positive
+cblc,Sam James,issue_54.csv,"Great, thank you very much!
+
+Does the test suite consist in invoking the following executables, or do I need to invoke them in some special way, or are there perhaps other scripts to run? (these executables are what I get in the tests directory when building to 32bit Windows with mingw-w64)
+
+```
+tests/create_compress_files.exe	tests/test_check.exe		tests/test_hardware.exe		tests/test_lzip_decoder.exe	tests/test_vli.exe
+tests/test_bcj_exact_size.exe	tests/test_filter_flags.exe	tests/test_index.exe		tests/test_memlimit.exe
+tests/test_block_header.exe	tests/test_filter_str.exe	tests/test_index_hash.exe	tests/test_stream_flags.exe
+```",negative,-0.504749,positive,0.420116199,positive
+cblc,Sam James,issue_54.csv,"Everything clear, I think. I have created this batch file which, AFAIK, runs all the tests that can be run from cross-compilation.
+
+There's an extra step, though, before running this batch file, and it's that you must copy the complete `files` folder (located under the `tests` folder in the source code) into the built `tests` folder, for the script to run:
+
+```
+test_bcj_exact_size.exe || exit /b
+test_block_header.exe || exit /b
+test_check.exe || exit /b
+test_filter_flags.exe || exit /b
+test_filter_str.exe || exit /b
+test_hardware.exe || exit /b
+test_index.exe || exit /b
+test_index_hash.exe || exit /b
+test_lzip_decoder.exe || exit /b
+test_memlimit.exe || exit /b
+test_stream_flags.exe || exit /b
+test_vli.exe || exit /b
+```",negative,-0.488612,neutral,0.071722429,neutral
+duerpei,Jia Tan,pr_52.csv,"
+As you mentioned, it is a cross-compile situation where I want to copy over the test binaries after everything else is built. 
+To be precise, I want to add ""ptest"" support for xz in ""openembedded core"", so there is the situations where only local compilation is done without running tests.
+
+I have tried the method you suggested and it can also solve my problem very well, so there is no need to modify the code in xz.
+Finally, I would like to thank you for your patient comment. 
+Thank you!",positive,0.711327,positive,0.900240785,positive
+duerpei,Jia Tan,pr_52.csv,"My problem has been resolved, so I will close this issue.
+Thank you for your reply.",positive,0.934694,neutral,-0.02208199,positive
+mgood7123,Lasse Collin,issue_70.csv,"
+an ifunc WILL compile and link successfully in a dynamically built program, but musl does not implement ifunc (GNU glibc only extension)",neutral,0,neutral,-0.000827074,neutral
+mgood7123,Lasse Collin,issue_70.csv,a crude hack to detect musl is to detect /lib/ld-musl-*,negative,-0.647258,neutral,0.020837043,neutral
+mgood7123,Lasse Collin,issue_70.csv,"we could extract the triple on gcc/clang via `-dumpmachine`
+
+```
+$ clang -dumpmachine
+x86_64-alpine-linux-musl
+```",negative,-0.697239,negative,-0.375387079,neutral
+mvatsyk-lsg,Jia Tan,pr_73.csv,"@JiaT75 thanks a lot for the swift review! I will start implementing the suggested changes asap. I am going to focus on fixing the highlighted issues before implementing any new fuzzers, if that makes sense :) 
+
+To address some of your comments above:
+- The new fuzz targets were chosen to cover most of the `liblzma` common use cases from the code of XZ utils (i.e. we expanded the tests to cover the decoders and encoders used by the CLI utilities) 
+- I completely agree that the fuzz targets' code can be reduced via templates and shared code. Would you like to simply move the common functionality into a separate header file, or to generate the fuzzers' code dynamically by replacing the lines in a template file as well? 
+",positive,0.913214,positive,0.843472801,positive
+mvatsyk-lsg,Jia Tan,pr_73.csv,"
+Thank you for the review! I've reverted the changes and added the `max_len=4096` to all fuzzer options. ",positive,0.991821,positive,0.67640317,positive
+mvatsyk-lsg,Jia Tan,pr_73.csv,"@JiaT75 @Larhzu thank you both for your time and effort to merge this pull request! A couple of updates on my side:
+
+- I have removed all of the extra fuzz targets deemed unnecessary from this pull request
+- I have also been trying to figure out the exact time and resource limits in place on the OSS Fuzz's side of the setup by digging through their source code. There are many timeout options in place, and I am not really sure about their purpose. However, I at least found that the fuzzers are run with the `-max_total_time=10` [(10 seconds) argument](https://github.com/google/oss-fuzz/blob/1e6abbd967b8a4e797c204b546d2039fb6e00a1c/infra/helper.py#L420) during the generation of an introspector report (the same type of the report that is [publicly available for your project](https://storage.googleapis.com/oss-fuzz-introspector/xz/inspector-report/20231114/fuzz_report.html)).
+
+Just to be sure, I have also emailed one of the OSS Fuzz maintainers to get the answer from them. I will follow up on this discussion once I receive a reply",positive,0.382526,positive,0.953480638,positive
+mvatsyk-lsg,Jia Tan,pr_73.csv,@JiaT75 done! ,positive,0.888925,positive,0.461253867,positive
+mvatsyk-lsg,Jia Tan,pr_73.csv,"@JiaT75 the changes look good to me! I have also updated the pull request to the oss-fuzz repo. To test the new fuzzing setup locally, you can run the following commands on your machine:
+
+```bash
+# clone my fork of the oss-fuzz repo with pull request changes
+git clone https://github.com/mvatsyk-lsg/oss-fuzz
+cd oss-fuzz/
+
+# update the Dockerfile to clone the oss_fuzz branch specifically
+sed -i 's/git clone /git clone -b oss_fuzz /' projects/xz/Dockerfile
+
+# build project image
+python3 infra/helper.py build_image 'xz'
+
+# generate introspector report 
+python3 infra/helper.py introspector 'xz'
+```",positive,0.374649,positive,0.576715852,positive
+mvatsyk-lsg,Jia Tan,pr_73.csv,"@JiaT75 I've addressed your comments and tested the new Makefile and fuzz targets' code on a local setup. They seem to compile and work just fine. A quick question: should I go back and edit the description of all commits before the review, or will you be making a squash during the merge?",neutral,0,positive,0.979989037,neutral
+mvatsyk-lsg,Jia Tan,pr_73.csv,"Apart from the possible re-addition of `options` files with `max_len` options back to the pull request, everything is ready for your review @JiaT75 ! ",neutral,0,neutral,0.074252012,neutral
+mvatsyk-lsg,Jia Tan,pr_73.csv,"Also, I am now questioning whether the addition of `.lzma_raw` files is needed, since the corresponding fuzzers were removed from the pull request",neutral,0,neutral,0.132912437,neutral
+mvatsyk-lsg,Jia Tan,pr_73.csv,"Okay, @JiaT75, I've rebased the pull request. Does the commit history look good to you?",neutral,0,negative,-0.957034627,neutral
+mvatsyk-lsg,Jia Tan,pr_73.csv,"A follow up on the redundant fuzzers: I ran the setup without them, and the coverage difference is indeed negligible. I am removing them from the pull request",negative,-0.899441,negative,-0.695478251,neutral
+mvatsyk-lsg,Lasse Collin,pr_73.csv,"Hi @Larhzu !
+
+
+In the existing setup, the corpora are generated dynamically in a [build.sh](https://github.com/google/oss-fuzz/pull/11279/commits/97ba2c05158912b2c8a5a2dd6c721fa31f2ed819) file. So, any modifications have to be done in a separate [pull request](https://github.com/google/oss-fuzz/pull/11279). After we merge this pull request, I will go ahead and update the latter one to properly reflect all the changes. 
+
+
+I did not find any hard cap of the execution time for the OSS Fuzz itself. However, their CI integration, CIFuzz will divide the [shared fuzzing time of 10 minutes](https://google.github.io/oss-fuzz/getting-started/continuous-integration/#how-it-works) between all fuzz targets in the project. 
+
+Getting back to the OSS Fuzz, each fuzz target will be run on [a dedicated machine](https://google.github.io/oss-fuzz/faq/#what-are-the-specs-on-your-machines) with 1 CPU and a cap of ~ 2GB RAM. 
+
+Since the fuzzers are written in C/C++, I doubt that introducing new fuzzers, at least for now, will decrease the overall quality of the fuzzing output. On my test setup inside a VM with similar hardware parameters, the fuzzing and the generation of an introspector report took around 5 minutes.
+
+
+This absolutely makes sense. However, current fuzzing setup is very limited and covers only half of the lib (since `--disable-encoders` flag is used during the compilation). Its runtime coverage is 116/162 functions. The setup proposed in this pull request extends the fuzzing coverage to all common encoders and decoders to increase the runtime coverage to 270/360 functions.
+
+
+
+We can remove those, however this decreases the runtime fuzzing coverage from 270/360 to 249/360 functions. Should we proceed with deleting the fuzz targets?",positive,0.4768,neutral,-0.018515261,neutral

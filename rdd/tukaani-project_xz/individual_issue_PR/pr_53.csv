@@ -1,0 +1,109 @@
+event,from,created_at,body,to
+thread_started,hansjans162,2023-06-23T10:23:07Z,"The ifunc attribute is a cleaner and marginally more performant
+mechanism for dynamically choosing a routine at runtime.
+
+The PR contains two parts:
+1. The first replaces the crc64 construct with the ifunc resolver.
+2. The second modifies the build process to account for the ifunc attribute.
+
+HAVE_FUNC_ATTRIBUTE_IFUNC is set if ifuncs can be built
+on the system. glibc has supported ifunc since version 2.11 (2009). Building for older machines
+may want to manually disable ifunc support when building.
+--disable-ifunc can be used with autotools and
+USE_ATTR_IFUNC=OFF can be used with CMake to disable the check for ifunc support.
+USE_ATTR_IFUNC defaults to ON for CMake and enable_ifunc defaults to yes for autotools.
+
+More about ifuncs can be read [here](https://sourceware.org/glibc/wiki/GNU_IFUNC) or [here](https://www.agner.org/optimize/optimizing_cpp.pdf#page=142).
+
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [X] Refactoring (no functional changes, no api changes)
+- [X] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+crc64\_fast currently uses the \_\_attribute\_\_ constructor to choose the crc implementation to use.
+
+
+## What is the new behavior?
+I replaced the \_\_attribute\_\_((\_\_constructor\_\_)) with \_\_attribute\_\_((ifunc())) in crc64_fast.c
+
+- The HAVE_FUNC_ATTRIBUTE_IFUNC flag was added to configure.ac
+- The USE_ATTR_IFUNC cmake option was added to CMakeLists.txt
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+Functionality should be identical.
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->",['hansjans162']
+commented,JiaT75,2023-06-23T11:36:08Z,"Thanks for the PR and the helpful links! Overall this seems like a nice improvement to our function picking strategy for CRC64. It will likely be useful when we implement CRC32 CLMUL too :)
+
+I want to do a bit more research about the GNU indirect functions to make its right for this project before we decide to merge. Before that, there are a few style changes that need to be made. I will comment them separately.",['hansjans162']
+commented,Larhzu,2023-06-23T12:03:34Z,"My understanding is that ifunc is specific to glibc. `__constructor__` works on many ELF platforms, not just GNU/Linux.
+
+According to your link, ifunc is incompatible with `-fsanitize=address`. And indeed it makes `make check` fail with segfaults. (I also see that two tests fail with `-fsanitize=address` before your patch due to memory leaks but no segfaults.)
+
+Also, checking for `__cplusplus` isn't needed as this is C code and not a public header.
+
+How much difference (speed or memory or anything else) does ifunc make in this specific use case? I understand that the function pointer is an extra step on each call but the function itself is more expensive than `memcpy` or such which get called a lot with tiny buffers. Currently I feel the extra complication isn't worth it in liblzma as `__constructor__` is good to keep around too for ELF platforms that lack ifunc support.
+
+
+Thanks!",['JiaT75']
+commented,hansjans162,2023-06-23T12:45:38Z,"Thanks for the feedback!
+
+I could make the selection method a three tiered approach where ifunc is preferred, followed by the `__constructor__`, and followed again by the generic method. This way the behavior would remain unchanged on non-GNU/Linux systems. Yes, if `-fsantize=address` is set then you would want to set `--disable-ifunc`.
+
+The performance improvements are helpful if crc64 is called a large amount, e.g. for a large number of small files or a multi-threaded file with many blocks. I'm using the crc64 function a very large amount by itself since I noticed it is very fast for checksumming since the CLMUL update. There is also some benefit with branch prediction and it gave me one less instruction when I compiled it with GCC. Your right though, I was hoping to look into additional optimizations after this one.
+
+In regards to `__cplusplus` I wasn't sure if liblzma was being compiled with a C++ compiler anywhere. I can remove it if you don't think it's useful.",['Larhzu']
+commented,Larhzu,2023-06-23T13:29:34Z,"I understand that ifunc avoids loading a function pointer and an indirect branch. liblzma uses function pointers a lot so, for (de)compression performance, avoiding one pointer in the call stack likely doesn't matter (but I haven't benchmarked it). Many `lzma_crc64` calls can process a few kilobytes of data per call but I understand that in non-compression uses tiny buffers may be the most common.
+
+How big difference in speed does your patch make with your code? I would like understand the real-world improvement that ifunc can make specifically with `lzma_crc64`.
+
+
+C++ compiler isn't used so the check should be removed.
+
+By the way, have you checked xxhash if you need a very fast hash?
+
+Thanks!",['hansjans162']
+commented,hansjans162,2023-06-23T13:54:15Z,"I have a large number of varying buffer sizes. With the larger buffers it doesn't make much of a difference, but with the smaller ~64B to ~256B buffers I was noticing a 4-5% improvement. I'm also running all of this on older hardware which may be contributing to the speedup. I benchmarked it for the standard .xz case, however the speedup there was within the bounds of being noise.
+
+liblzma works well since it's already present, and we're also locked into the existing checksums.",['Larhzu']
+commented,Larhzu,2023-06-23T14:55:26Z,4-5 % isn't a huge difference but it's around the threshold where it becomes interesting. Jia and I discussed this and ifunc support is welcome while keeping the constructor attribute as the second choice. Thanks!,['hansjans162']
+commented,hansjans162,2023-06-24T12:10:23Z,I made all of the requested fixes. Let me know if there are any other concerns.,['Larhzu']
+commented,Larhzu,2023-06-25T16:02:58Z,"When fixing commits in a patchset / pull request, it usually should be done by editing the original commits instead of adding fix-up commits at the end. For example, in this case the commits first remove a feature and then add it back. This makes it harder to see what changes were _actually_ made in the end. This applies to both reviewing the changes before the merge and to people who read xz's commit log afterwards. I think this should be fixed.
+
+Thanks!",['hansjans162']
+commented,hansjans162,2023-06-26T17:53:19Z,Thanks for the advice. I made the requested change. I rebased the git commits and updated the commit messages.,['Larhzu']
+commented,Larhzu,2023-06-27T14:43:17Z,"Using ifunc for a static `crc64_func` means that `lzma_crc64` becomes a single-instruction function that just does a jump via PLT:
+
+```
+jmp    45a0 <*ABS*+0x15e00@plt>
+```
+
+I suppose it's better to make `lzma_crc64` itself the ifunc. This has been done in [v2](https://github.com/tukaani-project/xz/tree/ifunc-crc64-fast-v2) branch. Can you test it and tell if you notice any difference (speed or anything else) compared to your version. Thanks!",plt
+commented,hansjans162,2023-06-27T15:31:18Z,I ran it and it looks good. The performance seems to be a little bit better. I didn't notice any other differences. Thanks for taking the time to review everything.,['Larhzu']
+commented,JiaT75,2023-06-27T16:01:59Z,@hansjans162 Just merged from the other branch Thanks for your contribution! ,hansjans162
+commented,rashadgasimli,2024-04-25T21:47:57Z,wtf,['JiaT75']

@@ -1,0 +1,214 @@
+event,from,created_at,body,to
+thread_started,parheliamm,2024-01-09T09:38:00Z,"The CRC32 instructions in ARM64 can calculate the CRC32 result for 8 bytes in a single operation, making the use of ARM64 instructions much faster compared to the general CRC32 algorithm.
+
+Optimized CRC32 will be enabled if ARM64 has CRC extension running on Linux.
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [x] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+
+- [ ] Bugfix
+- [x] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+
+<!-- Please describe the current behavior that you are modifying. -->
+
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: 
+
+
+## What is the new behavior?
+
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+
+- Enable optimized CRC32 algorithm if ARM64 support CRC extension.
+  -
+  -
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [ ] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+Benchmark data will be updated soon",['parheliamm']
+commented,Larhzu,2024-01-09T19:43:45Z,"Thanks! A quick few early comments (I or Jia will comment more later):
+
+The `Data` pointer seems pointless. I don't see a reason to cast away the const qualifier.
+
+ARM64 processors tend to support unaligned memory access but would it still be worth it (better speed) to align the `buf` first with calls to `__builtin_aarch64_crc32b`? See how aligning is done in the generic code.
+
+I'm not sure but I guess the input `crc` variable doesn't need byte-swapping but reading the input in loop will need it. So it should use `read64le` instead, or `aligned_read64le` if `buf` is first aligned. This should be investigated or the code should be marked little-endian-only if we aren't sure.
+
+`getauxval` is a libc function (not inline) so it's unsafe to combine it with ifunc. That is, ifunc would need to stay disabled on ARM64.
+
+Are ARM64 processors without CRC32 common enough that runtime detection is worth it? Even they are, `#ifdef __ARM_FEATURE_CRC32` could be used at compile time to detect if CRC32 can be assumed to be supported.
+
+The crc_edits branch is still under consideration so that may change where the code will go, possibly making things simpler.",['parheliamm']
+commented,parheliamm,2024-01-10T00:24:52Z,"I will update this part in next push. 
+thx.
+Unaligned memory access is a default feature by ARM64, so there is no need to consider align it first.
+
+I don't have big-endian test environments, so I cannot predict the behavior and unit test on big-endian.
+I think support little-endian-only is a good idea. I will modify the code.
+
+
+Try to fix in the next push.
+
+
+""crc"" is a part of ARMv8.1 feature. To make all armv8 processors happy, it need to detect the processor feature on runtime.
+
+",['Larhzu']
+commented,JiaT75,2024-01-10T12:12:51Z,"
+Hello! Thanks for the PR. The point about not needing runtime detection likely needs more research. From a quick search, my understanding is that CRC32 instruction is optional in armv8.0 and required in ARMv8.1. So if all processors in practice actually supported CRC32 in armv8.0, then it will really simplify this feature since the runtime detection adds significant complexity. The runtime detection likely requires avoiding ifunc and having different versions based on the platform (`getauxval()`, `IsProcessorFeaturePresent()`, etc).
+
+A note on compile time detection: __ARM_FEATURE_CRC32 isn't supported by MSVC so we will need another way to detect CRC32 instruction support there.",['parheliamm']
+commented,thesamesam,2024-01-10T12:13:36Z,"
+Unfortunately, I have an arm64 machine without crc32, but it is an odd one ([X-Gene Mudan](https://en.wikichip.org/wiki/apm/x-gene/apm883408-x1)).",['JiaT75']
+commented,hansjans162,2024-01-10T22:24:00Z,"Over the holidays I got an odroid which has the crc instruction and pmull, so I have been working on an arm64 clmul implementation for crc32 and crc64. I have compared this to my implementation with clmul and found that the performance is similar to mine for smaller inputs, but becomes faster the larger the input size. From what I have found it seems like the arm64 crc instruction is also more supported than the pmull instruction that the clmul implementation depends on.
+
+I will look into seeing how commonly supported the crc instruction and pmull are, and if runtime checks would be necessary. I have already run into cases where pmull has not been supported so it is likely we would need runtime check if we wanted to include crc64 clmul. The speed increase of crc clmul and the crc instruction were both very significant for larger bytes. The crc64 clmul reached up to 3 times as fast for these inputs.
+
+I still need to clean up my code and remove the crc32 clmul so I can make a pr for it after this is resolved.",['thesamesam']
+commented,parheliamm,2024-01-11T00:31:09Z,"
+Would you please share your implementation here, I would like to double check the CRC32 speed on my side.
+For CRC32d insns, I can unroll it for larger size, e.g 4K or 16K like google did, that will be much better performance but larger  code size. ",['hansjans162']
+commented,JiaT75,2024-01-11T14:05:31Z,"@hansjans162 Thanks for continuing your work on ARM64 CLMUL! Your benchmarks so far sound promising and will likely be a great value to liblzma. We look forward to seeing the code and further benchmarks when they are ready :)
+
+It sounds like runtime checks will be needed, but please let us know if anyone finds reasons to contradict this.
+
+We did a refactor to the existing CRC related files for code organization and small optimization related reasons. This change means that architecture specific CRC optimizations should go into header files that are included in the corresponding crc32/64_fast.c file. The reasons for this are best explained in the commit message [here](https://github.com/tukaani-project/xz/commit/419f55f9dfc2df8792902b8953d50690121afeea).
+
+Based on the refactor, @parheliamm, please put your changes into `crc32_arm64.h`, then include that header file in `crc32_fast.c`. 
+
+Similarly, Hans please refactor what you have to create `crc64_arm64.h` with your CRC64 CLMUL work (and include this file in `crc64_fast.c`). You are likely still blocked until this PR is complete since the build changes and runtime checks should be coordinated between the branches. Feel free to send us a link to your branch whenever you have something ready that you want to show us :)
+
+We apologize for the refactor after this was already submitted, but this PR helped inform that refactor (and gave us the needed motivation to close out the branch). Thank you everyone so far for you patience and your contributions so far!
+",hansjans162
+commented,Larhzu,2024-01-11T14:25:38Z,"@parheliamm:
+
+I would expect aligned access to be faster still. In general, when unaligned access is fast on some hardware, it's fast in context of other methods for unaligned access. That is, it's much faster than doing byte-by-byte access. When the access crosses cache line or page boundaries, it may have penalties that don't occur with aligned access.
+
+You could test with something like `uint64_t buf[2048]` and then comparing speeds of `lzma_crc32((unsigned char *)buf, sizeof(buf) - 1, 0)` and `lzma_crc32((unsigned char *)buf + 1, sizeof(buf) - 1, 0)`. If there is no difference then it's great news.
+
+
+Linux has [CRC32 assembly](https://github.com/torvalds/linux/blob/master/arch/arm64/lib/crc32.S) for both endiannesses. Maybe it can help in learning what extra steps are needed for big endian support. Having said that, little-endian-only version is fine for now, especially since it sounds that no one can test the big endian code anyway.
+
+**Edited** to add missing casts to the `lzma_crc32` calls.",parheliamm
+commented,parheliamm,2024-01-12T03:18:22Z,"
+Based on my local test, unaligned access is slower(25%) than aligned access.
+So I will modify the code to handle unaligned data first.",['Larhzu']
+commented,parheliamm,2024-01-12T14:23:46Z,"I've updated aarch64 CRC code with align memory access.
+Other parts will be rebased to the latest code.",['Larhzu']
+commented,hansjans162,2024-01-12T20:52:38Z,"
+@parheliamm [Here](https://github.com/hansjans162/xz/tree/tmp-arm64-crc-clmul) is the arm64 clmul implementation. Sorry for the delay I was updating my code to use the new organization. I would also like to note that my code is not finished yet. is_arch_extension_supported currently always returns true, and platform checks in configure.ac and CMakeLists.txt need to be made.",parheliamm
+commented,parheliamm,2024-01-13T02:04:12Z,"
+@hansjans162 :
+I did a quick tests for CRC32s with 16MB data with 1024 loops:
+```
+lge@kunpeng920:~/SATA/work/CRC$ ./crc
+algined crc32d，time: 1268.48 ms, address=0xc52d0060
+crc=0xb596e05e
+unalgined crc32d，time: 1264.09 ms, address=0xc62d0061
+crc=0xb596e05e
+unaligned crc32_arch_optimized，time: 3178.84 ms, address=0xc62d0061
+crc=0xb596e05e
+```
+The crc32_arch_optimized seems takes more time on my local test.",hansjans162
+commented,hansjans162,2024-01-16T16:48:36Z,"
+@parheliamm I'm glad your test result match up with mine. I still found that the arm64 clmul implementation for crc64 is faster than the generic and worth keeping. Maybe you can test this to confirm? I will remove crc32 clmul from my code, but keep in crc64 clmul.",parheliamm
+commented,parheliamm,2024-01-17T02:03:24Z,"
+@hansjans162 
+I will check CRC64 with clmul on my side.
+I believed the CRC64 clmul is faster than generic code.
+I will share the result later.
+If the CRC64 clmul code is confirmed, I will integrated into my PR and submit for review.
+
+
+By the way, your CRC64 code has below warnings and unit tests cannot passed.
+I am trying to fix below warnings.
+```
+check/crc32_aarch64.h: In function 'crc_simd_body':
+check/crc32_aarch64.h:60:25: warning: cast from function call of type 'poly64x1_t' to non-matching type '__Poly64_t' [-Wbad-function-cast]
+   60 |                         (poly64_t)(vreinterpret_p64_u8(vget_##x##_u8(a))), \
+      |                         ^
+check/crc32_aarch64.h:175:53: note: in expansion of macro 'PMULL1'
+  175 |                                 *v1 = veorq_u8(*v1, PMULL1(*v0, low, vfold16, low));
+      |                                                     ^~~~~~
+check/crc32_aarch64.h:61:25: warning: cast from function call of type 'poly64x1_t' to non-matching type '__Poly64_t' [-Wbad-function-cast]
+   61 |                         (poly64_t)(vreinterpret_p64_u8(vget_##y##_u8(b)))))
+```",hansjans162
+commented,JiaT75,2024-01-27T16:19:58Z,"@parheliamm @hansjans162 Thank you for your patience on this review. We had a few other things we were focusing on (new website, release, etc.). I promise I did not forget about this :)
+
+I created a [branch](https://github.com/tukaani-project/xz/tree/arm64_crc32) with some additions to this PR that will also be helpful for the CRC64 CLMUL. The extent of the edits should be clear from the commit messages and code changes, but let me know if you have questions about the changes.
+
+Can you both test this on your hardware to be sure it works correctly (and is still fast)? I was able to cross-compile it with GCC, Clang, and MSVC but I do not have an ARM64 device so I have not run the code. Thanks!",parheliamm
+commented,hansjans162,2024-01-29T21:19:31Z,"
+I tested your code and found a problem with the crc32_arch_optimized function. the updated function below should fix this.
+
+I made two changes to this function. First was making align_amount the difference from 8 instead of just the remainder. I also xor this with 8 so buf_end does not change if it is already properly aligned. The second thing was changing __crc32w to __crc32d.
+```c
+crc_attr_target
+static uint32_t
+crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
+{
+	crc = ~crc;
+
+	// Align the input buffer because this was shown to be
+	// significantly faster than unaligned accesses.
+	const size_t align_amount = my_min(size, ((8-((uintptr_t)(buf) & 7))^8));
+	const uint8_t *buf_end = buf + align_amount;
+
+	for (; buf < buf_end; ++buf)
+		crc = __crc32b(crc, *buf);
+
+	for (buf_end = ((size - align_amount) - 8) + buf; buf < buf_end;
+			buf += 8)
+		crc = __crc32d(crc, aligned_read64le(buf));
+
+	for (buf_end += 8; buf < buf_end; ++buf)
+		crc = __crc32b(crc, *buf);
+
+	return ~crc;
+}
+```",['JiaT75']
+commented,JiaT75,2024-01-30T12:58:41Z,"
+Thanks for the fixes! I updated the branch. I slightly optimized the `align_amount` calculation a little further since there isn't a reason to bitwise AND buf before the subtraction. The unsigned underflow from the subtraction still does what we want so the final bitwise AND can clear the unwanted bits away.",['hansjans162']
+commented,Larhzu,2024-01-30T18:12:32Z,"```
+for (buf_end = ((size - align_amount) - 8) + buf; buf < buf_end;
+		buf += 8)
+
+```
+
+I suspect that `clang -fsanitize=undefined` will complain at runtime. If `size` equals 1 and `align_amount` equals 0 or 1, it ends up calculating `buf - 8` or `buf - 7`. That is, the pointer arithmetic may go beyond the beginning of the buffer, which the C standard doesn't allow (but one element past the end is allowed).
+
+Although it should work in practice on ARM64 (unless the buffer is at a weird address where the address would overflow but that's unlikely), I think it should be possible to avoid the problem without a performance penalty.",['JiaT75']
+commented,JiaT75,2024-01-31T12:02:57Z,"
+Thanks for pointing this out! I pushed a new version to avoid pointer arithmetic beyond the beginning of the buffer. I also added macOS support, but I couldn't test it since I do not have an Apple device. The Apple specific code is small so it should work but I hope someone can test this.",['Larhzu']

@@ -1,0 +1,21 @@
+event,from,created_at,body
+thread_started,gabibguti,2023-04-04T20:05:54Z,"### Describe the Feature
+
+A Security Policy should provide clear guidance on how to report potential vulnerabilities and inform the vulnerabilities disclosure window for this repo. It recommended by [Github](https://docs.github.com/en/code-security/getting-started/securing-your-repository#setting-a-security-policy) and [Scorecard](https://github.com/ossf/scorecard).
+
+
+### Expected Complications
+
+No.
+
+### Will I try to implement this new feature?
+
+Yes
+
+#### Additional context
+I'm Gabriela and I work on behalf of Google and the OpenSSF suggesting supply-chain security changes :)
+
+If you agree, I can open a PR to suggest a Security Policy, and we can work together to communicate how the repo can best handle vulnerability reports."
+commented,JiaT75,2023-04-05T12:26:34Z,"Hi Gabriela! This seems like a great idea, thanks for the suggestion. At the moment, users are expected to report security reports to our project's email address (xz@tukaani.org). Since we moved to GitHub, it is probably less clear that is our expectation, especially for users who find the project through GitHub. So setting up a SECURITY.md file will be helpful.
+
+You are welcome to suggest an initial version for the Security Policy through a PR. Thanks for the help!"

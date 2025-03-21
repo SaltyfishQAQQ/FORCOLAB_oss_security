@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Christian Hesse,issue_44.csv,"Sorry. :-( I added a few warning flags since I thought I had silenced them all.
+
+Arch uses --enable-werror so that's why warnings make the build fail. This is good for testing :-) although it can cause annoyances like this. It was only recently that -Wno-format-truncation could be removed from the PKGBUILD file in Arch.
+
+It's fixed in master and v5.4 now. Thanks!",negative,-0.48352

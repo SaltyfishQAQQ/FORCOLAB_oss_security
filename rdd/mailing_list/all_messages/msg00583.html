@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] XZ Utils 5.2.6</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00583" id="c">
+<link rel="index" href="maillist.html#00583" id="i">
+<link rel="prev" href="msg00581.html" id="p">
+<link rel="next" href="msg00584.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00583.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.2.6%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] XZ Utils 5.2.6</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Lasse+Collin%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Lasse Collin</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220812" rel="nofollow">Fri, 12 Aug 2022 09:33:45 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>XZ Utils 5.2.6 is available at &lt;<a  rel="nofollow" href="https://tukaani.org/xz/">https://tukaani.org/xz/</a>&gt;. Here is an
+extract from the NEWS file:</pre><pre>
+
+5.2.6 (2022-08-12)
+
+    * xz:
+
+        - The --keep option now accepts symlinks, hardlinks, and
+          setuid, setgid, and sticky files. Previously this required
+          using --force.
+
+        - When copying metadata from the source file to the destination
+          file, don't try to set the group (GID) if it is already set
+          correctly. This avoids a failure on OpenBSD (and possibly on
+          a few other OSes) where files may get created so that their
+          group doesn't belong to the user, and fchown(2) can fail even
+          if it needs to do nothing.
+
+        - Cap --memlimit-compress to 2000 MiB instead of 4020 MiB on
+          MIPS32 because on MIPS32 userspace processes are limited
+          to 2 GiB of address space.
+
+    * liblzma:
+
+        - Fixed a missing error-check in the threaded encoder. If a
+          small memory allocation fails, a .xz file with an invalid
+          Index field would be created. Decompressing such a file would
+          produce the correct output but result in an error at the end.
+          Thus this is a &quot;mild&quot; data corruption bug. Note that while
+          a failed memory allocation can trigger the bug, it cannot
+          cause invalid memory access.
+
+        - The decoder for .lzma files now supports files that have
+          uncompressed size stored in the header and still use the
+          end of payload marker (end of stream marker) at the end
+          of the LZMA stream. Such files are rare but, according to
+          the documentation in LZMA SDK, they are valid.
+          doc/lzma-file-format.txt was updated too.
+
+        - Improved 32-bit x86 assembly files:
+            * Support Intel Control-flow Enforcement Technology (CET)
+            * Use non-executable stack on FreeBSD.
+
+        - Visual Studio: Use non-standard _MSVC_LANG to detect C++
+          standard version in the lzma.h API header. It's used to
+          detect when &quot;noexcept&quot; can be used.
+
+    * xzgrep:
+
+        - Fixed arbitrary command injection via a malicious filename
+          (CVE-2022-1271, ZDI-CAN-16587). A standalone patch for
+          this was released to the public on 2022-04-07. A slight
+          robustness improvement has been made since then and, if
+          using GNU or *BSD grep, a new faster method is now used
+          that doesn't use the old sed-based construct at all. This
+          also fixes bad output with GNU grep &gt;= 3.5 (2020-09-27)
+          when xzgrepping binary files.
+
+          This vulnerability was discovered by:
+          cleemy desu wayo working with Trend Micro Zero Day Initiative
+
+        - Fixed detection of corrupt .bz2 files.
+
+        - Improved error handling to fix exit status in some situations
+          and to fix handling of signals: in some situations a signal
+          didn't make xzgrep exit when it clearly should have. It's
+          possible that the signal handling still isn't quite perfect
+          but hopefully it's good enough.
+
+        - Documented exit statuses on the man page.
+
+        - xzegrep and xzfgrep now use &quot;grep -E&quot; and &quot;grep -F&quot; instead
+          of the deprecated egrep and fgrep commands.
+
+        - Fixed parsing of the options -E, -F, -G, -P, and -X. The
+          problem occurred when multiple options were specied in
+          a single argument, for example,
+
+              echo foo | xzgrep -Fe foo
+
+          treated foo as a filename because -Fe wasn't correctly
+          split into -F -e.
+
+        - Added zstd support.
+
+    * xzdiff/xzcmp:
+
+        - Fixed wrong exit status. Exit status could be 2 when the
+          correct value is 1.
+
+        - Documented on the man page that exit status of 2 is used
+          for decompression errors.
+
+        - Added zstd support.
+
+    * xzless:
+
+        - Fix less(1) version detection. It failed if the version number
+          from &quot;less -V&quot; contained a dot.
+
+    * Translations:
+
+        - Added new translations: Catalan, Croatian, Esperanto,
+          Korean, Portuguese, Romanian, Serbian, Spanish, Swedish,
+          and Ukrainian
+
+        - Updated the Brazilian Portuguese translation.
+
+        - Added French man page translation. This and the existing
+          German translation aren't complete anymore because the
+          English man pages got a few updates and the translators
+          weren't reached so that they could update their work.
+
+    * Build systems:
+
+        - Windows: Fix building of resource files when config.h isn't
+          used. CMake + Visual Studio can now build liblzma.dll.
+
+        - Various fixes to the CMake support. Building static or shared
+          liblzma should work fine in most cases. In contrast, building
+          the command line tools with CMake is still clearly incomplete
+          and experimental and should be used for testing only.
+
+-- 
+Lasse Collin
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00581.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00583">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00583">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00584.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] XZ Utils 5.2.6">
+<input type="hidden" name="msgid" value="20220812193337.4fa4cc98@kaneli">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00583.html">
+<input type="submit" value=" Lasse Collin ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+XZ+Utils+5.2.6%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00581.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00584.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20220812193337.4fa4cc98@kaneli</li>
+</ul>
+</div>
+</body>
+</html>

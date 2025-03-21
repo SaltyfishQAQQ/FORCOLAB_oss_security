@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [PATCH] String to filter and filter to string</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00553" id="c">
+<link rel="index" href="maillist.html#00553" id="i">
+<link rel="prev" href="msg00551.html" id="p">
+<link rel="next" href="msg00555.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00553.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+String+to+filter+and+filter+to+string%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [PATCH] String to filter and filter to string</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220419" rel="nofollow">Tue, 19 Apr 2022 07:07:18 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>These patches add lzma_str_to_filters and lzma_filters_to_str to
+liblzma and add a new &quot;-s, --filters&quot; option to xz. The string format
+is as follows:
+{filter name}={option name}:{option value},{option name}:{option
+value}+{filter name}...</pre><pre>
+
+The &quot;=&quot; delimits a filter name from a comma separated list of option
+value pairs. The &quot;=&quot; is optional and only needed if you want to
+override default options. For lzma1 and 2, a short hand for a preset
+can be used: lzma2={preset number}.
+
+The &quot;:&quot; delimits option name from option value.
+
+The &quot;,&quot; delimits option value pairs from each other.
+
+The &quot;+&quot; delimits filters from each other.
+
+All of the option names and filter names match the existing command
+line interface for xz to make it easy for users to learn the new
+option.
+
+Right now, lzma_filters_to_str will only specify option names and
+values if they are different from the default. This can be changed to
+always display option names and values for all options if this is
+better.
+
+Also, I did not update the man page for xz since the format is not
+finalized. If anyone has any suggestions for improvements on the
+string format, I am interested to hear them. I consider this patch a
+draft and subject to change from community suggestions. Let me know
+how this can be improved!
+
+The first patch contains the liblzma changes and the second contains
+the xz changes. If anyone wants to see or run the tests I wrote for
+this, they are available on GitHub at
+<a  rel="nofollow" href="https://github.com/JiaT75/XZ_Utils_Unofficial/tree/filter_to_string">https://github.com/JiaT75/XZ_Utils_Unofficial/tree/filter_to_string</a>. I
+would have included the tests in the patch if the test framework had
+been merged.
+
+Jia Tan
+</pre><pre>From b59e09024ec6af202a58d0e3138c49c3fbf65e46 Mon Sep 17 00:00:00 2001
+From: jiat75 &lt;jiat0...@gmail.com&gt;
+Date: Tue, 19 Apr 2022 21:31:46 +0800
+Subject: [PATCH 1/2] Created lzma_filters_to_str and lzma_str_to_filters for
+ liblzma
+
+lzma_filters_to_str converts a filter chain to string
+for saving a used filter chain for a later run or debugging.
+
+lzma_str_to_filters parses a string and creates a filter chain.
+The format is {filter name}={option name}:{option value},{option name}:{option value}+
+The '=' is only needed if you want to specify option value pairs.
+The '+' is a delimiter between filters and is not needed at the
+end of the string.
+The ':' delimits option name to option value
+The ',' delmites option name value pairs.
+---
+ src/liblzma/api/lzma/bcj.h                 |  31 +
+ src/liblzma/api/lzma/delta.h               |  14 +-
+ src/liblzma/api/lzma/filter.h              |  98 ++-
+ src/liblzma/api/lzma/lzma12.h              |  40 +-
+ src/liblzma/common/Makefile.inc            |   1 +
+ src/liblzma/common/filter_str_conversion.c | 791 +++++++++++++++++++++
+ src/liblzma/liblzma.map                    |   2 +
+ 7 files changed, 973 insertions(+), 4 deletions(-)
+ create mode 100644 src/liblzma/common/filter_str_conversion.c
+
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 8e37538a..2fb23052 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -50,6 +50,36 @@
+ 	 */
+ 
+ 
++/* Filter names for lzma_filters_to_str and lzma_str_to_filters */
++
++#define LZMA_FILTER_X86_NAME &quot;x86&quot;
++	/**&lt;
++	 * Filter name for x86 binaries
++	 */
++#define LZMA_FILTER_POWERPC_NAME &quot;powerpc&quot;
++	/**&lt;
++	 * Filter name for Big endian PowerPC binaries
++	 */
++#define LZMA_FILTER_IA64_NAME &quot;ia64&quot;
++	/**&lt;
++	 * Filter name for IA-64 (Itanium) binaries.
++	 */
++#define LZMA_FILTER_ARM_NAME &quot;arm&quot;
++	/**&lt;
++	 * Filter name for ARM binaries.
++	 */
++#define LZMA_FILTER_ARMTHUMB_NAME &quot;armthumb&quot;
++	/**&lt;
++	 * Filter name for ARM-Thumb binaries.
++	 */
++
++#define LZMA_FILTER_SPARC_NAME &quot;sparc&quot;
++	/**&lt;
++	 * Filter name for SPARC binaries.
++	 */
++
++
++
+ /**
+  * \brief       Options for BCJ filters
+  *
+@@ -86,5 +116,6 @@ typedef struct {
+ 	 * is used.
+ 	 */
+ 	uint32_t start_offset;
++#	define LZMA_BCJ_START_OFFSET_STR &quot;start_offset&quot;
+ 
+ } lzma_options_bcj;
+diff --git a/src/liblzma/api/lzma/delta.h b/src/liblzma/api/lzma/delta.h
+index 592fc4f8..f1ad938b 100644
+--- a/src/liblzma/api/lzma/delta.h
++++ b/src/liblzma/api/lzma/delta.h
+@@ -25,6 +25,16 @@
+ #define LZMA_FILTER_DELTA       LZMA_VLI_C(0x03)
+ 
+ 
++/**
++ * \brief       Delta filter name
++ *
++ * Filter name of the Delta filter. This is used with lzma_filters_to_str
++ * and lzma_str_to_filters to convert strings to filter chains and filter
++ * chains to strings.
++ */
++#define LZMA_FILTER_DELTA_NAME &quot;delta&quot;
++
++
+ /**
+  * \brief       Type of the delta calculation
+  *
+@@ -35,7 +45,7 @@
+ typedef enum {
+ 	LZMA_DELTA_TYPE_BYTE
+ } lzma_delta_type;
+-
++#define LZMA_DELTA_TYPE_BYTE_STR &quot;byte&quot;
+ 
+ /**
+  * \brief       Options for the Delta filter
+@@ -45,6 +55,7 @@ typedef enum {
+ typedef struct {
+ 	/** For now, this must always be LZMA_DELTA_TYPE_BYTE. */
+ 	lzma_delta_type type;
++#	define LZMA_DELTA_TYPE_STR &quot;type&quot;
+ 
+ 	/**
+ 	 * \brief       Delta distance
+@@ -59,6 +70,7 @@ typedef struct {
+ 	uint32_t dist;
+ #	define LZMA_DELTA_DIST_MIN 1
+ #	define LZMA_DELTA_DIST_MAX 256
++#	define LZMA_DELTA_DIST_STR &quot;dist&quot;
+ 
+ 	/*
+ 	 * Reserved space to allow possible future extensions without
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 8c859314..8e04e266 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -25,6 +25,40 @@
+  */
+ #define LZMA_FILTERS_MAX 4
+ 
++/**
++ * \brief       Character used to delimit different filters in a chain
++ *
++ * Used by lzma_filters_to_str and lzma_str_to_filters to delimit
++ * different filters so that whitespace is unnecessary to specify a filter
++ * chain using a string. This allows a filter chain provided to xz to not
++ * have to surround the filter chain in quotation marks.
++ */
++#define LZMA_FILTER_DELIMITER '+'
++
++/**
++ * \brief       Character used to delimit different options in a filter
++ *
++ * Used by lzma_filters_to_str and lzma_str_to_filters to delmit
++ * different options-value pairs for a filter.
++ */
++#define LZMA_FILTER_OPTION_DELIMITER ','
++
++/**
++ * \brief       Character used to delimit key from value for a filter option
++ *
++ * Used by lzma_filters_to_str and lzma_str_to_filters to delmit
++ * key-value pairs to set the options for a filter
++ */
++#define LZMA_FILTER_KEY_TO_VALUE_DELIMITER ':'
++
++/**
++ * \brief       Character used to indicate key-value pairs for filter options
++ *
++ * Used by lzma_filters_to_str and lzma_str_to_filters to indicate
++ * a list of key-value pairs will follow for a filter.
++ */
++#define LZMA_FILTER_OPTIONS_LIST_INDICATOR '='
++
+ 
+ /**
+  * \brief       Filter options
+@@ -68,7 +102,7 @@ typedef struct {
+ /**
+  * \brief       Test if the given Filter ID is supported for encoding
+  *
+- * Return true if the give Filter ID is supported for encoding by this
++ * Return true if the given Filter ID is supported for encoding by this
+  * liblzma build. Otherwise false is returned.
+  *
+  * There is no way to list which filters are available in this particular
+@@ -424,3 +458,65 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_decode(
+ 		lzma_filter *filter, const lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Convert filter chain to string
++ *
++ * Converts the input filter chain into a string. The output string
++ * will be compatible with lzma_str_to_filters. This function is useful
++ * for saving and restoring filter chains that are frequently used. It
++ * can also be helpful for debugging purposes.
++ *
++ * \param       filter      Array of filter IDs and options that must be
++ *                          terminated with the last filter ID being set to
++ *                          LZMA_VLI_UNKNOWN
++ * \param       out_str     Output string pre-allocated by the caller to hold
++ *                          the result of the string conversion
++ * \param       max_str_len The maximum buffer size. If the string cannot fit
++ *                          in the buffer provided, LZMA_BUF_ERROR will be
++ *                          returned.
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_PROG_ERROR
++ * 		- LZMA_OPTIONS_ERROR
++ *
++ */
++extern LZMA_API(lzma_ret) lzma_filters_to_str(
++		const lzma_filter *filter, char* out_str, size_t max_str_len)
++		lzma_nothrow lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Convert string to filter chain
++ *
++ * Converts the input string into an lzma_filter filter chain. The filer
++ * names must be provided in order of the chain. Between each filter the
++ * delimiter LZMA_FILTER_DELIMITER (+) must be used. If non-default options
++ * are desired, then the LZMA_FILTER_OPTIONS_LIST_INDICATOR (=) can be used
++ * after the name of each filter to specify a
++ * LZMA_FILTER_OPTION_DELIMITER (,) list of key:value option pairs.
++ * The valid key names are defined in macros in lzma12.h, delta.h, and bcj.h
++ * for each filter's respective options. Here is an example of a valid
++ * filter string:
++ * &quot;delta=dist:8+lzma2=lc:0,lp:1,dict_size:4096K&quot;
++ *
++ * \param       filter      Array of lzma_filters used as the destination
++ *                          of the filter chain
++ * \param       allocator   Custom memory allocator used to allocate the
++ *                          options. Set to NULL to use the default malloc(),
++ *                          and in case of an error, also free().
++ * \param       str         Input string to be converted to filter chain
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_PROG_ERROR
++ *              - LZMA_MEM_ERROR
++ *
++ * \note        The options for each filter will be allocated by the
++ *              allocator provided (or default if left as NULL). The
++ *              options will be freed if there is an error, but otherwise
++ *              the caller must free the options.
++ */
++extern LZMA_API(lzma_ret) lzma_str_to_filters(
++		lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str) lzma_nothrow lzma_attr_warn_unused_result;
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index df5f23b6..dc0a7498 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -29,6 +29,17 @@
+  */
+ #define LZMA_FILTER_LZMA1       LZMA_VLI_C(0x4000000000000001)
+ 
++
++/**
++ * \brief       LZMA1 filter name
++ *
++ * Filter name of the LZMA1 filter. This is used with lzma_filters_to_str
++ * and lzma_str_to_filters to convert strings to filter chains and filter
++ * chains to strings.
++ */
++#define LZMA_FILTER_LZMA1_NAME &quot;lzma1&quot;
++
++
+ /**
+  * \brief       LZMA2 Filter ID
+  *
+@@ -40,6 +51,16 @@
+ #define LZMA_FILTER_LZMA2       LZMA_VLI_C(0x21)
+ 
+ 
++/**
++ * \brief       LZMA2 filter name
++ *
++ * Filter name of the LZMA2 filter. This is used with lzma_filters_to_str
++ * and lzma_str_to_filters to convert strings to filter chains and filter
++ * chains to strings.
++ */
++#define LZMA_FILTER_LZMA2_NAME &quot;lzma2&quot;
++
++
+ /**
+  * \brief       Match finders
+  *
+@@ -110,6 +131,11 @@ typedef enum {
+ 		 */
+ } lzma_match_finder;
+ 
++#define LZMA_MF_HC3_STR &quot;hc3&quot;
++#define LZMA_MF_HC4_STR &quot;hc4&quot;
++#define LZMA_MF_BT2_STR &quot;bt2&quot;
++#define LZMA_MF_BT3_STR &quot;bt3&quot;
++#define LZMA_MF_BT4_STR &quot;bt4&quot;
+ 
+ /**
+  * \brief       Test if given match finder is supported
+@@ -155,6 +181,10 @@ typedef enum {
+ } lzma_mode;
+ 
+ 
++#define LZMA_MODE_FAST_STR   &quot;fast&quot;
++#define LZMA_MODE_NORMAL_STR &quot;normal&quot;
++
++
+ /**
+  * \brief       Test if given compression mode is supported
+  *
+@@ -217,6 +247,7 @@ typedef struct {
+ 	uint32_t dict_size;
+ #	define LZMA_DICT_SIZE_MIN       UINT32_C(4096)
+ #	define LZMA_DICT_SIZE_DEFAULT   (UINT32_C(1) &lt;&lt; 23)
++#	define LZMA_DICT_SIZE_STR       &quot;dict_size&quot;
+ 
+ 	/**
+ 	 * \brief       Pointer to an initial dictionary
+@@ -282,6 +313,7 @@ typedef struct {
+ #	define LZMA_LCLP_MIN    0
+ #	define LZMA_LCLP_MAX    4
+ #	define LZMA_LC_DEFAULT  3
++#	define LZMA_LC_STR      &quot;lc&quot;
+ 
+ 	/**
+ 	 * \brief       Number of literal position bits
+@@ -292,6 +324,7 @@ typedef struct {
+ 	 */
+ 	uint32_t lp;
+ #	define LZMA_LP_DEFAULT  0
++#	define LZMA_LP_STR      &quot;lp&quot;
+ 
+ 	/**
+ 	 * \brief       Number of position bits
+@@ -317,9 +350,11 @@ typedef struct {
+ #	define LZMA_PB_MIN      0
+ #	define LZMA_PB_MAX      4
+ #	define LZMA_PB_DEFAULT  2
++#	define LZMA_PB_STR      &quot;pb&quot;
+ 
+ 	/** Compression mode */
+ 	lzma_mode mode;
++#	define LZMA_MODE_STR    &quot;mode&quot;
+ 
+ 	/**
+ 	 * \brief       Nice length of a match
+@@ -340,10 +375,11 @@ typedef struct {
+ 	 * LZMA2 can encode.
+ 	 */
+ 	uint32_t nice_len;
++#	define LZMA_NICE_LEN_STR &quot;nice&quot;
+ 
+ 	/** Match finder ID */
+ 	lzma_match_finder mf;
+-
++#	define LZMA_MF_STR &quot;mf&quot;
+ 	/**
+ 	 * \brief       Maximum search depth in the match finder
+ 	 *
+@@ -373,7 +409,7 @@ typedef struct {
+ 	 * dramatically, possibly creating a denial of service attack.
+ 	 */
+ 	uint32_t depth;
+-
++#	define LZMA_DEPTH_STR &quot;depth&quot;
+ 	/*
+ 	 * Reserved space to allow possible future extensions without
+ 	 * breaking the ABI. You should not touch these, because the names
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 8f0d84ec..17bddd82 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -14,6 +14,7 @@ liblzma_la_SOURCES += \
+ 	common/easy_preset.h \
+ 	common/filter_common.c \
+ 	common/filter_common.h \
++	common/filter_str_conversion.c \
+ 	common/hardware_physmem.c \
+ 	common/index.c \
+ 	common/index.h \
+diff --git a/src/liblzma/common/filter_str_conversion.c b/src/liblzma/common/filter_str_conversion.c
+new file mode 100644
+index 00000000..773c3d61
+--- /dev/null
++++ b/src/liblzma/common/filter_str_conversion.c
+@@ -0,0 +1,791 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       filter_str_conversion.c
++/// \brief      Functions for convert filter chains to and from strings
++//
++//  Author:     Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include &quot;common.h&quot;
++#include &quot;stdio.h&quot;
++
++// There are no filter names longer than 10 characters
++#define FILTER_NAME_MAX_SIZE 10
++#define MAX_OPTION_NAME_LEN 20
++#define MAX_OPTION_VALUE_LEN 10
++
++
++// Writing out an option with three parts:
++// key - the name of the option for the filter
++// LZMA_FILTER_KEY_TO_VALUE_DELIMITER - the delimiter
++//    value to signal the key is done being written
++// value - the value of the option for the filter
++// For example: &quot;depth:200,&quot;
++// The final argument determines if the LZMA_FILTER_OPTION_DELIMITER
++// should be included at the end
++static lzma_ret
++write_out_str_option(char *out_str, const char* option_name,
++		const char* option_value, size_t max_str_len,
++		size_t *out_pos, bool final)
++{
++	int option_val_len = strnlen(option_value, MAX_OPTION_VALUE_LEN);
++	int option_name_len = strnlen(option_name, max_str_len);
++
++	size_t projected_out_pos = option_name_len + option_val_len
++			+ *out_pos + 1;
++	if (!final)
++		projected_out_pos++;
++
++	if (projected_out_pos &gt; max_str_len)
++		return LZMA_BUF_ERROR;
++
++	memcpy(out_str + *out_pos, option_name, option_name_len);
++	*out_pos += option_name_len;
++	out_str[(*out_pos)++] = LZMA_FILTER_KEY_TO_VALUE_DELIMITER;
++	memcpy(out_str + *out_pos, option_value, option_val_len);
++	*out_pos += option_val_len;
++	if (!final) {
++		out_str[(*out_pos)++] = LZMA_FILTER_OPTION_DELIMITER;
++	}
++
++	return LZMA_OK;
++}
++
++
++static const char *
++uint32_to_optstr(uint32_t num)
++{
++	static char buf[16];
++
++	if ((num &amp; ((UINT32_C(1) &lt;&lt; 20) - 1)) == 0)
++		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32 &quot;MiB&quot;, num &gt;&gt; 20);
++	else if ((num &amp; ((UINT32_C(1) &lt;&lt; 10) - 1)) == 0)
++		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32 &quot;KiB&quot;, num &gt;&gt; 10);
++	else
++		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32, num);
++
++	return buf;
++}
++
++
++static lzma_ret
++write_out_num_option(char *out_str, const char* option_name,
++		uint32_t option_value, size_t max_str_len,
++		size_t *out_pos, bool final)
++{
++	char value_str[MAX_OPTION_VALUE_LEN];
++	snprintf(value_str, sizeof(value_str), &quot;%u&quot;, option_value);
++	return write_out_str_option(out_str, option_name, value_str,
++			max_str_len, out_pos, final);
++}
++
++
++static lzma_ret
++stringify_lzma_filter(lzma_filter *filter, char *out_str,
++		size_t max_str_len, size_t *out_pos, const char* name)
++{
++	// Not comparing to any presets, so must
++	// always include options
++	int name_len = strnlen(name, max_str_len);
++	if ((*out_pos + name_len + 1) &gt; max_str_len)
++		return LZMA_BUF_ERROR;
++
++	memcpy(out_str + *out_pos, name, name_len);
++	*out_pos += name_len;
++	// Write out indicator
++	out_str[(*out_pos)++] = LZMA_FILTER_OPTIONS_LIST_INDICATOR;
++
++	lzma_options_lzma *options = (lzma_options_lzma *) filter-&gt;options;
++
++	// Only copy over options if they != the default value
++	if (options-&gt;dict_size != LZMA_DICT_SIZE_DEFAULT) {
++		const char* value = uint32_to_optstr(options-&gt;dict_size);
++		return_if_error(write_out_str_option(out_str,
++				LZMA_DICT_SIZE_STR, value,
++				max_str_len, out_pos, false));
++	}
++
++	if (options-&gt;lc != LZMA_LC_DEFAULT) {
++		return_if_error(write_out_num_option(out_str, LZMA_LC_STR,
++				options-&gt;lc, max_str_len,
++				out_pos, false));
++	}
++
++	if (options-&gt;lp != LZMA_LP_DEFAULT) {
++		return_if_error(write_out_num_option(out_str, LZMA_LP_STR,
++				options-&gt;lp, max_str_len,
++				out_pos, false));
++	}
++
++	if (options-&gt;pb != LZMA_PB_DEFAULT) {
++		return_if_error(write_out_num_option(out_str, LZMA_PB_STR,
++				options-&gt;pb, max_str_len,
++				out_pos, false));
++	}
++
++	// Write out mode
++	const char *mode;
++	switch (options-&gt;mode){
++	case LZMA_MODE_FAST:
++		mode = LZMA_MODE_FAST_STR;
++		break;
++	case LZMA_MODE_NORMAL:
++		mode = LZMA_MODE_NORMAL_STR;
++		break;
++	default:
++		return LZMA_OPTIONS_ERROR;
++	}
++
++	return_if_error(write_out_str_option(out_str, LZMA_MODE_STR,
++			mode, max_str_len, out_pos, false));
++	// Write out nice_len
++	return_if_error(write_out_num_option(out_str, LZMA_NICE_LEN_STR,
++			options-&gt;nice_len, max_str_len, out_pos, false));
++
++	// Write out mf
++	const char* mf;
++	switch (options-&gt;mf) {
++	case LZMA_MF_HC3:
++		mf = LZMA_MF_HC3_STR;
++		break;
++	case LZMA_MF_HC4:
++		mf = LZMA_MF_HC4_STR;
++		break;
++	case LZMA_MF_BT2:
++		mf = LZMA_MF_BT2_STR;
++		break;
++	case LZMA_MF_BT3:
++		mf = LZMA_MF_BT3_STR;
++		break;
++	case LZMA_MF_BT4:
++		mf = LZMA_MF_BT4_STR;
++		break;
++	default:
++		return LZMA_OPTIONS_ERROR;
++	}
++	return_if_error(write_out_str_option(out_str, LZMA_MF_STR,
++			mf, max_str_len, out_pos, false));
++	// Write out depth
++	// Putting the - 1 next to max_str_len allows us to skip the
++	// length check for the delmimiter character
++	return_if_error(write_out_num_option(out_str, LZMA_DEPTH_STR,
++			options-&gt;depth, max_str_len - 1, out_pos, true));
++	// Must write out delimiter even though LZMA filters must be the
++	// last in the chain. lzma_filters_to_str does not validate
++	// filter chains, it only converts them to strings
++	out_str[(*out_pos)++] = LZMA_FILTER_DELIMITER;
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++stringify_bcj_filter(lzma_filter *filter, char* out_str,
++		size_t max_str_len, size_t *out_pos, const char* name)
++{
++	int name_len = strnlen(name, max_str_len);
++	// The + 1 is because we will need at least 1 more character
++	// for the delimiter
++	if ((*out_pos + name_len + 1) &gt; max_str_len) {
++		return LZMA_BUF_ERROR;
++	}
++	memcpy(out_str + *out_pos, name, name_len);
++	*out_pos += name_len;
++
++	lzma_options_bcj *options = (lzma_options_bcj *) filter-&gt;options;
++	if (options-&gt;start_offset &gt; 0) {
++		// Check for at least 3 characters for the = and at least
++		// One digit for the start_offset
++		// And one character for the delimiter
++		if ((*out_pos + 3) &gt; max_str_len) {
++			return LZMA_BUF_ERROR;
++		}
++		out_str[(*out_pos)++] = LZMA_FILTER_OPTIONS_LIST_INDICATOR;
++		return_if_error(write_out_num_option(out_str,
++				LZMA_BCJ_START_OFFSET_STR,
++				options-&gt;start_offset,
++				max_str_len, out_pos, true));
++	}
++
++	// Write out delimiter character
++	out_str[(*out_pos)++] = LZMA_FILTER_DELIMITER;
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++stringify_delta_filter(lzma_filter *filter, char* out_str,
++		size_t max_str_len, size_t *out_pos)
++{
++	int name_len = strnlen(LZMA_FILTER_DELTA_NAME, max_str_len);
++	// The + 1 is because we will need at least 1 more character
++	// for the delimiter
++	if ((*out_pos + name_len + 1) &gt; max_str_len) {
++		return LZMA_BUF_ERROR;
++	}
++	memcpy(out_str + *out_pos, LZMA_FILTER_DELTA_NAME, name_len);
++	*out_pos += name_len;
++
++	lzma_options_delta *options = (lzma_options_delta *) filter-&gt;options;
++	// Currently the only type for delta is LZMA_DELTA_TYPE_BYTE
++	// so this will not be checked
++	// The default for dist is LZMA_DELTA_DIST_MIN
++	if (options-&gt;dist != LZMA_DELTA_DIST_MIN) {
++		// Check for at least 3 characters for the = and at least
++		// One digit for the start_offset
++		// And one character for the delimiter
++		if ((*out_pos + 3) &gt; max_str_len) {
++			return LZMA_BUF_ERROR;
++		}
++		out_str[(*out_pos)++] = LZMA_FILTER_OPTIONS_LIST_INDICATOR;
++		return_if_error(write_out_num_option(out_str,
++				LZMA_DELTA_DIST_STR, options-&gt;dist,
++				max_str_len, out_pos, true));
++	}
++
++	// Write out delimiter character
++	out_str[(*out_pos)++] = LZMA_FILTER_DELIMITER;
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++parse_next_key(const char* str, size_t *in_pos, char* key)
++{
++	int i = 0;
++	const char *substr = str + *in_pos;
++	// Read into key until LZMA_FILTER_KEY_TO_VALUE_DELIMITER
++	// is found or max length is read
++	for (; i &lt; MAX_OPTION_NAME_LEN; i++) {
++		if (substr[i] == LZMA_FILTER_KEY_TO_VALUE_DELIMITER)
++			break;
++		key[i] = substr[i];
++	}
++
++	if (substr[i] != LZMA_FILTER_KEY_TO_VALUE_DELIMITER)
++		return LZMA_PROG_ERROR;
++
++	key[i] = 0;
++	*in_pos += i+1;
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++parse_next_value_str(const char* str, size_t *in_pos, char* value)
++{
++	int i = 0;
++	const char *substr = str + *in_pos;
++	// Read into value until
++	// LZMA_FILTER_OPTION_DELIMITER, LZMA_FILTER_DELIMITER,
++	// NULL, or max length is read
++	for (; i &lt; MAX_OPTION_NAME_LEN; i++) {
++		if (substr[i] == LZMA_FILTER_OPTION_DELIMITER
++				||substr[i] == LZMA_FILTER_DELIMITER
++				|| substr[i] == 0) {
++			break;
++		}
++		value[i] = substr[i];
++	}
++
++	*in_pos += i;
++	value[i] = 0;
++
++	if (substr[i] == LZMA_FILTER_OPTION_DELIMITER) {
++		(*in_pos)++;
++		return LZMA_OK;
++	}
++	else if (substr[i] == LZMA_FILTER_DELIMITER || substr[i] == 0) {
++		return LZMA_STREAM_END;
++	}
++	else {
++		return LZMA_PROG_ERROR;
++	}
++}
++
++
++static lzma_ret
++parse_next_value_uint32(const char* str, size_t *in_pos, uint32_t *value)
++{
++	uint32_t result = 0;
++	const char* substr = str + *in_pos;
++	int i = 0;
++	char c = substr[i];
++	while (c &gt;= '0' &amp;&amp; c &lt;= '9') {
++		// Check for overflow
++		if (result &gt; UINT32_MAX / 10)
++			return LZMA_PROG_ERROR;
++
++		result *= 10;
++
++		// Check for overflow again
++		uint32_t add = c - '0';
++		if (UINT32_MAX - add &lt; result)
++			return LZMA_PROG_ERROR;
++		// Add next digit
++		result += add;
++		c = substr[++i];
++	}
++
++	// Return if no suffix present
++	// Do the suffix check here since most options will
++	// not include the suffix so this will be an optimization
++	if (c == LZMA_FILTER_OPTION_DELIMITER) {
++		*in_pos += i + 1;
++		*value = result;
++		return LZMA_OK;
++	}
++	else if (c == LZMA_FILTER_DELIMITER || c == 0) {
++		*in_pos += i;
++		*value = result;
++		return LZMA_STREAM_END;
++	}
++
++	uint32_t multiplier = 0;
++	if (substr[i] == 'k' || substr[i] == 'K')
++		multiplier = UINT32_C(1) &lt;&lt; 10;
++	else if (substr[i] == 'm' || substr[i] == 'M')
++		multiplier = UINT32_C(1) &lt;&lt; 20;
++	else if (substr[i] == 'g' || substr[i] == 'G')
++		multiplier = UINT32_C(1) &lt;&lt; 30;
++	else
++		return LZMA_PROG_ERROR;
++
++	i++;
++
++	// Allow also e.g. Ki, KiB, and KB.
++	if (!strcmp(&amp;substr[i], &quot;i&quot;) != 0 || !strcmp(&amp;substr[i], &quot;B&quot;) != 0)
++		i++;
++	else if (!strcmp(&amp;substr[i], &quot;iB&quot;) != 0)
++		i += 2;
++
++	// Don't overflow here either.
++	if (result &gt; UINT32_MAX / multiplier)
++		return LZMA_PROG_ERROR;
++
++	result *= multiplier;
++
++	c = substr[i];
++	if (c == LZMA_FILTER_OPTION_DELIMITER) {
++		*in_pos += i + 1;
++		*value = result;
++		return LZMA_OK;
++	}
++	else if (c == LZMA_FILTER_DELIMITER || c == 0) {
++		*in_pos += i;
++		*value = result;
++		return LZMA_STREAM_END;
++	}
++	else {
++		return LZMA_PROG_ERROR;
++	}
++}
++
++static lzma_ret
++parse_lzma_filter(lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str, size_t *in_pos)
++{
++	// Read options one at a time until delimiter is found
++	// or end of string.
++	lzma_options_lzma *ops = (lzma_options_lzma *) lzma_alloc_zero(
++			sizeof(lzma_options_lzma), allocator);
++	if (ops == NULL)
++		return LZMA_MEM_ERROR;
++	filter-&gt;options = ops;
++	if (str[*in_pos] == LZMA_FILTER_OPTIONS_LIST_INDICATOR) {
++		// If the first character is a number 0-9 then use
++		// it as a preset
++		uint8_t digit = str[++(*in_pos)] - '0';
++		if (digit &lt; 10) {
++			(*in_pos)++;
++			if (lzma_lzma_preset(ops, digit))
++				return LZMA_PROG_ERROR;
++			else
++				return LZMA_OK;
++		}
++
++		// Use the default preset first, then override with options
++		// the user specifies
++		if (lzma_lzma_preset(ops, LZMA_PRESET_DEFAULT))
++			return LZMA_PROG_ERROR;
++
++		// Parse key-value pairs until parse_next_value
++		// returns an error or LZMA_STREAM_END
++		char key[MAX_OPTION_NAME_LEN];
++		char value[MAX_OPTION_VALUE_LEN];
++		while (1) {
++			return_if_error(parse_next_key(str, in_pos, key));
++			lzma_ret ret = LZMA_OK;
++			if (!strcmp(key, LZMA_DICT_SIZE_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;dict_size);
++			}
++			else if (!strcmp(key, LZMA_LC_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;lc);
++			}
++			else if (!strcmp(key, LZMA_LP_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;lp);
++			}
++			else if (!strcmp(key, LZMA_PB_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;pb);
++			}
++			else if (!strcmp(key, LZMA_MODE_STR)) {
++				// Mode can be specified with the strings
++				// LZMA_MODE_FAST_STR or LZMA_MODE_NORMAL_STR
++				ret = parse_next_value_str(
++						str, in_pos, value);
++				if (!strcmp(value, LZMA_MODE_FAST_STR))
++					ops-&gt;mode = LZMA_MODE_FAST;
++				else if (!strcmp(value, LZMA_MODE_NORMAL_STR))
++					ops-&gt;mode = LZMA_MODE_NORMAL;
++				else
++					return LZMA_PROG_ERROR;
++			}
++			else if (!strcmp(key, LZMA_NICE_LEN_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;nice_len);
++			}
++			else if (!strcmp(key, LZMA_MF_STR)) {
++				ret = parse_next_value_str(
++						str, in_pos, value);
++				if (!strcmp(value, LZMA_MF_HC3_STR))
++					ops-&gt;mf = LZMA_MF_HC3;
++				else if (!strcmp(value, LZMA_MF_HC4_STR))
++					ops-&gt;mf = LZMA_MF_HC4;
++				else if (!strcmp(value, LZMA_MF_BT2_STR))
++					ops-&gt;mf = LZMA_MF_BT2;
++				else if (!strcmp(value, LZMA_MF_BT3_STR))
++					ops-&gt;mf = LZMA_MF_BT3;
++				else if (!strcmp(value, LZMA_MF_BT4_STR))
++					ops-&gt;mf = LZMA_MF_BT4;
++				else
++					return LZMA_PROG_ERROR;
++			}
++			else if (!strcmp(key, LZMA_DEPTH_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;depth);
++			}
++			else {
++				return LZMA_PROG_ERROR;
++			}
++
++			// The caller of the function will
++			// return LZMA_STREAM_END if the value ended
++			// with a NULL terminator
++			if (ret == LZMA_STREAM_END)
++				return LZMA_OK;
++			else if (ret != LZMA_OK)
++				return ret;
++		}
++	}
++	// Otherwise, use default values for this filter and
++	// do not advance the in_pos pointer
++	else if (lzma_lzma_preset(ops, LZMA_PRESET_DEFAULT)) {
++		return LZMA_PROG_ERROR;
++	}
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++parse_bcj_filter(lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str, size_t *in_pos)
++{
++	if (str[*in_pos] == LZMA_FILTER_OPTIONS_LIST_INDICATOR) {
++		(*in_pos)++;
++		lzma_options_bcj *ops = (lzma_options_bcj *) lzma_alloc_zero(
++			sizeof(lzma_options_bcj), allocator);
++		if (ops == NULL)
++			return LZMA_MEM_ERROR;
++		filter-&gt;options = ops;
++		char key[MAX_OPTION_NAME_LEN];
++		return_if_error(parse_next_key(str, in_pos, key));
++
++		if (strcmp(key, LZMA_BCJ_START_OFFSET_STR))
++			return LZMA_PROG_ERROR;
++
++		lzma_ret ret = parse_next_value_uint32(str, in_pos,
++				&amp;ops-&gt;start_offset);
++		if (ret != LZMA_OK &amp;&amp; ret != LZMA_STREAM_END)
++			return ret;
++	}
++	else {
++		// Default BCJ filter has NULL options
++		filter-&gt;options = NULL;
++	}
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++parse_delta_filter(lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str, size_t *in_pos)
++{
++	lzma_options_delta *ops = (lzma_options_delta *) lzma_alloc_zero(
++			sizeof(lzma_options_delta), allocator);
++	if (ops == NULL)
++		return LZMA_MEM_ERROR;
++	filter-&gt;options = ops;
++	lzma_ret ret = LZMA_OK;
++	if (str[*in_pos] == LZMA_FILTER_OPTIONS_LIST_INDICATOR) {
++		(*in_pos)++;
++		char key[MAX_OPTION_NAME_LEN];
++		char value[MAX_OPTION_VALUE_LEN];
++
++		while (1) {
++			return_if_error(parse_next_key(str, in_pos, key));
++
++			if (!strcmp(key, LZMA_DELTA_TYPE_STR)) {
++				ret = parse_next_value_str(str, in_pos, value);
++
++				if (!strcmp(value, LZMA_DELTA_TYPE_BYTE_STR)
++						|| value[0] == '0') {
++					ops-&gt;type = LZMA_DELTA_TYPE_BYTE;
++				}
++				else {
++					return LZMA_PROG_ERROR;
++				}
++			}
++			else if (!strcmp(key, LZMA_DELTA_DIST_STR)) {
++				ret = parse_next_value_uint32(str, in_pos,
++						&amp;ops-&gt;dist);
++			}
++			else {
++				return LZMA_PROG_ERROR;
++			}
++
++			if (ret == LZMA_STREAM_END)
++				return LZMA_OK;
++		}
++	}
++	else {
++		// The default for Delta uses the dist as
++		// LZMA_DELTA_DIST_MIN in xz,
++		// so it is used the same here
++		ops-&gt;type = LZMA_DELTA_TYPE_BYTE;
++		ops-&gt;dist = LZMA_DELTA_DIST_MIN;
++	}
++
++	return ret;
++}
++
++
++static lzma_ret
++parse_next_filter(lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str, size_t *in_pos)
++{
++	// First parse filter name from str
++	char filter_name[FILTER_NAME_MAX_SIZE + 1];
++	const char *substr = str + *in_pos;
++
++	int i = 0;
++	for (; i &lt; FILTER_NAME_MAX_SIZE; i++) {
++		if (substr[i] == LZMA_FILTER_DELIMITER ||
++				substr[i] == LZMA_FILTER_OPTIONS_LIST_INDICATOR ||
++				substr[i] == 0) {
++			*in_pos += i;
++			break;
++		}
++		filter_name[i] = substr[i];
++	}
++
++	// Null terminate filter_name
++	filter_name[i] = 0;
++
++	// Using filter name, determine which filter to create
++	if (!strcmp(filter_name, LZMA_FILTER_LZMA1_NAME)) {
++		filter-&gt;id = LZMA_FILTER_LZMA1;
++		return_if_error(parse_lzma_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_LZMA2_NAME)) {
++		filter-&gt;id = LZMA_FILTER_LZMA2;
++		return_if_error(parse_lzma_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_X86_NAME)) {
++		filter-&gt;id = LZMA_FILTER_X86;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_POWERPC_NAME)) {
++		filter-&gt;id = LZMA_FILTER_POWERPC;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_IA64_NAME)) {
++		filter-&gt;id = LZMA_FILTER_IA64;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_ARM_NAME)) {
++		filter-&gt;id = LZMA_FILTER_ARM;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_ARMTHUMB_NAME)) {
++		filter-&gt;id = LZMA_FILTER_ARMTHUMB;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_SPARC_NAME)) {
++		filter-&gt;id = LZMA_FILTER_SPARC;
++		return_if_error(parse_bcj_filter(filter, allocator,
++				str, in_pos));
++	}
++	else if (!strcmp(filter_name, LZMA_FILTER_DELTA_NAME)) {
++		filter-&gt;id = LZMA_FILTER_DELTA;
++		return_if_error(parse_delta_filter(filter, allocator,
++				str, in_pos));
++	}
++	else {
++		// If we get here, filter name did not match
++		return LZMA_PROG_ERROR;
++	}
++
++	// If str ends with the delimiter, then we need to advance
++	// in_pos and return
++	// If str ends with NULL terminator, we need to indicate
++	// to the caller that no more filters should be read
++	if (str[*in_pos] == LZMA_FILTER_DELIMITER) {
++		(*in_pos)++;
++		return LZMA_OK;
++	}
++	else if (str[*in_pos] == 0) {
++		return LZMA_STREAM_END;
++	}
++	else {
++		// Invalid end of filter detected
++		return LZMA_PROG_ERROR;
++	}
++}
++
++
++extern LZMA_API(lzma_ret) lzma_filters_to_str(
++		const lzma_filter *filter, char* out_str, size_t max_str_len)
++{
++	// Sanity check for arguments
++	if (filter == NULL || out_str == NULL)
++		return LZMA_PROG_ERROR;
++
++	size_t out_pos = 0;
++	lzma_ret ret = LZMA_OK;
++
++	for (int i = 0; filter[i].id != LZMA_VLI_UNKNOWN
++			&amp;&amp; ret == LZMA_OK; i++) {
++		if (i == LZMA_FILTERS_MAX)
++			return LZMA_OPTIONS_ERROR;
++
++		switch (filter[i].id) {
++		case LZMA_FILTER_LZMA1:
++			ret = stringify_lzma_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_LZMA1_NAME);
++			break;
++		case LZMA_FILTER_LZMA2:
++			ret = stringify_lzma_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_LZMA2_NAME);
++			break;
++		case LZMA_FILTER_X86:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_X86_NAME);
++			break;
++		case LZMA_FILTER_POWERPC:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_POWERPC_NAME);
++			break;
++		case LZMA_FILTER_IA64:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_IA64_NAME);
++			break;
++		case LZMA_FILTER_ARM:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_ARM_NAME);
++			break;
++		case LZMA_FILTER_ARMTHUMB:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_ARMTHUMB_NAME);
++			break;
++		case LZMA_FILTER_SPARC:
++			ret = stringify_bcj_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos,
++					LZMA_FILTER_SPARC_NAME);
++			break;
++		case LZMA_FILTER_DELTA:
++			ret = stringify_delta_filter(&amp;filter[i], out_str,
++					max_str_len, &amp;out_pos);
++			break;
++		default:
++			return LZMA_OPTIONS_ERROR;
++		}
++	}
++
++	// NULL terminate result over the last
++	// LZMA_FILTER_DELIMITER character
++	if (ret == LZMA_OK) {
++		if (out_pos &lt;= max_str_len &amp;&amp; out_pos &gt; 0)
++			out_str[out_pos - 1] = 0;
++		else
++			return LZMA_BUF_ERROR;
++	}
++
++	return ret;
++}
++
++
++extern LZMA_API(lzma_ret) lzma_str_to_filters(
++		lzma_filter *filter, const lzma_allocator *allocator,
++		const char* str)
++{
++	// NULL check arguments
++	if (filter == NULL || str == NULL)
++		return LZMA_PROG_ERROR;
++
++	size_t in_pos = 0;
++
++	int i = 0;
++	for (; i &lt; LZMA_FILTERS_MAX; i++) {
++		filter[i].id = LZMA_VLI_UNKNOWN;
++		filter[i].options = NULL;
++		lzma_ret ret = parse_next_filter(&amp;filter[i], allocator, str,
++				&amp;in_pos);
++		if (ret != LZMA_STREAM_END &amp;&amp; ret != LZMA_OK){
++			// Free any allocated options after error
++			for (int j = 0; j &lt;= i; j++) {
++				if (filter[j].options != NULL){
++					lzma_free(filter[j].options,
++							allocator);
++				}
++
++			}
++			return ret;
++		}
++		else if (ret == LZMA_STREAM_END || str[in_pos] == 0){
++			break;
++		}
++	}
++
++	i++;
++	filter[i].id = LZMA_VLI_UNKNOWN;
++	filter[i].options = NULL;
++
++	return LZMA_OK;
++}
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index 4462dac4..9b4f4f6f 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -110,6 +110,8 @@ global:
+ 	lzma_microlzma_encoder;
+ 	lzma_file_info_decoder;
+ 	lzma_stream_decoder_mt;
++	lzma_filters_to_str;
++	lzma_str_to_filters;
+ 
+ local:
+ 	*;
+-- 
+2.25.1
+
+</pre><pre>From be1d46bc2ea18840ab92a7b06095bbfe37e0d724 Mon Sep 17 00:00:00 2001
+From: jiat75 &lt;jiat0...@gmail.com&gt;
+Date: Tue, 19 Apr 2022 21:37:54 +0800
+Subject: [PATCH 2/2] Added a new -s, --filters option to utilize
+ lzma_str_to_filters function from liblzma
+
+Have not updated the man page for the new option, but the help
+message has been updated. Replaced the existing filter to string
+implementation with lzma_filters_to_str.
+---
+ src/xz/args.c    |   7 +-
+ src/xz/coder.c   |  29 ++++++++
+ src/xz/coder.h   |   3 +
+ src/xz/list.c    |   4 +-
+ src/xz/message.c | 171 +++++------------------------------------------
+ src/xz/message.h |   2 +-
+ 6 files changed, 59 insertions(+), 157 deletions(-)
+
+diff --git a/src/xz/args.c b/src/xz/args.c
+index be293902..2404bb94 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -148,7 +148,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 	};
+ 
+ 	static const char short_opts[]
+-			= &quot;cC:defF:hHlkM:qQrS:tT:vVz0123456789&quot;;
++			= &quot;cC:defF:hHlkM:qQrS:tT:vVz0123456789s:&quot;;
+ 
+ 	static const struct option long_opts[] = {
+ 		// Operation mode
+@@ -199,6 +199,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ &quot;armthumb&quot;,     optional_argument, NULL,  OPT_ARMTHUMB },
+ 		{ &quot;sparc&quot;,        optional_argument, NULL,  OPT_SPARC },
+ 		{ &quot;delta&quot;,        optional_argument, NULL,  OPT_DELTA },
++		{ &quot;filters&quot;,      optional_argument, NULL,  's'},
+ 
+ 		// Other options
+ 		{ &quot;quiet&quot;,        no_argument,       NULL,  'q' },
+@@ -390,6 +391,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 					options_lzma(optarg));
+ 			break;
+ 
++		case 's':
++			set_filter_str(optarg);
++			break;
++
+ 		// Other
+ 
+ 		// --format
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 224c2d39..3ab9adbe 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -51,6 +51,9 @@ static lzma_check check;
+ /// This becomes false if the --check=CHECK option is used.
+ static bool check_default = true;
+ 
++/// Filter string to be converted to filters
++static char* filter_str = NULL;
++
+ #ifdef MYTHREAD_ENABLED
+ static lzma_mt mt_options = {
+ 	.flags = 0,
+@@ -80,6 +83,8 @@ forget_filter_chain(void)
+ 		filters[filters_count].options = NULL;
+ 	}
+ 
++	filter_str = NULL;
++
+ 	return;
+ }
+ 
+@@ -123,6 +128,20 @@ coder_add_filter(lzma_vli id, void *options)
+ }
+ 
+ 
++extern void
++set_filter_str(char* str)
++{
++	// If any filters have already been specified, clear them
++	// and reset the filters_count
++	forget_filter_chain();
++	// Only setting the internal string to the input to avoid
++	// parsing the filter string if it will be overridden later
++	// and to delay validating the filter string
++	filter_str = str;
++	return;
++}
++
++
+ static void lzma_attribute((__noreturn__))
+ memlimit_too_small(uint64_t memory_usage)
+ {
+@@ -483,6 +502,16 @@ coder_init(file_pair *pair)
+ {
+ 	lzma_ret ret = LZMA_PROG_ERROR;
+ 
++	if (filter_str != NULL) {
++		ret = lzma_str_to_filters(filters, NULL, filter_str);
++		if (ret != LZMA_OK){
++			message_error(&quot;%s: %s&quot;, pair-&gt;src_name,
++				_(&quot;Filter string could not be parsed\n&quot;));
++			message_error(&quot;%s\n&quot;, filter_str);
++			return CODER_INIT_ERROR;
++		}
++	}
++
+ 	if (opt_mode == MODE_COMPRESS) {
+ #ifdef HAVE_ENCODERS
+ 		switch (opt_format) {
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 583da8f6..b813808c 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -64,6 +64,9 @@ extern void coder_set_extreme(void);
+ /// Add a filter to the custom filter chain
+ extern void coder_add_filter(lzma_vli id, void *options);
+ 
++/// Set the custom filter chain from a string
++extern void set_filter_str(char* str);
++
+ ///
+ extern void coder_set_compression_settings(void);
+ 
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 06c9c1ee..813bfbab 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -558,7 +558,9 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 	}
+ 
+ 	// Convert the filter chain to human readable form.
+-	message_filters_to_str(bhi-&gt;filter_chain, filters, false);
++	if (lzma_filters_to_str(filters, bhi-&gt;filter_chain,
++			FILTERS_STR_SIZE) != LZMA_OK)
++		strcpy(bhi-&gt;filter_chain, &quot;UNKNOWN&quot;);
+ 
+ 	// Free the memory allocated by lzma_block_header_decode().
+ 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i)
+diff --git a/src/xz/message.c b/src/xz/message.c
+index e626b5e8..af186a1c 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -903,158 +903,6 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
+ }
+ 
+ 
+-/// \brief      Convert uint32_t to a nice string for --lzma[12]=dict=SIZE
+-///
+-/// The idea is to use KiB or MiB suffix when possible.
+-static const char *
+-uint32_to_optstr(uint32_t num)
+-{
+-	static char buf[16];
+-
+-	if ((num &amp; ((UINT32_C(1) &lt;&lt; 20) - 1)) == 0)
+-		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32 &quot;MiB&quot;, num &gt;&gt; 20);
+-	else if ((num &amp; ((UINT32_C(1) &lt;&lt; 10) - 1)) == 0)
+-		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32 &quot;KiB&quot;, num &gt;&gt; 10);
+-	else
+-		snprintf(buf, sizeof(buf), &quot;%&quot; PRIu32, num);
+-
+-	return buf;
+-}
+-
+-
+-extern void
+-message_filters_to_str(char buf[FILTERS_STR_SIZE],
+-		const lzma_filter *filters, bool all_known)
+-{
+-	char *pos = buf;
+-	size_t left = FILTERS_STR_SIZE;
+-
+-	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+-		// Add the dashes for the filter option. A space is
+-		// needed after the first and later filters.
+-		my_snprintf(&amp;pos, &amp;left, &quot;%s&quot;, i == 0 ? &quot;--&quot; : &quot; --&quot;);
+-
+-		switch (filters[i].id) {
+-		case LZMA_FILTER_LZMA1:
+-		case LZMA_FILTER_LZMA2: {
+-			const lzma_options_lzma *opt = filters[i].options;
+-			const char *mode = NULL;
+-			const char *mf = NULL;
+-
+-			if (all_known) {
+-				switch (opt-&gt;mode) {
+-				case LZMA_MODE_FAST:
+-					mode = &quot;fast&quot;;
+-					break;
+-
+-				case LZMA_MODE_NORMAL:
+-					mode = &quot;normal&quot;;
+-					break;
+-
+-				default:
+-					mode = &quot;UNKNOWN&quot;;
+-					break;
+-				}
+-
+-				switch (opt-&gt;mf) {
+-				case LZMA_MF_HC3:
+-					mf = &quot;hc3&quot;;
+-					break;
+-
+-				case LZMA_MF_HC4:
+-					mf = &quot;hc4&quot;;
+-					break;
+-
+-				case LZMA_MF_BT2:
+-					mf = &quot;bt2&quot;;
+-					break;
+-
+-				case LZMA_MF_BT3:
+-					mf = &quot;bt3&quot;;
+-					break;
+-
+-				case LZMA_MF_BT4:
+-					mf = &quot;bt4&quot;;
+-					break;
+-
+-				default:
+-					mf = &quot;UNKNOWN&quot;;
+-					break;
+-				}
+-			}
+-
+-			// Add the filter name and dictionary size, which
+-			// is always known.
+-			my_snprintf(&amp;pos, &amp;left, &quot;lzma%c=dict=%s&quot;,
+-					filters[i].id == LZMA_FILTER_LZMA2
+-						? '2' : '1',
+-					uint32_to_optstr(opt-&gt;dict_size));
+-
+-			// With LZMA1 also lc/lp/pb are known when
+-			// decompressing, but this function is never
+-			// used to print information about .lzma headers.
+-			assert(filters[i].id == LZMA_FILTER_LZMA2
+-					|| all_known);
+-
+-			// Print the rest of the options, which are known
+-			// only when compressing.
+-			if (all_known)
+-				my_snprintf(&amp;pos, &amp;left,
+-					&quot;,lc=%&quot; PRIu32 &quot;,lp=%&quot; PRIu32
+-					&quot;,pb=%&quot; PRIu32
+-					&quot;,mode=%s,nice=%&quot; PRIu32 &quot;,mf=%s&quot;
+-					&quot;,depth=%&quot; PRIu32,
+-					opt-&gt;lc, opt-&gt;lp, opt-&gt;pb,
+-					mode, opt-&gt;nice_len, mf, opt-&gt;depth);
+-			break;
+-		}
+-
+-		case LZMA_FILTER_X86:
+-		case LZMA_FILTER_POWERPC:
+-		case LZMA_FILTER_IA64:
+-		case LZMA_FILTER_ARM:
+-		case LZMA_FILTER_ARMTHUMB:
+-		case LZMA_FILTER_SPARC: {
+-			static const char bcj_names[][9] = {
+-				&quot;x86&quot;,
+-				&quot;powerpc&quot;,
+-				&quot;ia64&quot;,
+-				&quot;arm&quot;,
+-				&quot;armthumb&quot;,
+-				&quot;sparc&quot;,
+-			};
+-
+-			const lzma_options_bcj *opt = filters[i].options;
+-			my_snprintf(&amp;pos, &amp;left, &quot;%s&quot;, bcj_names[filters[i].id
+-					- LZMA_FILTER_X86]);
+-
+-			// Show the start offset only when really needed.
+-			if (opt != NULL &amp;&amp; opt-&gt;start_offset != 0)
+-				my_snprintf(&amp;pos, &amp;left, &quot;=start=%&quot; PRIu32,
+-						opt-&gt;start_offset);
+-
+-			break;
+-		}
+-
+-		case LZMA_FILTER_DELTA: {
+-			const lzma_options_delta *opt = filters[i].options;
+-			my_snprintf(&amp;pos, &amp;left, &quot;delta=dist=%&quot; PRIu32,
+-					opt-&gt;dist);
+-			break;
+-		}
+-
+-		default:
+-			// This should be possible only if liblzma is
+-			// newer than the xz tool.
+-			my_snprintf(&amp;pos, &amp;left, &quot;UNKNOWN&quot;);
+-			break;
+-		}
+-	}
+-
+-	return;
+-}
+-
+-
+ extern void
+ message_filters_show(enum message_verbosity v, const lzma_filter *filters)
+ {
+@@ -1062,8 +910,11 @@ message_filters_show(enum message_verbosity v, const lzma_filter *filters)
+ 		return;
+ 
+ 	char buf[FILTERS_STR_SIZE];
+-	message_filters_to_str(buf, filters, true);
+-	fprintf(stderr, _(&quot;%s: Filter chain: %s\n&quot;), progname, buf);
++	lzma_ret ret = lzma_filters_to_str(filters, buf, FILTERS_STR_SIZE);
++	if (ret != LZMA_OK)
++		fprintf(stderr, _(&quot;%s: Filter chain: UNKNOWN\n&quot;), progname);
++	else
++		fprintf(stderr, _(&quot;%s: Filter chain: %s\n&quot;), progname, buf);
+ 	return;
+ }
+ 
+@@ -1234,6 +1085,18 @@ message_help(bool long_help)
+ &quot;                        dist=NUM   distance between bytes being subtracted\n&quot;
+ &quot;                                   from each other (1-256; 1)&quot;));
+ #endif
++		puts(_(
++&quot;\n&quot;
++&quot;  -s, --filters=FILTERS\n&quot;
++&quot;                      FILTERS is a \&quot;+\&quot; separated list of filters.\n&quot;
++&quot;                      Options are specified by:\n&quot;
++&quot;                      {filter}={option_name}:{option_value}[+]\n&quot;
++&quot;                      The option names exactly match the single filter option\n&quot;
++&quot;                      method. With LZMA, presets can be used by\n&quot;
++&quot;                      lzma={preset number}. If an option is not specified, the\n&quot;
++&quot;                      default value will be used. If all default options do not\n&quot;
++&quot;                      need overriding, filters can be specified without\n&quot;
++&quot;                      using \&quot;=\&quot;.&quot;));
+ 	}
+ 
+ 	if (long_help)
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 894ac783..c381f302 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -90,7 +90,7 @@ extern const char *message_strm(lzma_ret code);
+ extern void message_mem_needed(enum message_verbosity v, uint64_t memusage);
+ 
+ 
+-/// Buffer size for message_filters_to_str()
++/// Buffer size for lzma_filters_to_str()
+ #define FILTERS_STR_SIZE 512
+ 
+ 
+-- 
+2.25.1
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00551.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00553">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00553">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00555.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [PATCH] String to filter and filter to string</span> <span class="sender italic">Jia Tan</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00555.html">Re: [xz-devel] [PATCH] String to filter and filter to str...</a></span> <span class="sender italic">Jigar Kumar</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00556.html">Re: [xz-devel] [PATCH] String to filter and filter to...</a></span> <span class="sender italic">jiat0218</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00557.html">Re: [xz-devel] [PATCH] String to filter and filte...</a></span> <span class="sender italic">Jigar Kumar</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00565.html">Re: [xz-devel] [PATCH] String to filter and f...</a></span> <span class="sender italic">Jigar Kumar</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00570.html">Re: [xz-devel] [PATCH] String to filter ...</a></span> <span class="sender italic">Jigar Kumar</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [PATCH] String to filter and filter to string">
+<input type="hidden" name="msgid" value="CAMzPPJ9K3idH5Sgem46FAB-xcKpYPRFcPjggBdStG72rRQB+Mw@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00553.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+String+to+filter+and+filter+to+string%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00551.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00555.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ9K3idH5Sgem46FAB-xcKpYPRFcPjggBdStG72rRQB+Mw@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

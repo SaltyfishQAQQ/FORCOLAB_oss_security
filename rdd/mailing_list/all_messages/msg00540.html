@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00540" id="c">
+<link rel="index" href="maillist.html#00540" id="i">
+<link rel="prev" href="msg00539.html" id="p">
+<link rel="next" href="msg00541.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00540.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest" rel="nofollow"><span itemprop="name">Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220310" rel="nofollow">Thu, 10 Mar 2022 06:16:49 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>&gt; &gt; Testing is welcome. It would be nice if someone who has 12-24 hardware
+&gt; &gt; threads could test if it scales well. One needs a file with like a
+&gt; &gt; hundred blocks, so with the default xz -6 that means a 2.5 gigabyte
+&gt; &gt; uncompressed file, smaller if one uses, for example, --block-size=8MiB
+&gt; &gt; when compressing.
+&gt;
+&gt; I made
+&gt;     Stream    Blocks      CompOffset    UncompOffset        CompSize      
+&gt; UncompSize  Ratio  Check      Padding
+&gt;          1       777               0               0   2.386.777.028  
+&gt; 19.540.326.400  0,122  CRC64            0</pre><pre>
+
+Thanks for doing this testing! Looks like the threading scales fairly
+well on large files like this. I don't have a machine with resources
+like this, so I am glad you were able to do this.
+
+&gt; &gt; If the input is broken, it should produce as much output as the
+&gt; &gt; single-threaded stable version does. That is, if one thread detects an
+&gt; &gt; error, the data before that point is first flushed out before the error
+&gt; &gt; is reported. This has pros and cons. It would be easy to add a flag to
+&gt; &gt; allow switching to fast error reporting for applications that don't
+&gt; &gt; care about partial output from broken files.
+
+I started writing tests in the new framework and I found one bug and
+one issue. If you want to check out the tests I have so far, here is a
+link to check out my progress:
+<a  rel="nofollow" href="https://github.com/JiaT75/XZ_Utils_Unofficial/tree/test_multithreaded_decoder">https://github.com/JiaT75/XZ_Utils_Unofficial/tree/test_multithreaded_decoder</a>
+
+The bug is with truncated xz files. In multithreaded mode, if a file
+has been corrupted and is missing the end, deadlock occurs. An easy
+way to recreate this is by using the truncate command:
+truncate -s 30000 some_multiblock_file.xz
+
+And then:
+xz -dk --verbose some_multiblock_file.xz --threads=2
+
+This will result in a deadlock in multithreaded decoding, but not an
+error in single threaded decoding.
+
+The issue is with updating the memlimit with lzma_memlimit_set. As you
+note in your comment in stream_decoder_mt_memconfig there is no way to
+update memlimit_threading. If the memlimit_stop is set very low to
+start, it will force memlimit_threading to be that same small value. I
+could see users wanting to keep memlimit_threading and memlimit_stop
+in sync or have memlimit_threading always be some function of
+memlimit_stop (maybe memlimit_stop / 2 or something). I am not sure
+what the best fix is for this at the moment, but I don't think having
+only one of these values be configurable at runtime is the best idea.
+Especially when the initialization forces memlimit_threading to be at
+most memlimit_stop (which makes sense for almost every situation).
+
+I will continue to write more tests and then review the code itself.
+Nice job to both of you for getting this feature as far as it is
+already.
+
+Jia Tan
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00539.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00540">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00540">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00541.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00505.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00506.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00520.html">Re: [xz-devel] [PATCH v3] liblzma: Add multi-thr...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00523.html">Re: [xz-devel] [PATCH v3] liblzma: Add mult...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00524.html">Re: [xz-devel] [PATCH v3] liblzma: Add ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00526.html">Re: [xz-devel] [PATCH v3] liblzma: ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00528.html">Re: [xz-devel] [PATCH v3] liblz...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00530.html">Re: [xz-devel] [PATCH v3] ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00538.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00539.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email tSliceCur"><span class="subject">Re: [xz-devel] [PATCH ...</span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00541.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00542.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00543.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00544.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00545.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00547.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00548.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Jia Tan</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00550.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li class="icons-email"><span class="subject"><a href="msg00546.html">Re: [xz-devel] [PATCH ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="Re: [xz-devel] [PATCH v3] liblzma: Add multi-threaded decoder">
+<input type="hidden" name="msgid" value="CAMzPPJ98mhF_nRp7Tj4Wid7D7QLYK+A0Py4Odq7LZymb8rRovw@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00540.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22Re%5C%3A+%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH+v3%5C%5D+liblzma%5C%3A+Add+multi%5C-threaded+decoder%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00539.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00541.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ98mhF_nRp7Tj4Wid7D7QLYK+A0Py4Odq7LZymb8rRovw@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

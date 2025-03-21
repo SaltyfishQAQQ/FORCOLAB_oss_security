@@ -1,0 +1,4 @@
+title,message_id,timestamp,author,who_it_is_replying_to,parent_message_id
+No Subject,LocalLinkMissing_0,N/A,Jia Tan,,
+Re: [xz-devel] [PATCH] xz: Added .editorconfig file for simple style guide encouragement,20211111005644.26745771@kaneli,"Wed, 10 Nov 2021 14:56:51 -0800",Lasse Collin,,
+Re: [xz-devel] [PATCH] xz: Added .editorconfig file for simple style guide encouragement,CAMzPPJ8uUQk-ZG18eMxCKM9uVGA1dDA4yRG+Bd2J_TSGX8biMg@mail.gmail.com,"Fri, 12 Nov 2021 06:38:12 -0800",Jia Tan,Lasse Collin,20211111005644.26745771@kaneli

@@ -1,0 +1,107 @@
+event,from,created_at,body
+thread_started,delphij,2023-03-05T23:55:38Z,"When the kernel is built without capability mode support, or when using an emulator like qemu-user-static that does not translate system calls, these calls will return a negative number and set the errno to ENOSYS. However, this error does not indicate a real programming or runtime error and is generally ignored by base system applications built with capability mode sandboxing.
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+Please check the type of change your PR introduces:
+- [X] Bugfix
+
+## What is the current behavior?
+
+xz would abort execution with `Failed to enable the sandbox` when capability mode system calls failed, regardless if the host system have capability mode support.
+
+It is advisable that binaries with capability mode sandbox enabled to ignore capability mode errors when they are solely because the system does not have the support, this is done on many applications including OpenSSH and base system utilities.  In fact, FreeBSD have a set of macros called [capsicum_helpers(3)](https://man.freebsd.org/cgi/man.cgi?query=capsicum_helpers&sektion=3) which [wraps](https://cgit.freebsd.org/src/tree/lib/libcapsicum/capsicum_helpers.h#n153) this anti-pattern.
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=269185
+
+
+## What is the new behavior?
+
+xz will ignore sandbox failures caused by the kernel lacking support of capsicum mode.
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+
+## Other information
+
+The proposed patch modified `cap_*` calls to also check if the failure was caused by the lack of support (ENOSYS) and make it ignore it.  If possible, it's probably reasonable to just use `caph_*` calls found in `capsicum_helpers(3)`."
+commented,JiaT75,2023-03-06T13:58:12Z,"Hi @delphij! Thanks for the notifying us about the issue and for the PR. I solved it a slightly different way with the newest commits on master to avoid unneeded function calls after ENOSYS and to issue a warning message. Can you verify this solves the problem? Additionally, an extra check should be added to ax_check_capsicum.m4, but that can be added later."
+commented,delphij,2023-03-06T17:57:47Z,"> Hi @delphij! Thanks for the notifying us about the issue and for the PR. I solved it a slightly different way with the newest commits on master to avoid unneeded function calls after ENOSYS and to issue a warning message. Can you verify this solves the problem? Additionally, an extra check should be added to ax_check_capsicum.m4, but that can be added later.
+
+Hi @JiaT75 thanks for the quick response!  Yes I _think_ your solution would work too.  I'll test it tonight (it would take several hours for the test to complete) and post an update here.
+"
+commented,delphij,2023-03-07T09:05:28Z,"> > Hi @delphij! Thanks for the notifying us about the issue and for the PR. I solved it a slightly different way with the newest commits on master to avoid unneeded function calls after ENOSYS and to issue a warning message. Can you verify this solves the problem? Additionally, an extra check should be added to ax_check_capsicum.m4, but that can be added later.
+> 
+> Hi @JiaT75 thanks for the quick response! Yes I _think_ your solution would work too. I'll test it tonight (it would take several hours for the test to complete) and post an update here.
+
+build would fail if compiled with `-Wunused-label` as `error:` is not longer used.  Maybe hide it in a `#else` clause of `HAVE_CAPSICUM`, or have an explicit `goto error` after the `if` clause checking for `ENOSYS`?"
+commented,JiaT75,2023-03-07T12:08:39Z,"Silly mistake by me. I just pushed up [01587dd](https://github.com/tukaani-project/xz/commit/01587dda2a8f13fef7e12fd624e6d05da5f9624f) with your suggestion of hiding it in the `#else` clause.
+
+This seems like the most efficient solution, although I'm guessing compilers would be smart enough to optimize the jump out of your second suggestion.
+
+Hopefully it works this time! Let me know if there are any other issues."
+commented,Larhzu,2023-03-07T20:35:57Z,"I think the Capsicum commits went to the master branch a bit hastily:
+
+1. It's not good to spam users with a warning message when their kernel doesn't support Capsicum. Similar spamming issue was fixed in the commit af0fb386ef55db66654ae39e2deec6e04190c4ff.
+2. `message_warning()` affects exit status so now xz will exit with status 2 if kernel lacks Capsicum support (unless `--no-warn` (`-Q`) is used). This breaks most use cases still.
+3. It seems unncessary to complicate `cap_rights_limit()` calls with checks for `ENOSYS` but I might be wrong.
+4. Setting `sandbox_allowed = false;` is OK but not needed as the code will be run only once anyway since Capsicum is used only if there is exactly one input file.
+
+I might have misunderstood the Capsicum API slightly in the past and thus I have put `cap_enter()` as the very last step. Seems that moving it to be the first one makes it easy to detect if Capsicum is supported by the kernel or not. So that idea in the master branch seems good.
+
+[cap_enter(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_enter&apropos=0&sektion=0&manpath=FreeBSD+14.0-CURRENT&arch=default&format=html) mentions `ENOSYS` but [cap_rights_limit(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_rights_limit&sektion=2&apropos=0&manpath=FreeBSD+14.0-CURRENT) doesn't. I wonder if it is a documentation error or if it is intentional to not mention `ENOSYS`. I'm a bit hesitant to add a check for an undocumented `errno` value (I see capsicum_helpers.h does check for `ENOSYS` though).
+
+I put a proposed fix to the branch [capsicum_improvements](https://github.com/tukaani-project/xz/commits/capsicum_improvements). These go before the new commits in the master branch which I think should be reverted so that clean patches can be cherry-picked to stable branches.
+
+I wonder if `STDIN_FILENO` and `STDERR_FILENO` should be restricted too. (`src_fd` may be `STDIN_FILENO`.) I added another commit for those. There is no worry about `EBADF` since xz ensures that the file descriptors are open. But perhaps having only `CAP_WRITE` for `STDERR_FILENO` can be too strict in some cases, I'm not sure. capsicum_helpers.h adds a few other capabilities too but on the other hand xz will only write to standard error with `fprintf` and friends.
+
+Moving to capsicum_helpers(3) could be an option but at this point I'm not sure if it is worth it as I think this should work fine too. Moving to capsicum_helpers(3) would need updating the configure test too for those who build xz from an upstream tarball.
+
+@delphij: What do you think about the commits in capsicum_improvements?
+
+@JiaT75: What kind of change did you have in mind for ax_check_capsicum.m4? One cannot check for kernel support at build time as the binary might be run on a different kernel too. Using capsicum_helpers(3) would need a change so that the build won't fail on FreeBSD 10 or 11 (which are out of support)."
+commented,delphij,2023-03-08T04:48:15Z," @Larhzu yeah I like the [capsicum_improvements](https://github.com/tukaani-project/xz/commits/capsicum_improvements) changes better.  And `message_warning` did change the exit code so it would cause breakage in some scenarios, in our case it would still break gettext-tools build (as make is expecting xz to return 0).
+
+Regarding ""[cap_enter(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_enter&apropos=0&sektion=0&manpath=FreeBSD+14.0-CURRENT&arch=default&format=html) mentions ENOSYS but [cap_rights_limit(2)](https://man.freebsd.org/cgi/man.cgi?query=cap_rights_limit&sektion=2&apropos=0&manpath=FreeBSD+14.0-CURRENT) doesn't."" -- yes, this is definitely a documentation issue and I'll fix it ASAP.
+
+For capsicum_helpers(3) -- I think it's totally dependent on whether the code would be used on other operating systems that have capsicum support; they are FreeBSD specific.  FreeBSD 10 / 11 is not really a concern as they are pretty old nowadays."
+commented,Larhzu,2023-03-08T16:15:36Z,"@JiaT75: I apologize for the inappropriate harsh message above. I shouldn't post when in bad mood.
+
+@delphij: OK, so avoiding non-zero exit status is essential.
+
+Is a warning message good or bad? I thought it's not good to print a warning on `ENOSYS` since the reason for the error is clearly outside of xz (kernel or emulator not supporting the syscall) and it could be annoying if all Capsicum processes showed such warnings on every invocation. But it can be argued that it's good to inform users about the situation.
+
+If cap_rights_limit(2) can return `ENOSYS` then I suppose it doesn't hurt to check it even after a successful call to cap_enter(2).
+
+Other OSes with Capsicum support I hadn't thought about. So I guess for now it's simplest to avoid capsicum_helpers(3).
+
+I tested the new cap_rights_limit calls on FreeBSD 13.1 and they seem to work even with `sysctl kern.trap_enotcap=1` so I guess they *might* be safe to add even to the next stable release but it can be decided later."
+commented,delphij,2023-03-10T19:29:02Z,"@Larhzu Regarding warning message -- it doesn't matter much as long as the return value is zero.  Personally, I'd prefer not having the warning message, because 1) Capsicum is enabled by default and user has to deliberately disable it with a custom built kernel; we are discussing about remove the option and make it mandatory, but right now for those who disabled it it can be quite annoying to see the message every invocation of xz, and 2) this behavior (no warning when capsicum is not supported) is what everyone else does currently, the preferred (capsicum_helper) wrapper even handled it for the developer.
+
+I've updated the manual page for other `cap_*` system calls for FreeBSD in https://github.com/freebsd/freebsd-src/commit/75798f9b01055261881938326a5c77e55f79c7f7 to reflect the fact that they do return `ENOSYS`.
+
+(Maybe we should close this PR and move the discussion somewhere else? :) )"
+commented,Larhzu,2023-03-11T17:56:04Z,"I fully agree with your reasoning. A warning message would also break `make check` in test_scripts.sh.
+
+I merged JiaT75's commits to master which remove the warning message and the changing of the exit status. Now master is effectively quite similar to what capsicum_improvements was except that master checks for ENOSYS for all `cap_*` calls.
+
+I squashed the commits to the v5.4 branch already for 5.4.2. It will be in 5.2.11 too.
+
+I think this issue should now have been solved. Thanks!
+
+Also thanks for updating the cap_*(2) man pages!
+"
+commented,Larhzu,2023-03-11T20:05:50Z,"In contrast to v5.4, v5.2 (and thus 5.2.10) don't exit if enabling the sandbox fails. v5.2 only displays a message if double-verbose (`xz -vv`). The new stricter behavior was intentionally not backported to v5.2 since it seemed a risky change. So that's why the problem didn't appear until 5.4.x got into FreeBSD. I will discuss with JiaT75, perhaps it's best to not change the Capsicum code in v5.2 at all, we'll see."

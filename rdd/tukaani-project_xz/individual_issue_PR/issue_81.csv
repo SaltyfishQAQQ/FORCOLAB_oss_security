@@ -1,0 +1,49 @@
+event,from,created_at,body,to
+thread_started,vectoris,2024-02-18T13:48:18Z,"https://xz.tukaani.org/xz-utils/  has this message:  `Many free software operating systems already provide easy-to-install XZ Utils binaries. It doesn't make sense to provide links to all those here. ` 
+
+I couldn't find even one project that uses XZ Utils binaries.
+Please give me a link to project where I can download Latest compiled binaries.",['vectoris']
+commented,Larhzu,2024-02-18T14:15:47Z,"Examples: GNU/Linux distributions like Arch Linux, Debian, Fedora,
+Gentoo, Slackware, and Ubuntu include XZ Utils. FreeBSD includes
+XZ Utils in the base system. OpenBSD provides a prebuilt package.
+
+https://archlinux.org/
+
+https://www.debian.org/
+
+https://fedoraproject.org/
+
+https://www.gentoo.org/
+
+http://www.slackware.com/
+
+https://ubuntu.com/
+
+https://www.freebsd.org/
+
+https://www.openbsd.org/
+
+I hope this helps.
+
+If you were looking for binaries for non-free operating systems like
+Windows, then I don't have a recommendations for up-to-date binaries.
+The XZ Utils home page has binaries for 5.2.9. I'm hoping to include
+updated simplified build instructions for Windows in XZ Utils 5.6.0, if
+I have time.",['vectoris']
+commented,vectoris,2024-02-19T03:24:00Z,"Thanks. 
+I'm looking for binaries for Windows.",['Larhzu']
+commented,Larhzu,2024-02-19T20:01:52Z,"On 2024-02-18 vector-is wrote:
+
+The thought of starting to provide official binaries again has been
+considered for a while. The package build script etc. have been updated
+recently and hopefully get merged to master this week. There are some
+non-technical considerations to decide but there is a possibility (so
+it's still very uncertain) that XZ Utils 5.6.0 might get a Windows
+binary package as well.
+
+-- 
+Lasse Collin",['vectoris']
+commented,Geo25rey,2024-03-30T00:41:20Z,"It's hilarious that you are mentioning a Windows build for version 5.6.0, since the blackdoor added to this version would likely break builds for Windows.",['Larhzu']
+commented,Larhzu,2025-01-23T18:34:45Z,"The 5.6.4 release includes Windows binaries. They have been built against UCRT instead of MSVCRT.
+
+I don't know if next releases will include Windows binaries. If the 5.6.4 ones are useful to you, please comment here, on IRC, or send an email.",['Geo25rey']

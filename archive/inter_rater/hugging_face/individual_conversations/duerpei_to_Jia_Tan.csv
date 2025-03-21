@@ -1,0 +1,10 @@
+from,to,file_name,message,mood,score
+duerpei,Jia Tan,pr_52.csv,"
+As you mentioned, it is a cross-compile situation where I want to copy over the test binaries after everything else is built. 
+To be precise, I want to add ""ptest"" support for xz in ""openembedded core"", so there is the situations where only local compilation is done without running tests.
+
+I have tried the method you suggested and it can also solve my problem very well, so there is no need to modify the code in xz.
+Finally, I would like to thank you for your patient comment. 
+Thank you!",positive,0.9002407849766314
+duerpei,Jia Tan,pr_52.csv,"My problem has been resolved, so I will close this issue.
+Thank you for your reply.",neutral,-0.02208198979496956

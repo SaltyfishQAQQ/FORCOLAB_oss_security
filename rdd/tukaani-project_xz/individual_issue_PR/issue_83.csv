@@ -1,0 +1,42 @@
+event,from,created_at,body,to
+thread_started,svenha,2024-02-24T14:53:11Z,"### Describe the Feature
+
+A makefile target that downloads adequate data to run a real-world benchmark (compression and decompression). Or something similar.
+
+### Expected Complications
+
+_No response_
+
+### Will I try to implement this new feature?
+
+No",['svenha']
+commented,JiaT75,2024-02-28T13:33:24Z,"Hello!
+
+Thank you for the feature request. Currently, we do not have any official benchmark framework for any of the XZ projects. When we develop new features that require benchmarking data, we tend to collect the files with characteristics that best fit that feature (data type, size, entropy, etc.). Often times community members will also help us benchmark since they may have access to machines, data, or ideas that the maintainers do not.
+
+As such, we do not have any plans for a more official, robust, and structured benchmark framework at this time. We unfortunately have a few high priority tasks to attend to first. Eventually, this could be a nice thing to have when we revisit encoder/decoder optimizations to make it easier for the community to help us test various ideas. We would likely maintain a separate repository for this so it could be useful for other .xz implementations.
+
+If you have ideas on good ways to do this or bad things we should avoid, we are always open to suggestions :) . We probably wouldn't want to actually host the benchmark data ourselves due to storage requirements and potential file distribution copyright complexities, but a bring-your-own-data framework could be useful for people. Such a thing may already exist, so we would need to start by surveying what solutions other projects use for something like this. ",['svenha']
+commented,LaurentBonnaud,2024-03-29T11:22:45Z,"Hi,
+zstd has a nice integrated benchmark feature:
+```
+$ zstd -b
+ 3#Synthetic 50%     :  10000000 ->   3230847 (x3.095),  346.2 MB/s, 2616.6 MB/s
+```
+It is useful to have an easily reproducible test.
+In xz it could help to test which variant among
+* Basic C version
+* Branchless C
+* x86-64 inline assembly
+
+is the fastest on a given system.
+
+It would be even better if all 3 variants could be compiled into the same binary and chosen at runtime.",['JiaT75']
+commented,alerque,2024-03-29T18:16:24Z,"
+Would those ""high priority"" tasks by any chance include [backdooring Debian & Redhat based distros](https://www.openwall.com/lists/oss-security/2024/03/29/4)?",['LaurentBonnaud']
+commented,axeld-galadrim,2024-03-29T22:58:40Z,@alerque also backdoored arch btw & gentoo,alerque
+commented,alerque,2024-03-29T23:04:54Z,"@axeld-galadrim No, there is no evidence of that at present.
+
+Arch's sshd was not linked to liblzma and hence not known to be backdoored. Obviously more research needs to be done do deconstruct just what else might have been done, but the discovered mechanisms were not active in anything on Arch Linux. Some of the exploit code was *around* during package build time and is definitely considered unsafe (hence the purge of containers and installation media and some packages), but no yet discovered triggers are present that affect Arch.",axeld
+commented,Sur3,2024-04-17T22:32:00Z,"The only true benchmark for any compression software is the hutter prize: http://prize.hutter1.net/
+XZ is ranked place 75 in that regard, which is not bad: http://mattmahoney.net/dc/text.html",['alerque']

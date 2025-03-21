@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [PATCH] LZMA_FINISH will now trigger LZMA_BUF_ERROR on truncated xz files right away</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00554" id="c">
+<link rel="index" href="maillist.html#00554" id="i">
+<link rel="prev" href="msg00553.html" id="p">
+<link rel="next" href="msg00582.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00554.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+LZMA_FINISH+will+now+trigger+LZMA_BUF_ERROR+on+truncated+xz+files+right+away%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [PATCH] LZMA_FINISH will now trigger LZMA_BUF_ERROR on truncated xz files right away</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Jia+Tan%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Jia Tan</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20220421" rel="nofollow">Thu, 21 Apr 2022 06:24:16 -0700</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>The current behavior of LZMA_FINISH in the decoder is a little
+confusing because it requires calling lzma_code a few times without
+providing more input to trigger a LZMA_BUF_ERROR. This patch replaces
+return LZMA_OK lines with:</pre><pre>
+
+return action == LZMA_FINISH &amp;&amp; *out_pos != out_size ? LZMA_BUF_ERROR : LZMA_OK;
+
+This checks if the action is LZMA_FINISH and the output is not full,
+then return the LZMA_BUF_ERROR. If the output is full, LZMA_OK is
+needed because the caller needs to provide more room for the coder to
+write out.
+I believe this solves the issue in all cases and does not return
+LZMA_BUF_ERROR when it shouldn't.
+
+Jia Tan
+</pre><pre>From c7ebdb16a4f14fed641d82e97331eb39c4f57d1d Mon Sep 17 00:00:00 2001
+From: jiat75 &lt;jiat0...@gmail.com&gt;
+Date: Thu, 21 Apr 2022 21:09:57 +0800
+Subject: [PATCH] LZMA_FINISH will now trigger LZMA_BUF_ERROR on truncated xz files right away
+
+ In the single threaded and multithreaded decoder, LZMA_FINISH
+ will cause BUF_ERROR right away instead of requiring multiple calls to
+ lzma_code without providing more input.
+
+---
+ src/liblzma/common/common.c            |  1 -
+ src/liblzma/common/stream_decoder.c    | 19 ++++++++++++++-----
+ src/liblzma/common/stream_decoder_mt.c | 19 ++++++++++++++-----
+ 3 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 346fc7af..3ddaf199 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -352,7 +352,6 @@ lzma_code(lzma_stream *strm, lzma_action action)
+ 
+ 	default:
+ 		// All the other errors are fatal; coding cannot be continued.
+-		assert(ret != LZMA_BUF_ERROR);
+ 		strm-&gt;internal-&gt;sequence = ISEQ_ERROR;
+ 		break;
+ 	}
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index fdd8ff2f..06d4136b 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -118,7 +118,8 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// Return if we didn't get the whole Stream Header yet.
+ 		if (coder-&gt;pos &lt; LZMA_STREAM_HEADER_SIZE)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		coder-&gt;pos = 0;
+ 
+@@ -161,7 +162,8 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 	case SEQ_BLOCK_HEADER: {
+ 		if (*in_pos &gt;= in_size)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		if (coder-&gt;pos == 0) {
+ 			// Detect if it's Index.
+@@ -184,7 +186,8 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// Return if we didn't get the whole Block Header yet.
+ 		if (coder-&gt;pos &lt; coder-&gt;block_options.header_size)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		coder-&gt;pos = 0;
+ 
+@@ -256,6 +259,10 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				in, in_pos, in_size, out, out_pos, out_size,
+ 				action);
+ 
++		if (ret == LZMA_OK)
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
++
+ 		if (ret != LZMA_STREAM_END)
+ 			return ret;
+ 
+@@ -275,7 +282,8 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// lzma_index_hash_decode() since it would return
+ 		// LZMA_BUF_ERROR, which we must not do here.
+ 		if (*in_pos &gt;= in_size)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		// Decode the Index and compare it to the hash calculated
+ 		// from the sizes of the Blocks (if any).
+@@ -296,7 +304,8 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// Return if we didn't get the whole Stream Footer yet.
+ 		if (coder-&gt;pos &lt; LZMA_STREAM_HEADER_SIZE)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		coder-&gt;pos = 0;
+ 
+diff --git a/src/liblzma/common/stream_decoder_mt.c b/src/liblzma/common/stream_decoder_mt.c
+index e8939254..1519e570 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -1053,7 +1053,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// Return if we didn't get the whole Stream Header yet.
+ 		if (coder-&gt;pos &lt; LZMA_STREAM_HEADER_SIZE)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		coder-&gt;pos = 0;
+ 
+@@ -1153,7 +1154,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 				break;
+ 			}
+ 
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 		}
+ 
+ 		if (ret == LZMA_INDEX_DETECTED) {
+@@ -1513,7 +1515,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		// Return if the input didn't contain the whole Block.
+ 		if (coder-&gt;thr-&gt;in_filled &lt; coder-&gt;thr-&gt;in_size) {
+ 			assert(*in_pos == in_size);
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 		}
+ 
+ 		// The whole Block has been copied to the thread-specific
+@@ -1577,6 +1580,10 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder-&gt;progress_in += *in_pos - in_old;
+ 		coder-&gt;progress_out += *out_pos - out_old;
+ 
++		if (ret == LZMA_OK)
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
++
+ 		if (ret != LZMA_STREAM_END)
+ 			return ret;
+ 
+@@ -1610,7 +1617,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		// lzma_index_hash_decode() since it would return
+ 		// LZMA_BUF_ERROR, which we must not do here.
+ 		if (*in_pos &gt;= in_size)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		// Decode the Index and compare it to the hash calculated
+ 		// from the sizes of the Blocks (if any).
+@@ -1635,7 +1643,8 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// Return if we didn't get the whole Stream Footer yet.
+ 		if (coder-&gt;pos &lt; LZMA_STREAM_HEADER_SIZE)
+-			return LZMA_OK;
++			return action == LZMA_FINISH &amp;&amp; *out_pos != out_size
++					? LZMA_BUF_ERROR : LZMA_OK;
+ 
+ 		coder-&gt;pos = 0;
+ 
+-- 
+2.25.1
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00553.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00554">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00554">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00582.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [PATCH] LZMA_FINISH will now trigger LZMA_BUF_ERRO...</span> <span class="sender italic">Jia Tan</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00582.html">Re: [xz-devel] [PATCH] LZMA_FINISH will now trigger LZMA...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [PATCH] LZMA_FINISH will now trigger LZMA_BUF_ERROR on truncated xz files right away">
+<input type="hidden" name="msgid" value="CAMzPPJ-6LR5CpiRioaREzOiq3UA65-42tsKYDQOB-u1An_b4hQ@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00554.html">
+<input type="submit" value=" Jia Tan ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BPATCH%5C%5D+LZMA_FINISH+will+now+trigger+LZMA_BUF_ERROR+on+truncated+xz+files+right+away%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00553.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00582.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CAMzPPJ-6LR5CpiRioaREzOiq3UA65-42tsKYDQOB-u1An_b4hQ@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

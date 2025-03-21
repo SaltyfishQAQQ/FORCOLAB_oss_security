@@ -1,0 +1,141 @@
+event,from,created_at,body,to
+thread_started,asarubbo,2024-02-27T15:16:41Z,"### Describe the bug
+
+Since few days I updated to 5.6.0.
+
+When I try to compress text I always get:
+
+```
+xz: Reduced the number of threads from 64 to X to not exceed the memory usage limit of .. MiB
+```
+
+So to use threads I increased the memory limit around 3GB but still I get the message.
+
+As a POC I did:
+```
+echo ""a"" > file
+for i in {1..64} ; do echo $i ; xz -k -f -z -9 -T $i -M 3000000000 file ; done
+```
+And I discovered that with `i=3` it reduces threads from `i` to 2
+
+`xz -H` says that `-M` accepts the LIMIT in bytes, so 3000000000 are 3GB of ram.
+
+Is there anything wrong with it or how much ram I'm supposing to give to the process? 
+
+
+
+
+### Version
+
+5.6.0
+
+### Operating System
+
+Gentoo Linux
+
+### Relevant log output
+
+_No response_",['asarubbo']
+commented,asarubbo,2024-02-27T15:21:52Z,"As a side note, with -M 30000000000 (30GB) I can run until 22 threads without issues.
+
+With -M 90000000000 (90GB) I can run it with 64 threads without issues.",['asarubbo']
+commented,JiaT75,2024-02-27T16:53:47Z,"Hello!
+
+Thanks for the bug report. The cause of this is because in 5.6.0 we made the default compression mode multi threaded. By default, xz will try to use the number of cores to determine how many threads to use when compressing/decompressing. If there is not enough memory to support this many threads, it will reduce the number of threads. Showing this as a warning message made more sense before because multi threading was not the default.
+
+To answer your question, the amount of memory required per thread with default options is the block size * 3 + LZMA2 dictionary size + a little extra encoder buffers. Block size is determined by 3 * LZMA2 dictionary size or a minimum of 1 MiB. So the amount of memory you give to xz depends on how many threads you want to be used. More threads just means faster compression, not better compression ratio. For best compression ratio, use single threaded mode (`-T1`).
+
+Another user reported this on the mailing list, so we already started considering different options. As a user, would you rather see the number of threads actually used in verbose mode (`-v`) or debug mode (`-vv`)? We are all in agreement that this message should not be displayed by default :)",['asarubbo']
+commented,Larhzu,2024-02-27T17:13:44Z,"
+Try adding `-vv` to the command line. It will show some information
+about memory usage.
+
+With `-9` the _compressor_ in threaded mode needs 1250 MiB per thread. A
+new thread is started every 192 MiB of uncompressed input (3 * 64 MiB
+where 64 MiB is the dictionary size at `-9`). So if the input file isn't
+huge, not many threads will be actually used.
+
+With lower presets memory usage goes down and threads are started more
+frequently. For example, `-6` starts a new thread every 24 MiB of input
+by default.",['JiaT75']
+commented,asarubbo,2024-02-28T08:21:38Z,"
+As a user I would not like to see that by default, but in verbose mode or debug mode. But it is a matter of fact that putting that in verbose/debug mode means that a lot of users won't discover that, and then not increase the memory limit if they need it.
+
+So for me is fine as-is.
+
+I opened the issue because in my opinion the required memory is too high. But given the numbers provided by @Larhzu I think there is no issue on my side, but since other users may open a ticket for that I'd suggest to put a link or an explanation (in the warning) about why the provided memory limit is not enough. That would avoid a lot of tickets here, I think.",Larhzu
+commented,Larhzu,2024-02-28T10:59:52Z,"
+I realized only now what made you ask this question. :-( At the default
+verbosity level, the message only tells what the limit is but not how
+much is needed. One needs -vv to see what would actually be required
+but there is no hint about the need for -vv.
+
+
+You summarized the problem well. The on-going thread on xz-devel might
+be worth reading too about the identified pros and cons of different
+options, including the problems with the current behavior:
+
+***@***.***/msg00655.html
+
+Threaded compression has been supported in for nine years but only now
+is the threaded mode enabled by default. Thus more people are seeing
+these messages now.
+
+Historically, memory usage limits in xz have been a controversial
+topic. Threaded compression with automatic number of threads and
+threaded decompression with automatic or user-defined number of threads
+require a memory limit, otherwise the memory usage could become
+ridiculous in some cases. That could cause security issues (denial of
+service).
+
+The current automatic limit is 25 % of total RAM (in 32-bit xz
+executables also at most 1400 MiB). Some people think it's a bit too
+low, some think it's a bit too high.
+
+There is also a Linux-specific suggestion of using MemAvailable from
+/proc/meminfo to determine how much memory could be used. For example,
+using 80 % of MemAvailable. That could often allow more than 25 % of
+RAM. This idea wasn't discussed and polished for XZ Utils 5.6.0 though
+but it likely should be revisited later. And if done on Linux, a
+similar thing likely should be done on a few other OSes too.
+
+
+While I don't know about your use case, in general it can be worth
+considering if -9 is the best compression preset to use. -9 uses 64 MiB
+dictionary and 192 MiB block size. Perhaps --block-size=96MiB would
+give good enough compression while allowing more threads and thus more
+speed if the file size isn't huge (gigabytes).
+
+Or using the default -6 (8 MiB dict, 24 MiB blocks) or a bit higher -7
+(16 MiB dict, 48 MiB blocks) to get better parallelization with
+medium-sized files at the expense of worse compression.
+
+The default block_size = 3 * dict_size is somewhat arbitrary. It's a
+compromise between compression ratio and memory usage. If memory usage
+doesn't matter, block_size = dict_size is the best. Multiplier in the
+range 1-4 is likely a good choice in typical cases.
+
+xz --help includes a warning about memory usage with presets 7-9. When
+it was written, computers with 256-512 MiB RAM weren't obsolete. With
+threading that warning has some point again.
+
+Note that -9 and its 64 MiB dictionary isn't the maximum possible
+compression setting. It's just the highest preset level. The encoder
+supports up to 1536 MiB. Some use 256 MiB together with a fast preset
+because *with some types of data* it can be both faster than -9 and
+compress the same (or even better):
+
+    xz --lzma2=preset=1,dict=256MiB
+
+So it's about understanding the use case and doing some experimenting.
+
+
+I recognize that there is a problem and it could be documented
+somewhere and perhaps the message from xz should be clearer too. If the
+thread count reduction was shown at only -vv then it likely would be
+clearer already except that fewer people would be aware of the reduced
+thread count. Right now I don't know what is the best solution. It
+might be that in the short term the message is put behind -v or -vv to
+solve one set of problems and the solution is tweaked later.
+
+Thanks!",['asarubbo']

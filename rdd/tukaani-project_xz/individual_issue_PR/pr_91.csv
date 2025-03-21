@@ -1,0 +1,425 @@
+event,from,created_at,body,to
+thread_started,skosukhin,2024-03-13T13:06:26Z,"NVHPC compiler has several issues that make it impossible to build liblzma:
+  - the compiler cannot handle unions that contain pointers that are not the first members (in some cases);
+  - the compiler cannot handle the assembler code in range_decoder.h (LZMA_RANGE_DECODER_CONFIG has to be set to zero);
+  - the compiler fails to produce valid code for delta_decode if the vectorization is enabled, which results in failed tests.
+
+This introduces NVHPC-specific workarounds that address the issues.
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [x] All previous and new tests pass
+
+
+## Pull request type
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [x] Other (please describe): workarounds for the compiler
+
+
+## What is the current behavior?
+It's not possible to build and get the tests pass with any existing release of the NVHPC compiler even when configuring as follows:
+```console
+$ ./configure --disable-symbol-versions CPPFLAGS='-DLZMA_RANGE_DECODER_CONFIG=0' CFLAGS='-O'
+```
+(`-O` is the same as the default `-O2` but without SIMD)
+
+
+## What is the new behavior?
+It is possible to build and get the tests pass with any existing release of the NVHPC compiler when configuring as follows:
+```console
+$ ./configure --disable-symbol-versions
+```
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+
+## Other information
+
+I don't know if there is any interest in supporting NVHPC and I'd understand if there's none.",['skosukhin']
+commented,JiaT75,2024-03-13T14:44:49Z,"Hello! Thanks for reporting the inability to build on NVHPC and submitting the PR. The changes are minimal so supporting NVHPC seems worth the little bit of effort :)
+
+I am curious why `#pragma routine novector` is needed in `delta_decoder.c` and not elsewhere. Has this bug been reported to the NVHPC developers?",['skosukhin']
+commented,skosukhin,2024-03-13T15:20:45Z,"I was also surprised that `#pragma routine novector` made the difference for `delta_decode`, which does not have a loop. It might have to do with the `restrict`. I haven't dug deeper.
+
+The problems in `delta_decoder.c` and `range_decoder.h` have not been reported yet. The one in `string_conversion.c` was reported long ago but NVIDIA does not seem to have high priority for their C compiler (C++ and Fortran get more attention). We monitor several issues ([1](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L213-222), [2](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L245-253), [3](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L268-271)) in our project and I will let you know if anything changes.",['JiaT75']
+commented,JiaT75,2024-03-13T15:50:18Z,"
+Its likely the call to `decode_buffer()` is being inlined, so that could be why some sort of vectorization is happening. 
+
+
+Does NVHPC support any kind of inline assembly, or is there something we are using that specifically is a problem?
+
+
+Thanks!
+",['skosukhin']
+commented,skosukhin,2024-03-13T17:13:29Z,"
+I don't know much about the assembly. A random example from the Internet
+```c
+#include <stdio.h>
+
+int main() {
+
+    int arg1, arg2, add, sub, mul, quo, rem ;
+
+    printf( ""Enter two integer numbers : "" );
+    scanf( ""%d%d"", &arg1, &arg2 );
+
+    /* Perform Addition, Subtraction, Multiplication & Division */
+    __asm__ ( ""addl %%ebx, %%eax;"" : ""=a"" (add) : ""a"" (arg1) , ""b"" (arg2) );
+    __asm__ ( ""subl %%ebx, %%eax;"" : ""=a"" (sub) : ""a"" (arg1) , ""b"" (arg2) );
+    __asm__ ( ""imull %%ebx, %%eax;"" : ""=a"" (mul) : ""a"" (arg1) , ""b"" (arg2) );
+
+    __asm__ ( ""movl $0x0, %%edx;""
+              ""movl %2, %%eax;""
+              ""movl %3, %%ebx;""
+               ""idivl %%ebx;"" : ""=a"" (quo), ""=d"" (rem) : ""g"" (arg1), ""g"" (arg2) );
+
+    printf( ""%d + %d = %d\n"", arg1, arg2, add );
+    printf( ""%d - %d = %d\n"", arg1, arg2, sub );
+    printf( ""%d * %d = %d\n"", arg1, arg2, mul );
+    printf( ""%d / %d = %d\n"", arg1, arg2, quo );
+    printf( ""%d %% %d = %d\n"", arg1, arg2, rem );
+
+    return 0 ;
+}
+```
+compiles and works as expected.
+
+Also, `#define LZMA_RANGE_DECODER_CONFIG 0x100` works fine but anything else, e.g. `0x180`, fails with an ugly message:
+```console
+$ nvc -DHAVE_CONFIG_H -I. -I../.. -I../../src/liblzma/api -I../../src/liblzma/common -I../../src/liblzma/check -I../../src/liblzma/lz -I../../src/liblzma/rangecoder -I../../src/liblzma/lzma -I../../src/liblzma/delta -I../../src/liblzma/simple -I../../src/common -DTUKLIB_SYMBOL_PREFIX=lzma_ -DLZMA_RANGE_DECODER_CONFIG=0x180 -pthread -fvisibility=hidden -Wall -Wextra -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wredundant-decls -g -O2 -c lzma/lzma_decoder.c -MD -MF .deps/liblzma_la-lzma_decoder.TPlo  -fPIC -DPIC -o .libs/liblzma_la-lzma_decoder.o
+""lzma/lzma_decoder.c"", line 376: warning: variable ""t0"" was set but never used [set_but_not_used]
+  				rc_matched_literal(probs,
+  				^
+
+Remark: individual warnings can be suppressed with ""--diag_suppress <warning-name>""
+
+""lzma/lzma_decoder.c"", line 376: warning: variable ""t1"" was set but never used [set_but_not_used]
+  				rc_matched_literal(probs,
+  				^
+
+""lzma/lzma_decoder.c"", line 376: warning: variable ""t_prob"" was set but never used [set_but_not_used]
+  				rc_matched_literal(probs,
+  				^
+
+""lzma/lzma_decoder.c"", line 501: warning: variable ""t0"" was set but never used [set_but_not_used]
+  					rc_direct(rep0, limit);
+  					^
+
+""lzma/lzma_decoder.c"", line 501: warning: variable ""t1"" was set but never used [set_but_not_used]
+  					rc_direct(rep0, limit);
+  					^
+
+""lzma/lzma_decoder.c"", line 986: warning: enumerated type mixed with another type [mixed_enum_type]
+  	coder->state = state;
+  	             ^
+
+LLVM ERROR: Bad $ operand number in inline asm string: 'add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	xor	$5, $8
+	add	$7, $7
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	cmovae	$5, $8
+	mov	$7, $5
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	add	$8, $6
+	and	$8, $5
+	add	$5, $6
+	movzw	($10, ${6:q}, 2), $4
+	add	$6, $6
+	cmp	$11, $0
+	jae	1f
+	shl	$12, $1
+	mov	($9), ${1:b}
+	shl	$12, $0
+	inc	$9
+1:
+mov	$0, $2
+	shr	$13, $0
+	imul	$4, $0
+	sub	$0, $2
+	mov	$1, $3
+	sub	$0, $1
+	cmovae	$2, $0
+	lea	${>:c}(${4:q}), $2
+	cmovb	$3, $1
+	mov	$6, $3
+	cmovae	$4, $2
+	sbb	$$-1, $6
+	shr	$15, $2
+	and	$$0x1FF, $6
+	sub	$2, $4
+	mov	${4:w}, ($10, ${3:q}, 1)
+	'
+PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace.
+Stack dump:
+0.	Program arguments: /opt/zmaw/sw/bullseye-x64/compilers/nvhpc-23.7/Linux_x86_64/23.7/compilers/share/llvm/bin/llc /tmp/nvcSV_Pme1jzEY9E.llvm -march=x86-64 -mcpu=native -mattr=+mmx -mattr=+sse -mattr=+sse2 -mattr=+sse3 -mattr=+ssse3 -mattr=+sse4.1 -mattr=+sse4.2 -mattr=+avx -mattr=+avx2 -mattr=+f16c -mattr=+fma -mattr=+xsave -mattr=+xsaveopt -mattr=+xsavec -mattr=+xsaves -mattr=+popcnt -mattr=+sha -mattr=+aes -mattr=+pclmul -mattr=+clflushopt -mattr=+fsgsbase -mattr=+rdrnd -mattr=+bmi -mattr=+bmi2 -mattr=+lzcnt -mattr=+fxsr -mattr=+pku -mattr=+gfni -mattr=+vaes -mattr=+vpclmulqdq -mattr=+movdiri -mattr=+movdir64b -O2 -opaque-pointers -non-global-value-max-name-size=4294967295 -x86-cmov-converter=0 -dwarf-directory=false --align-all-functions=6 -override-aa-for-tbaa=true -relocation-model=pic -filetype=obj --frame-pointer=none -o .libs/liblzma_la-lzma_decoder.o
+1.	Running pass 'Function Pass Manager' on module '/tmp/nvcSV_Pme1jzEY9E.llvm'.
+2.	Running pass 'X86 Assembly Printer' on function '@lzma_decode'
+Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+0  llc             0x0000563d2eb9b608 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 40
+1  llc             0x0000563d2eb9957e llvm::sys::RunSignalHandlers() + 238
+2  llc             0x0000563d2eb9bd9d
+3  libpthread.so.0 0x00007fdc14be5140
+4  libc.so.6       0x00007fdc148c5ce1 gsignal + 321
+5  libc.so.6       0x00007fdc148af537 abort + 291
+6  llc             0x0000563d2eb2d15c llvm::report_fatal_error(llvm::Twine const&, bool) + 460
+7  llc             0x0000563d2dfaba56
+8  llc             0x0000563d2df95a0e llvm::AsmPrinter::emitFunctionBody() + 2942
+9  llc             0x0000563d2dae5636
+10 llc             0x0000563d2e166d9f llvm::MachineFunctionPass::runOnFunction(llvm::Function&) + 607
+11 llc             0x0000563d2e55b00e llvm::FPPassManager::runOnFunction(llvm::Function&) + 622
+12 llc             0x0000563d2e5622a3 llvm::FPPassManager::runOnModule(llvm::Module&) + 51
+13 llc             0x0000563d2e55bc2d llvm::legacy::PassManagerImpl::run(llvm::Module&) + 2381
+14 llc             0x0000563d2d78146a main + 8986
+15 libc.so.6       0x00007fdc148b0d0a __libc_start_main + 234
+16 llc             0x0000563d2d77c48e
+nvc-Fatal-/opt/zmaw/sw/bullseye-x64/compilers/nvhpc-23.7/Linux_x86_64/23.7/compilers/share/llvm/bin/llc TERMINATED by signal 6
+Arguments to /opt/zmaw/sw/bullseye-x64/compilers/nvhpc-23.7/Linux_x86_64/23.7/compilers/share/llvm/bin/llc
+/opt/zmaw/sw/bullseye-x64/compilers/nvhpc-23.7/Linux_x86_64/23.7/compilers/share/llvm/bin/llc /tmp/nvcSV_Pme1jzEY9E.llvm -march=x86-64 -mcpu=native -mattr=+mmx -mattr=+sse -mattr=+sse2 -mattr=+sse3 -mattr=+ssse3 -mattr=+sse4.1 -mattr=+sse4.2 -mattr=+avx -mattr=+avx2 -mattr=+f16c -mattr=+fma -mattr=+xsave -mattr=+xsaveopt -mattr=+xsavec -mattr=+xsaves -mattr=+popcnt -mattr=+sha -mattr=+aes -mattr=+pclmul -mattr=+clflushopt -mattr=+fsgsbase -mattr=+rdrnd -mattr=+bmi -mattr=+bmi2 -mattr=+lzcnt -mattr=+fxsr -mattr=+pku -mattr=+gfni -mattr=+vaes -mattr=+vpclmulqdq -mattr=+movdiri -mattr=+movdir64b -O2 -opaque-pointers -non-global-value-max-name-size=4294967295 -x86-cmov-converter=0 -dwarf-directory=false --align-all-functions=6 -override-aa-for-tbaa=true -relocation-model=pic -filetype=obj --frame-pointer=none -o .libs/liblzma_la-lzma_decoder.o
+```
+
+I hope this answers your question.",lzma_decode
+commented,Larhzu,2024-03-15T16:08:15Z,"The code selected with 0x100 is the simplest assembly piece and it has
+fewer input and output variables too. So it could be something about
+the number of variables or the length of the assembly code but this is
+just a guess.
+
+Keeping the code disabled with NVIDIA HPC seems the simplest solution
+for now. I like to make the code portable as in ""works reliably"" but
+getting the best speed has some bias towards FOSS toolchains and
+operating systems.
+
+The PRs #90 and #91 are now merged to master along with related commits
+that should make the symbol version autodetection work too.
+
+Thank you for reporting the issues and for the patches!",['skosukhin']

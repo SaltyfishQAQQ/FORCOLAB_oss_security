@@ -1,0 +1,54 @@
+from,to,file_name,message,mood,score
+Andreas Müller,Jia Tan,issue_18.csv,"Hi @JiaT75 
+
+I had no problems compiling with MSVC only (cmake and tools shipped by Visual Studio 2022). Thanks a lot for setting the cmake files up for this.
+
+Are there any plans adding MSVC CI Builds (including binary releases) to the CI pipeline?
+There is a demo for VS2022/x64 build+artifacts on the ndu2/xz fork . Testing, etc is missing but this could be a start.
+
+I can help out on this, if there is any interest.
+
+Best
+ndu
+
+Link to the mentioned CI action: https://github.com/ndu2/xz/actions/runs/8224685611 (see also the files windows/build-with-vs2022.bat, .github/workflows/windows-vs2022-ci.yml)",positive,0.9329762387787923
+Andreas Müller,Jia Tan,issue_18.csv,"Thank you @JiaT75  and @Larhzu for the quick feedback.
+
+
+
+Yes, I think so. I added Clang-cl builds. There is just one include missing (Originally I required more patches due to my inability to properly generate the vsxproj with cmake)
+
+Patch: https://github.com/ndu2/xz/commit/5fb2ace8369ca30c17e772ce3d4a3d6fd99e2bf1
+
+
+
+
+
+I just updated the demo pipeline to ""somewhat complete"" state that suffices my own purposes:
+
+ * 4 Build Configuration with Visual Studio 2022 (x64 MSVC, x86 MSVC, x64 Clang-cl, x86 Clang-cl)
+ * execution of the test executables
+ * publishing of xz.exe and co (disabled per default)
+
+Well, I'm neither familiar with github actions nor with windows batch (nor powershell). But I stuck to the ""out of the box"" tools for better compatibility with VS2022/Windows only setups.
+
+You'll find the implementation it those 2 files:
+
+ * windows/build-with-vs2022.bat
+ * .github/workflows/windows-vs2022-ci.yml
+
+
+I found 13 test-executables (test_*.exe). I added calls to those in `build-with-vs2022.bat` and to the pipeline. Not sure if there is a way to standardise test-execution over all platforms w/o rewriting the tests to some test-framework?
+
+
+
+OK. To be honest, Windows releases for v5.6.x is what brought me here at the first place :-)
+
+Please let me know if any of this work is of your interest and how to proceed.
+
+I'm more than happy to create PRs, adapt the scripts to the projects needs and clean things up as required. Feel also free to grab what you need.
+
+
+Best
+ndu2
+",positive,0.5066343285143375

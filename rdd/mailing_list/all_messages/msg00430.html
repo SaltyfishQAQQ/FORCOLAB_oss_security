@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] [RFC 2/2] Add xxHash, XX3 (128bit) for hashing.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00430" id="c">
+<link rel="index" href="mail2.html#00430" id="i">
+<link rel="prev" href="msg00429.html" id="p">
+<link rel="next" href="msg00432.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00430.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BRFC+2%5C%2F2%5C%5D+Add+xxHash%2C+XX3+%5C%28128bit%5C%29+for+hashing.%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] [RFC 2/2] Add xxHash, XX3 (128bit) for hashing.</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Sebastian+Andrzej+Siewior%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Sebastian Andrzej Siewior</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210119" rel="nofollow">Tue, 19 Jan 2021 15:37:17 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>From: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+
+After seeing the numbers of of openssl's sha256 vs intree, vs crc64 vs
+none I decided to look at xxHash 16byte version which got stable in the
+0.8 version (given I understood the signs right):</pre><pre>
+
+| Performance counter stats for './src/xz/.libs/xz -t xxh3.xz' (5 runs):
+|
+|     8.133.583.414      cycles                    #    4,293 GHz               
+       ( +-  0,01% )  (83,22%)
+|    14.366.854.241      instructions              #    1,77  insn per cycle
+|
+|            1,8958 +- 0,0135 seconds time elapsed  ( +-  0,71% )
+
+So this is better than crc64 and close to none while doing something ;)
+
+Signed-off-by: Sebastian Andrzej Siewior &lt;sebast...@breakpoint.cc&gt;
+---
+ configure.ac                 |  6 +++++-
+ src/liblzma/Makefile.am      |  2 +-
+ src/liblzma/api/lzma/check.h |  7 +++++++
+ src/liblzma/check/check.c    | 27 +++++++++++++++++++++++++--
+ src/liblzma/check/check.h    | 29 +++++++++++++++++++++++++++--
+ src/lzmainfo/Makefile.am     |  2 +-
+ src/xz/Makefile.am           |  2 +-
+ src/xz/args.c                |  1 +
+ src/xz/list.c                |  2 +-
+ src/xz/message.c             |  2 +-
+ src/xzdec/Makefile.am        |  2 +-
+ 11 files changed, 71 insertions(+), 11 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 5e0eaefc99c92..2e2bfe113da56 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -234,7 +234,7 @@ fi
+ # Integrity checks #
+ ####################
+ 
+-m4_define([SUPPORTED_CHECKS], [crc32,crc64,sha256])
++m4_define([SUPPORTED_CHECKS], [crc32,crc64,xxh3,sha256])
+ 
+ m4_foreach([NAME], [SUPPORTED_CHECKS],
+ [enable_check_[]NAME=no
+@@ -798,6 +798,10 @@ if test &quot;x$enable_openssl$openssl_found&quot; = xyesno; then
+        AC_MSG_ERROR([--enable-openssl was specified but openssl was not 
+found.])
+ fi
+ 
++if test &quot;x$enable_check_xxh&quot; = &quot;xyes&quot;; then
++       PKG_CHECK_MODULES([LIBXXHASH], [libxxhash &gt;= 0.8.0])
++fi
++
+ # Check for SSE2 intrinsics.
+ AC_CHECK_DECL([_mm_movemask_epi8],
+        [AC_DEFINE([HAVE__MM_MOVEMASK_EPI8], [1],
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 3afb08169840c..570a4db23c3f4 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -25,7 +25,7 @@ liblzma_la_CPPFLAGS = \
+        -I$(top_srcdir)/src/common \
+        -DTUKLIB_SYMBOL_PREFIX=lzma_
+ liblzma_la_LDFLAGS = -no-undefined -version-info 8:99:3
+-liblzma_la_LDFLAGS += $(OPENSSL_CRYPTO_LIBS)
++liblzma_la_LDFLAGS += $(OPENSSL_CRYPTO_LIBS) $(LIBXXHASH_LIBS)
+ 
+ EXTRA_DIST += liblzma.map validate_map.sh
+ if COND_SYMVERS
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 6a243db0d7943..21aa6c8e3f7c9 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -46,6 +46,13 @@ typedef enum {
+                 * Size of the Check field: 8 bytes
+                 */
+ 
++       LZMA_CHECK_XXH3   = 7,
++               /**&lt;
++                * xxHash family, XXH3, 128bit
++                *
++                * Size of the Check field: 16 bytes
++                */
++
+        LZMA_CHECK_SHA256   = 10
+                /**&lt;
+                 * SHA-256
+diff --git a/src/liblzma/check/check.c b/src/liblzma/check/check.c
+index 428ddaeb77981..2e168ae274c1f 100644
+--- a/src/liblzma/check/check.c
++++ b/src/liblzma/check/check.c
+@@ -39,7 +39,13 @@ lzma_check_is_supported(lzma_check type)
+ 
+                false,  // Reserved
+                false,  // Reserved
+-               false,  // Reserved
++
++#ifdef HAVE_CHECK_XXH3
++               true,
++#else
++               false,
++#endif
++
+                false,  // Reserved
+                false,  // Reserved
+ 
+@@ -48,7 +54,6 @@ lzma_check_is_supported(lzma_check type)
+ #else
+                false,
+ #endif
+-
+                false,  // Reserved
+                false,  // Reserved
+                false,  // Reserved
+@@ -99,6 +104,12 @@ lzma_check_init(lzma_check_state *check, lzma_check type)
+                break;
+ #endif
+ 
++#ifdef HAVE_CHECK_XXH3
++       case LZMA_CHECK_XXH3:
++               lzma_xxh3_init(check);
++               break;
++#endif
++
+ #ifdef HAVE_CHECK_SHA256
+        case LZMA_CHECK_SHA256:
+                lzma_sha256_init(check);
+@@ -130,6 +141,12 @@ lzma_check_update(lzma_check_state *check, lzma_check type,
+                break;
+ #endif
+ 
++#ifdef HAVE_CHECK_XXH3
++       case LZMA_CHECK_XXH3:
++               lzma_xxh3_update(buf, size, check);
++               break;
++#endif
++
+ #ifdef HAVE_CHECK_SHA256
+        case LZMA_CHECK_SHA256:
+                lzma_sha256_update(buf, size, check);
+@@ -160,6 +177,12 @@ lzma_check_finish(lzma_check_state *check, lzma_check type)
+                break;
+ #endif
+ 
++#ifdef HAVE_CHECK_XXH3
++       case LZMA_CHECK_XXH3:
++               lzma_xxh3_finish(check);
++               break;
++#endif
++
+ #ifdef HAVE_CHECK_SHA256
+        case LZMA_CHECK_SHA256:
+                lzma_sha256_finish(check);
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index 0249025ec179a..910dc3d55fdca 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -39,6 +39,10 @@
+ #      include &lt;openssl/evp.h&gt;
+ #endif
+ 
++#ifdef HAVE_CHECK_XXH3
++#include &lt;xxhash.h&gt;
++#endif
++
+ #if defined(HAVE_INTERNAL_SHA256)
+ /// State for the internal SHA-256 implementation
+ typedef struct {
+@@ -99,6 +103,7 @@ typedef struct {
+                uint32_t crc32;
+                uint64_t crc64;
+                lzma_sha256_state sha256;
++               XXH3_state_t *xxh3;
+        } state;
+ 
+ } lzma_check_state;
+@@ -191,11 +196,31 @@ lzma_sha256_update(const uint8_t *buf, size_t size, 
+lzma_check_state *check)
+        LZMA_SHA256FUNC(Update)(&amp;check-&gt;state.sha256, buf, size);
+ }
+ 
++#endif
++
++#ifdef HAVE_CHECK_XXH3
+ 
+ static inline void
+-lzma_sha256_finish(lzma_check_state *check)
++lzma_xxh3_init(lzma_check_state *check)
+ {
+-       LZMA_SHA256FUNC(Final)(check-&gt;buffer.u8, &amp;check-&gt;state.sha256);
++       check-&gt;state.xxh3 = XXH3_createState();
++       XXH3_128bits_reset(check-&gt;state.xxh3);
++}
++
++static inline void
++lzma_xxh3_update(const uint8_t *buf, size_t size, lzma_check_state *check)
++{
++       XXH3_128bits_update(check-&gt;state.xxh3, buf, size);
++}
++
++static inline void
++lzma_xxh3_finish(lzma_check_state *check)
++{
++       XXH128_hash_t h;
++
++       h = XXH3_128bits_digest(check-&gt;state.xxh3);
++       memcpy(check-&gt;buffer.u8, &amp;h, sizeof(h));
++       XXH3_freeState(check-&gt;state.xxh3);
+ }
+ 
+ #endif
+diff --git a/src/lzmainfo/Makefile.am b/src/lzmainfo/Makefile.am
+index 51424effb750a..5f12138a1914d 100644
+--- a/src/lzmainfo/Makefile.am
++++ b/src/lzmainfo/Makefile.am
+@@ -28,7 +28,7 @@ if COND_GNULIB
+ lzmainfo_LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
+-lzmainfo_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS)
++lzmainfo_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS) $(LIBXXHASH_LIBS)
+ 
+ 
+ dist_man_MANS = lzmainfo.1
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 8d6604c8ffb22..55e412ecc5f16 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -60,7 +60,7 @@ xz_LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
+ # libgnu.a may need these libs, so this must be after libgnu.a.
+-xz_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS)
++xz_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS) $(LIBXXHASH_LIBS)
+ 
+ 
+ # Windows resource compiler support
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 9238fb32ec00d..404ab5889342f 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -421,6 +421,7 @@ parse_real(args_info *args, int argc, char **argv)
+                                { &quot;crc32&quot;,  LZMA_CHECK_CRC32 },
+                                { &quot;crc64&quot;,  LZMA_CHECK_CRC64 },
+                                { &quot;sha256&quot;, LZMA_CHECK_SHA256 },
++                               { &quot;xxh3&quot;, LZMA_CHECK_XXH3 },
+                        };
+ 
+                        size_t i = 0;
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 06c9c1ee20e74..778f5283682c5 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -174,7 +174,7 @@ static const char check_names[LZMA_CHECK_ID_MAX + 1][12] = {
+        &quot;CRC64&quot;,
+        N_(&quot;Unknown-5&quot;),
+        N_(&quot;Unknown-6&quot;),
+-       N_(&quot;Unknown-7&quot;),
++       N_(&quot;XXH3&quot;),
+        N_(&quot;Unknown-8&quot;),
+        N_(&quot;Unknown-9&quot;),
+        &quot;SHA-256&quot;,
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 00eb65b62c5cc..93dcde5ea8831 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1145,7 +1145,7 @@ message_help(bool long_help)
+ &quot;  -F, --format=FMT    file format to encode or decode; possible values are\n&quot;
+ &quot;                      `auto' (default), `xz', `lzma', and `raw'\n&quot;
+ &quot;  -C, --check=CHECK   integrity check type: `none' (use with caution),\n&quot;
+-&quot;                      `crc32', `crc64' (default), or `sha256'&quot;));
++&quot;                      `crc32', `crc64' (default), `xxh3' or `sha256'&quot;));
+                puts(_(
+ &quot;      --ignore-check  don't verify the integrity check when decompressing&quot;));
+        }
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 59ad965eb1678..b2cf799402dea 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -32,7 +32,7 @@ if COND_GNULIB
+ xzdec_LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
+-xzdec_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS)
++xzdec_LDADD += $(LTLIBINTL) $(OPENSSL_CRYPTO_LIBS) $(LIBXXHASH_LIBS)
+ 
+ 
+ lzmadec_SOURCES = \
+-- 
+2.30.0
+
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00429.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00430">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="mail2.html#00430">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00432.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email"><span class="subject"><a href="msg00429.html">[xz-devel] [PATCH 1/2] Add support openssl's SHA...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] [RFC 2/2] Add xxHash, XX3 (128bi...</span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00432.html">Re: [xz-devel] [RFC 2/2] Add xxHash, XX...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00442.html">Re: [xz-devel] [RFC 2/2] Add xxHash...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul></li>
+</ul></li>
+<li class="icons-email"><span class="subject"><a href="msg00431.html">Re: [xz-devel] [PATCH 1/2] Add support open...</a></span> <span class="sender italic">Sebastian Andrzej Siewior</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00629.html">Re: [xz-devel] [PATCH 1/2] Add support ...</a></span> <span class="sender italic">Lasse Collin</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00630.html">Re: [xz-devel] [PATCH 1/2] Add supp...</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] [RFC 2/2] Add xxHash, XX3 (128bit) for hashing.">
+<input type="hidden" name="msgid" value="20210119233706.kiqylwiajlstxfik@flow">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00430.html">
+<input type="submit" value=" Sebastian Andrzej Siewior ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+%5C%5BRFC+2%5C%2F2%5C%5D+Add+xxHash%2C+XX3+%5C%28128bit%5C%29+for+hashing.%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00429.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00432.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">20210119233706.kiqylwiajlstxfik@flow</li>
+</ul>
+</div>
+</body>
+</html>

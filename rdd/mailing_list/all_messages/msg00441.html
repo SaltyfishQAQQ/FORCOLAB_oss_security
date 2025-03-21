@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>[xz-devel] java buffer writes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png">
+<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png">
+<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="contents" href="index.html#00441" id="c">
+<link rel="index" href="maillist.html#00441" id="i">
+<link rel="prev" href="msg00437.html" id="p">
+<link rel="next" href="msg00459.html" id="n">
+<link rel="canonical" href="https://www.mail-archive.com/xz-devel@tukaani.org/msg00441.html">
+<link rel="stylesheet" href="/normalize.css" media="screen">
+<link rel="stylesheet" href="/master.css" media="screen">
+
+<!--[if lt IE 9]>
+<link rel="stylesheet" href="/ie.css" media="screen">
+<![endif]-->
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+document.onkeydown = NavigateThrough;
+function NavigateThrough (event)
+{
+  if (!document.getElementById) return;
+  if (window.event) event = window.event;
+  if (event.target.tagName == 'INPUT') return;
+  if (event.ctrlKey || event.metaKey) return;
+  var link = null;
+  switch (event.keyCode ? event.keyCode : event.which ? event.which : null) {
+    case 74:
+    case 80:
+      link = document.getElementById ('p');
+      break;
+    case 75:
+    case 78:
+      link = document.getElementById ('n');
+      break;
+    case 69:
+      link = document.getElementById ('e');
+      break;
+    }
+  if (link && link.href) document.location = link.href;
+}
+</script>
+<div itemscope itemtype="http://schema.org/Article" class="container">
+<div class="skipLink">
+<a href="#nav">Skip to site navigation (Press enter)</a>
+</div>
+<div class="content" role="main">
+<div class="msgHead">
+<h1>
+<span class="subject"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+java+buffer+writes%22&amp;o=newest" rel="nofollow"><span itemprop="name">[xz-devel] java buffer writes</span></a></span>
+</h1>
+<p class="darkgray font13">
+<span class="sender pipe"><a href="/search?l=xz-devel@tukaani.org&amp;q=from:%22Brett+Okken%22" rel="nofollow"><span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">Brett Okken</span></span></a></span>
+<span class="date"><a href="/search?l=xz-devel@tukaani.org&amp;q=date:20210129" rel="nofollow">Fri, 29 Jan 2021 10:01:18 -0800</a></span>
+</p>
+</div>
+<div itemprop="articleBody" class="msgBody">
+<!--X-Body-of-Message-->
+<pre>There are several places where single byte writes are being done
+during compression. Often this is going to an OutputStream with
+synchronized write methods. Historically that has not mattered much
+because of biased locking. However, biased locking is being
+removed[1]. These changes will batch those writes up to a small
+buffer.</pre><pre>
+
+[1] - <a  rel="nofollow" href="https://openjdk.java.net/jeps/374">https://openjdk.java.net/jeps/374</a>
+
+
+diff --git a/src/org/tukaani/xz/LZMA2OutputStream.java
+b/src/org/tukaani/xz/LZMA2OutputStream.java
+index a82a1a5..14bb3a9 100644xz/LZMA2OutputStream.java b/src/org/tukaani/xz/LZM
+--- a/src/org/tukaani/xz/LZMA2OutputStream.java
++++ b/src/org/tukaani/xz/LZMA2OutputStream.java
+@@ -10,19 +10,19 @@
+
+ package org.tukaani.xz;
+
+-import java.io.DataOutputStream;
+ import java.io.IOException;
++
+ import org.tukaani.xz.lz.LZEncoder;
+-import org.tukaani.xz.rangecoder.RangeEncoderToBuffer;
+ import org.tukaani.xz.lzma.LZMAEncoder;
++import org.tukaani.xz.rangecoder.RangeEncoderToBuffer;
+
+ class LZMA2OutputStream extends FinishableOutputStream {
+     static final int COMPRESSED_SIZE_MAX = 64 &lt;&lt; 10;
+
+     private final ArrayCache arrayCache;
++    private final byte[] buffer = new byte[8];
+
+     private FinishableOutputStream out;
+-    private final DataOutputStream outData;
+
+     private LZEncoder lz;
+     private RangeEncoderToBuffer rc;
+@@ -60,7 +60,6 @@ class LZMA2OutputStream extends FinishableOutputStream {
+
+         this.arrayCache = arrayCache;
+         this.out = out;
+-        outData = new DataOutputStream(out);
+         rc = new RangeEncoderToBuffer(COMPRESSED_SIZE_MAX, arrayCache);
+
+         int dictSize = options.getDictSize();
+@@ -154,13 +153,17 @@ class LZMA2OutputStream extends FinishableOutputStream {
+         }
+
+         control |= (uncompressedSize - 1) &gt;&gt;&gt; 16;
+-        outData.writeByte(control);
++        buffer[0] = (byte) control;
+
+-        outData.writeShort(uncompressedSize - 1);
+-        outData.writeShort(compressedSize - 1);
++        writeBEShort(uncompressedSize - 1, buffer, 1);
++        writeBEShort(compressedSize - 1, buffer, 3);
+
+-        if (propsNeeded)
+-            outData.writeByte(props);
++        int length = 5;
++        if (propsNeeded) {
++            buffer[5] = (byte) props;
++            length = 6;
++        }
++        out.write(buffer, 0, length);
+
+         rc.write(out);
+
+@@ -172,8 +175,9 @@ class LZMA2OutputStream extends FinishableOutputStream {
+     private void writeUncompressed(int uncompressedSize) throws IOException {
+         while (uncompressedSize &gt; 0) {
+             int chunkSize = Math.min(uncompressedSize, COMPRESSED_SIZE_MAX);
+-            outData.writeByte(dictResetNeeded ? 0x01 : 0x02);
+-            outData.writeShort(chunkSize - 1);
++            buffer[0] = (byte) (dictResetNeeded ? 0x01 : 0x02);
++            writeBEShort(chunkSize - 1, buffer, 1);
++            out.write(buffer, 0, 3);
+             lz.copyUncompressed(out, uncompressedSize, chunkSize);
+             uncompressedSize -= chunkSize;
+             dictResetNeeded = false;
+@@ -182,6 +186,15 @@ class LZMA2OutputStream extends FinishableOutputStream {
+         stateResetNeeded = true;
+     }
+
++    /**
++     * Writes the right-most 2 bytes of &lt;i&gt;s&lt;/i&gt; to &lt;i&gt;b&lt;/i&gt;, starting at
++     * &lt;i&gt;off&lt;/i&gt; with the most significant byte first (BigEndian).
++     */
++    private static void writeBEShort(int s, byte[] b, int off) {
++        b[off] = (byte) ((s &gt;&gt;&gt; 8) &amp; 0xFF);
++        b[off + 1] = (byte) (s &amp; 0xFF);
++    }
++
+     private void writeEndMarker() throws IOException {
+         assert !finished;
+
+
+
+diff --git a/src/org/tukaani/xz/common/EncoderUtil.java
+b/src/org/tukaani/xz/common/EncoderUtil.java
+index 57f688b..bfb2f78 100644
+--- a/src/org/tukaani/xz/common/EncoderUtil.java
++++ b/src/org/tukaani/xz/common/EncoderUtil.java
+@@ -9,21 +9,80 @@
+
+ package org.tukaani.xz.common;
+
+-import java.io.OutputStream;
+ import java.io.IOException;
++import java.io.OutputStream;
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
+ import java.util.zip.CRC32;
+
+ public class EncoderUtil extends Util {
++    /**
++     * @deprecated  Prefer use of either {@link #addCRC32(byte[],
+int, int, int)}
++     *     or {@link #appendCRC32(ByteBuffer)}.
++     */
++    @Deprecated
+     public static void writeCRC32(OutputStream out, byte[] buf)
+             throws IOException {
+         CRC32 crc32 = new CRC32();
+         crc32.update(buf);
+         long value = crc32.getValue();
+
+-        for (int i = 0; i &lt; 4; ++i)
+-            out.write((byte)(value &gt;&gt;&gt; (i * 8)));
++        out.write((byte) value);
++        out.write((byte)(value &gt;&gt;&gt; 8));
++        out.write((byte)(value &gt;&gt;&gt; 16));
++        out.write((byte)(value &gt;&gt;&gt; 24));
++    }
++
++    /**
++     * Calculates the crc32 for &lt;i&gt;length&lt;/i&gt; bytes in &lt;i&gt;buf&lt;/i&gt; starting at
++     * &lt;i&gt;off&lt;/i&gt; and inserts the crc32 value as a little endian {@code int}
++     * at &lt;i&gt;crcOff&lt;/i&gt;.
++     * @param buf The buffer to calculate crc32 for and insert value into.
++     * @param off The offset into &lt;i&gt;buf&lt;/i&gt; to start reading for crc32 calc.
++     * @param length The number of bytes to include in crc32 calc.
++     * @param crcOff The offset into &lt;i&gt;buf&lt;/i&gt; to write the crc32 value to.
++     * @throws IOException
++     */
++    public static void calcAndInsertCRC32(byte[] buf, int off, int
+length, int crcOff)
++            throws IOException {
++        CRC32 crc32 = new CRC32();
++        crc32.update(buf, off, length);
++        long value = crc32.getValue();
++
++        buf[crcOff] = (byte) value;
++        buf[crcOff + 1] = (byte)(value &gt;&gt;&gt; 8);
++        buf[crcOff + 2] = (byte)(value &gt;&gt;&gt; 16);
++        buf[crcOff + 3] = (byte)(value &gt;&gt;&gt; 24);
++    }
++
++    /**
++     * Calculates the crc32 for all {@link ByteBuffer#remaining()} bytes,
++     * then extends the {@link ByteBuffer#limit()} by {@code 4} and appends
++     * the crc32 value as a little endian {@code int}.
++     * @param bb The buffer with contents to calculate crc32 and append that
++     *     value to.
++     * @throws IOException
++     */
++    public static void appendCRC32(ByteBuffer bb)
++            throws IOException {
++        CRC32 crc32 = new CRC32();
++        if (bb.hasArray()) {
++            crc32.update(bb.array(), bb.arrayOffset() +
+bb.position(), bb.remaining());
++        } else {
++            throw new UnsupportedOperationException();
++        }
++        long value = crc32.getValue();
++
++        bb.order(ByteOrder.LITTLE_ENDIAN);
++        bb.position(bb.limit());
++        bb.limit(bb.limit() + 4);
++        bb.putInt((int) value);
+     }
+
++    /**
++     * @deprecated Prefer use of {@link #encodeVLI(OutputStream, long)}.
++     */
++    @Deprecated
+     public static void encodeVLI(OutputStream out, long num)
+             throws IOException {
+         while (num &gt;= 0x80) {
+@@ -33,4 +92,20 @@ public class EncoderUtil extends Util {
+
+         out.write((byte)num);
+     }
++
++    /**
++     * Appends the vli representation of &lt;i&gt;num&lt;/i&gt; to &lt;i&gt;bb&lt;/i&gt;.
++     * @param bb The buffer to encode the &lt;i&gt;num&lt;/i&gt; to.
++     * @param num The number to encode.
++     * @throws IOException
++     */
++    public static void encodeVLI(ByteBuffer bb, long num)
++            throws IOException {
++        while (num &gt;= 0x80) {
++            bb.put((byte)(num | 0x80));
++            num &gt;&gt;&gt;= 7;
++        }
++
++        bb.put((byte)num);
++    }
+ }
+
+
+
+diff --git a/src/org/tukaani/xz/BlockOutputStream.java
+b/src/org/tukaani/xz/BlockOutputStream.java
+index 8ac4407..3e2493b 100644
+--- a/src/org/tukaani/xz/BlockOutputStream.java
++++ b/src/org/tukaani/xz/BlockOutputStream.java
+@@ -9,11 +9,12 @@
+
+ package org.tukaani.xz;
+
+-import java.io.OutputStream;
+-import java.io.ByteArrayOutputStream;
+ import java.io.IOException;
+-import org.tukaani.xz.common.EncoderUtil;
++import java.io.OutputStream;
++import java.nio.ByteBuffer;
++
+ import org.tukaani.xz.check.Check;
++import org.tukaani.xz.common.EncoderUtil;
+
+ class BlockOutputStream extends FinishableOutputStream {
+     private final OutputStream out;
+@@ -40,44 +41,57 @@ class BlockOutputStream extends FinishableOutputStream {
+             filterChain = filters[i].getOutputStream(filterChain, arrayCache);
+
+         // Prepare to encode the Block Header field.
+-        ByteArrayOutputStream bufStream = new ByteArrayOutputStream();
++        ByteBuffer blockBB = ByteBuffer.allocate(32);
+
+-        // Write a dummy Block Header Size field. The real value is written
++        // Skip the Block Header Size field. The real value is written
+         // once everything else except CRC32 has been written.
+-        bufStream.write(0x00);
++        blockBB.position(1);
+
+         // Write Block Flags. Storing Compressed Size or Uncompressed Size
+         // isn't supported for now.
+-        bufStream.write(filters.length - 1);
++        blockBB.put((byte) (filters.length - 1));
+
+         // List of Filter Flags
+         for (int i = 0; i &lt; filters.length; ++i) {
+-            EncoderUtil.encodeVLI(bufStream, filters[i].getFilterID());
++            EncoderUtil.encodeVLI(blockBB, filters[i].getFilterID());
+             byte[] filterProps = filters[i].getFilterProps();
+-            EncoderUtil.encodeVLI(bufStream, filterProps.length);
+-            bufStream.write(filterProps);
++            if (filterProps.length + 16 &gt; blockBB.remaining()) {
++                blockBB = resize(blockBB);
++            }
++            EncoderUtil.encodeVLI(blockBB, filterProps.length);
++            blockBB.put(filterProps);
++        }
++
++        //make sure there is enough capacity for padding and crc32
++        if (blockBB.remaining() &lt; 7) {
++            blockBB = resize(blockBB);
+         }
+
+         // Header Padding
+-        while ((bufStream.size() &amp; 3) != 0)
+-            bufStream.write(0x00);
++        while ((blockBB.position() &amp; 3) != 0)
++            blockBB.put((byte) 0x00);
+
+-        byte[] buf = bufStream.toByteArray();
++        final int blockSize = blockBB.position();
+
+         // Total size of the Block Header: Take the size of the CRC32 field
+         // into account.
+-        headerSize = buf.length + 4;
++        headerSize = blockBB.position() + 4;
+
+         // This is just a sanity check.
+         if (headerSize &gt; EncoderUtil.BLOCK_HEADER_SIZE_MAX)
+             throw new UnsupportedOptionsException();
+
+-        // Block Header Size
+-        buf[0] = (byte)(buf.length / 4);
++        // Block Header Size (without crc32
++        blockBB.put(0, (byte)(blockSize &gt;&gt; 2));
+
+-        // Write the Block Header field to the output stream.
+-        out.write(buf);
+-        EncoderUtil.writeCRC32(out, buf);
++        //this sets position to 0 and limit to the current position
++        blockBB.flip();
++
++        //append the crc32
++        EncoderUtil.appendCRC32(blockBB);
++        assert headerSize == blockBB.position();
++        //now write entire block header to the output stream
++        out.write(blockBB.array(), 0, headerSize);
+
+         // Calculate the maximum allowed size of the Compressed Data field.
+         // It is hard to exceed it so this is mostly to be pedantic.
+@@ -85,6 +99,14 @@ class BlockOutputStream extends FinishableOutputStream {
+                               - headerSize - check.getSize();
+     }
+
++    private static ByteBuffer resize(ByteBuffer orig) {
++        int newSize = orig.capacity() &lt;&lt; 1;
++        ByteBuffer newBB = ByteBuffer.allocate(newSize);
++        orig.flip();
++        newBB.put(orig);
++        return newBB;
++    }
++
+     public void write(int b) throws IOException {
+         tempBuf[0] = (byte)b;
+         write(tempBuf, 0, 1);
+
+
+
+
+diff --git a/src/org/tukaani/xz/index/IndexEncoder.java
+b/src/org/tukaani/xz/index/IndexEncoder.java
+index 3028802..620b3a4 100644
+--- a/src/org/tukaani/xz/index/IndexEncoder.java
++++ b/src/org/tukaani/xz/index/IndexEncoder.java
+@@ -9,13 +9,13 @@
+
+ package org.tukaani.xz.index;
+
+-import java.io.OutputStream;
+ import java.io.IOException;
++import java.io.OutputStream;
++import java.nio.ByteBuffer;
+ import java.util.ArrayList;
+-import java.util.Iterator;
+-import java.util.zip.CheckedOutputStream;
+-import org.tukaani.xz.common.EncoderUtil;
++
+ import org.tukaani.xz.XZIOException;
++import org.tukaani.xz.common.EncoderUtil;
+
+ public class IndexEncoder extends IndexBase {
+     private final ArrayList&lt;IndexRecord&gt; records
+@@ -32,28 +32,31 @@ public class IndexEncoder extends IndexBase {
+     }
+
+     public void encode(OutputStream out) throws IOException {
+-        java.util.zip.CRC32 crc32 = new java.util.zip.CRC32();
+-        CheckedOutputStream outChecked = new CheckedOutputStream(out, crc32);
++
++        //20 bytes for each record
++        //16 more bytes for indicator, count of records, padding, and crc32
++        final ByteBuffer bb = ByteBuffer.allocate((20 * records.size()) + 16);
+
+         // Index Indicator
+-        outChecked.write(0x00);
++        bb.put((byte) 0x00);
+
+         // Number of Records
+-        EncoderUtil.encodeVLI(outChecked, recordCount);
++        EncoderUtil.encodeVLI(bb, recordCount);
+
+         // List of Records
+         for (IndexRecord record : records) {
+-            EncoderUtil.encodeVLI(outChecked, record.unpadded);
+-            EncoderUtil.encodeVLI(outChecked, record.uncompressed);
++            EncoderUtil.encodeVLI(bb, record.unpadded);
++            EncoderUtil.encodeVLI(bb, record.uncompressed);
+         }
+
+         // Index Padding
+         for (int i = getIndexPaddingSize(); i &gt; 0; --i)
+-            outChecked.write(0x00);
++            bb.put((byte) 0x00);
+
+-        // CRC32
+-        long value = crc32.getValue();
+-        for (int i = 0; i &lt; 4; ++i)
+-            out.write((byte)(value &gt;&gt;&gt; (i * 8)));
++        // calculate and append CRC32
++        assert bb.remaining() &gt;= 4;
++        bb.flip();
++        EncoderUtil.appendCRC32(bb);
++        out.write(bb.array(), 0, bb.limit());
+     }
+ }
+
+
+
+
+diff --git a/src/org/tukaani/xz/XZOutputStream.java
+b/src/org/tukaani/xz/XZOutputStream.java
+index 107ef7f..c927540 100644
+--- a/src/org/tukaani/xz/XZOutputStream.java
++++ b/src/org/tukaani/xz/XZOutputStream.java
+@@ -9,11 +9,12 @@
+
+ package org.tukaani.xz;
+
+-import java.io.OutputStream;
+ import java.io.IOException;
++import java.io.OutputStream;
++
++import org.tukaani.xz.check.Check;
+ import org.tukaani.xz.common.EncoderUtil;
+ import org.tukaani.xz.common.StreamFlags;
+-import org.tukaani.xz.check.Check;
+ import org.tukaani.xz.index.IndexEncoder;
+
+ /**
+@@ -584,22 +585,23 @@ public class XZOutputStream extends
+FinishableOutputStream {
+     private void encodeStreamHeader() throws IOException {
+         out.write(XZ.HEADER_MAGIC);
+
+-        byte[] buf = new byte[2];
++        byte[] buf = new byte[6];
+         encodeStreamFlags(buf, 0);
+-        out.write(buf);
+
+-        EncoderUtil.writeCRC32(out, buf);
++        EncoderUtil.calcAndInsertCRC32(buf, 0, 2, 2);
++        out.write(buf);
+     }
+
+     private void encodeStreamFooter() throws IOException {
+-        byte[] buf = new byte[6];
++        //leave 4 bytes at beginning for the crc32
++        byte[] buf = new byte[10];
+         long backwardSize = index.getIndexSize() / 4 - 1;
+         for (int i = 0; i &lt; 4; ++i)
+-            buf[i] = (byte)(backwardSize &gt;&gt;&gt; (i * 8));
++            buf[i + 4] = (byte)(backwardSize &gt;&gt;&gt; (i * 8));
+
+-        encodeStreamFlags(buf, 4);
++        encodeStreamFlags(buf, 8);
+
+-        EncoderUtil.writeCRC32(out, buf);
++        EncoderUtil.calcAndInsertCRC32(buf, 4, 6, 0);
+         out.write(buf);
+         out.write(XZ.FOOTER_MAGIC);
+     }
+
+</pre>
+
+</div>
+<div class="msgButtons margintopdouble">
+<ul class="overflow">
+<li class="msgButtonItems"><a class="button buttonleft " accesskey="p" href="msg00437.html">Previous message</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="c" href="index.html#00441">View by thread</a></li>
+<li class="msgButtonItems textaligncenter"><a class="button" accesskey="i" href="maillist.html#00441">View by date</a></li>
+<li class="msgButtonItems textalignright"><a class="button buttonright " accesskey="n" href="msg00459.html">Next message</a></li>
+</ul>
+</div>
+<a name="tslice"></a>
+<div class="tSliceList margintopdouble">
+<ul class="icons monospace">
+<li class="icons-email tSliceCur"><span class="subject">[xz-devel] java buffer writes</span> <span class="sender italic">Brett Okken</span></li>
+<li><ul>
+<li class="icons-email"><span class="subject"><a href="msg00459.html">Re: [xz-devel] java buffer writes</a></span> <span class="sender italic">Lasse Collin</span></li>
+</ul>
+</ul>
+</div>
+<div class="overflow msgActions margintopdouble">
+<div class="msgReply" >
+<h2>
+					Reply via email to
+</h2>
+<form method="POST" action="/mailto.php">
+<input type="hidden" name="subject" value="[xz-devel] java buffer writes">
+<input type="hidden" name="msgid" value="CANBJVOG2p2XTsTOVA3Cz6_Awtd+R_=EdFFKTtHfpo5GwNYyoLg@mail.gmail.com">
+<input type="hidden" name="relpath" value="xz-devel@tukaani.org/msg00441.html">
+<input type="submit" value=" Brett Okken ">
+</form>
+</div>
+</div>
+</div>
+<div class="aside" role="complementary">
+<div class="logo">
+<a href="/"><img src="/logo.png" width=247 height=88 alt="The Mail Archive"></a>
+</div>
+<form class="overflow" action="/search" method="get">
+<input type="hidden" name="l" value="xz-devel@tukaani.org">
+<label class="hidden" for="q">Search the site</label>
+<input class="submittext" type="text" id="q" name="q" placeholder="Search xz-devel">
+<input class="submitbutton" name="submit" type="image" src="/submit.png" alt="Submit">
+</form>
+<div class="nav margintop" id="nav" role="navigation">
+<ul class="icons font16">
+<li class="icons-home"><a href="/">The Mail Archive home</a></li>
+<li class="icons-list"><a href="/xz-devel@tukaani.org/">xz-devel - all messages</a></li>
+<li class="icons-about"><a href="/xz-devel@tukaani.org/info.html">xz-devel - about the list</a></li>
+<li class="icons-expand"><a href="/search?l=xz-devel@tukaani.org&amp;q=subject:%22%5C%5Bxz%5C-devel%5C%5D+java+buffer+writes%22&amp;o=newest&amp;f=1" title="e" id="e">Expand</a></li>
+<li class="icons-prev"><a href="msg00437.html" title="p">Previous message</a></li>
+<li class="icons-next"><a href="msg00459.html" title="n">Next message</a></li>
+</ul>
+</div>
+<div class="listlogo margintopdouble">
+
+</div>
+<div class="margintopdouble">
+
+</div>
+</div>
+</div>
+<div class="footer" role="contentinfo">
+<ul>
+<li><a href="/">The Mail Archive home</a></li>
+<li><a href="/faq.html#newlist">Add your mailing list</a></li>
+<li><a href="/faq.html">FAQ</a></li>
+<li><a href="/faq.html#support">Support</a></li>
+<li><a href="/faq.html#privacy">Privacy</a></li>
+<li class="darkgray">CANBJVOG2p2XTsTOVA3Cz6_Awtd+R_=EdFFKTtHfpo5GwNYyoLg@mail.gmail.com</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+from,to,file_name,message,mood,score
+Gabriela Gutierrez,Jia Tan,pr_67.csv,Yes sure! Will do!,positive,0.9707781180040911
+Gabriela Gutierrez,Jia Tan,pr_66.csv,"Ok, thanks for the confirmation, Jia!",positive,0.7491308101452887
+Gabriela Gutierrez,Jia Tan,issue_38.csv,@JiaT75 Perfect! You are absolutely right. Changing to the restrictive workflow settings is enough. No need to make it explicit in the workflow :) I hope I can come back soon with other security recommendations!,positive,0.9842781054321676
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Hi Jia! Ok, nice, I'll open a PR! And yes, there's this downside of having to keep an eye to update the actions. You can update it manually or there's also the option to use [dependabot](https://github.blog/2020-06-01-keep-all-your-packages-up-to-date-with-dependabot/) or [renovatebot](https://docs.renovatebot.com/#why-use-renovate).",positive,0.42358639277517796
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Very interesting problem the Clang release one. I took a look at the commits and discussions, thanks for sharing! It seems like they are resolving the problems in the new patch and thanks for looking into this Jia! I'll retry the PR.",positive,0.9472006157739088
+Gabriela Gutierrez,Jia Tan,pr_67.csv,See if it looks better now ,neutral,0.05995581718161702
+Gabriela Gutierrez,Jia Tan,pr_47.csv,@JiaT75 Can you take a look to see if all your comments were addressed?,neutral,-0.020905903540551662

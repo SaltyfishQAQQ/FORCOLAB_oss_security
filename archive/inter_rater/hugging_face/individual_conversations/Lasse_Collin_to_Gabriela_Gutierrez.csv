@@ -1,0 +1,10 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Gabriela Gutierrez,pr_67.csv,"@gabibguti
+
+Thanks for your contributions! Friendly advice for the future:
+
+It is a good practice to manually wrap the lines in commit messages. With very long lines, `gitk` requires scrolling side ways and `git log` relies on `less` (or similar tool) to do the wrapping which typically isn't the most readable (`less --wordwrap` helps though). Even in the GitHub web UI where autowrapping is done in the web browser, the autowrapped lines can be as long as the browser window is wide, and thus the text is a bit hard to read.
+
+`git log` indents the messages by four spaces, thus 76 chars is the very maximum to keep things within 80 columns. The text box in `git gui` is conveniently 76 chars wide. Shorter lines (at most 72 chars or even shorter) are nicer though.
+
+Thanks!",positive,0.8537967584561557

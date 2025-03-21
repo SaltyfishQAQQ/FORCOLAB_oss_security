@@ -1,0 +1,35 @@
+event,from,created_at,body
+thread_started,XVilka,2023-04-19T02:25:47Z,"### Describe the bug
+
+We compile xz as a Meson subproject. We have AppVeyor VS2019 as CI job, they recently updated their toolchain to LLVM/Clang 16.0.1, we use `clang-cl` to compile everything. After the upgrade, it started producing this error:
+```
+..\subprojects\xz-5.4.1\src\common\tuklib_integer.h(647,2): error: call to undeclared library function '_BitScanReverse' with type 'unsigned char (unsigned long *, unsigned long)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+        _BitScanReverse(&i, n);
+        ^
+..\subprojects\xz-5.4.1\src\common\tuklib_integer.h(647,2): note: include the header <intrin.h> or explicitly provide a declaration for '_BitScanReverse'
+..\subprojects\xz-5.4.1\src\common\tuklib_integer.h(749,2): error: call to undeclared library function '_BitScanForward' with type 'unsigned char (unsigned long *, unsigned long)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+        _BitScanForward(&i, n);
+        ^
+```
+See full log here:
+https://ci.appveyor.com/project/rizinorg/rizin/builds/46815593/job/ny9b339jydox5pft#L5611
+
+This is the wrap file we use: https://github.com/rizinorg/rizin/blob/dev/subprojects/liblzma.wrap
+These are Meson build files: https://github.com/rizinorg/rizin/tree/dev/subprojects/packagefiles/xz-5.4.1
+
+### Version
+
+5.4.1
+
+### Operating System
+
+Windows Server 2019 (AppVeyor VS2019 image)
+
+### Relevant log output
+
+_No response_"
+commented,JiaT75,2023-04-19T14:39:40Z,"Thanks for the bug report! I created a new branch [tuklib integer fix](https://github.com/tukaani-project/xz/tree/tuklib_integer_fix) with a potential fix for this. Can you test this to see if it builds correctly? Only the first commit should be needed for this bug, but the second should possibly silence some warnings for other users (MSVC builds).
+
+Also, I noticed in the liblzma.wrap file that you linked uses a different mirror to pull the release. I would advise against this, since that mirror is not affiliated with us and is not as up to date as this repository. The hashes between the tag on the mirror and the tukaani.org link are different because the GitHub generated .tar.gz does not go through the same release steps that our official source code release does. For your purposes, the differences from the source code release are probably not important since they are mostly for users building with Autotools. We sign both the tags and the source code release, so either should be secure. We have released 5.4.2 a few weeks ago, so 5.4.1 is no longer the most recent stable release."
+commented,XVilka,2023-04-20T02:05:30Z,"@JiaT75 it fixed the problem, thanks!"
+commented,JiaT75,2023-04-20T12:17:21Z,"Commits have been pushed to master, so the fix will be in our next release. Thanks for verifying the fix!"

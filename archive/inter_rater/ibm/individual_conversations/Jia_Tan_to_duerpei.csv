@@ -1,0 +1,12 @@
+from,to,file_name,message,mood,score
+Jia Tan,duerpei,pr_52.csv,"Hi! Thank you for the code suggestion. In order for us to accept a change like this, we need more information about the problem that is solves. What is the need to compile the tests programs locally without running them? Is it a cross-compile situation where you want to copy over the test binaries after everything else is built?
+
+If this is the case, then a better solution is to override the TESTS variable in a make check command to be empty on your build machine:
+
+`make check TESTS=`
+
+The TESTS variable, from the Automake docs: 
+
+""If the special variable TESTS is defined, its value is taken to be a list of programs or scripts to run in order to do the testing.""
+
+So, this is the list of tests to execute. If you leave it empty, it will still build all of the tests and then not execute any. Would this solve the issue?",positive,0.617932

@@ -1,0 +1,33 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Hans Jansen,pr_64.csv,"I'm sorry for the delay. Neither Jia or I have been able to look at this in the past days. :-( We are both happy to see CLMUL version of CRC32 and it's great if you plan to do ARM64 versions too. :-)
+
+The inline function version is definitely nicer when the speed is the same. So those changes should be squashed accordingly, thanks!
+
+For a moment I thought that keeping crc_macros.h as is and adding crc_clmul.h would be nicer but, as Jia has pointed out, crc_common.h defines CRC_GENERIC and such too so I guess it is better this way. Many small bits of code depend on each other in such ways that it seems impossible to make things look very pretty.
+
+In my experience it's nice if file renames are done as separate commits with only the mandatory edits. For example, the `\file` comment at the top would need changing to crc_common.h, and similarly the #include lines in the two .c files, Makefile.inc, and CMakeLists.txt. Any other changes would be in later commit(s).
+
+Small commits in are preferred whenever doing so makes sense.
+
+I wonder if it made sense to have crc_clmul.c with both CRC32 and CRC64 because then the binary wouldn't end up with two copies of is_clmul_supported() and crc_simd_body(). However, it's possible that crc_simd_body() has to be inlined if the function call overhead is too high for tiny input buffers.
+
+I feel it might be good to merge this after the inline function change has been squashed so that we have some good version committed in xz.git. So feel free to try the crc_clmul.c idea if you wish but it's not required for merging.
+
+Have you tested on 32-bit x86? If not, it's fine. :-) If yes: I haven't checked performance on 32-bit x86 in years and wonder if the assembly files still make sense compared to what GCC and Clang can do (for processors that don't support CLMUL). Those files were written in GCC 3.3/3.4 times. It shouldn't be hard to make 32-bit x86 autodetect between the assembly code and CLMUL so I can do it if it is worth it.
+
+Thanks!",positive,0.330365
+Lasse Collin,Hans Jansen,pr_64.csv,"Thank you for letting us know. If you are able to continue, please let us know too to ensure that no duplicate work will happen (unlikely but still).",positive,0.656494
+Lasse Collin,Hans Jansen,pr_53.csv,"I understand that ifunc avoids loading a function pointer and an indirect branch. liblzma uses function pointers a lot so, for (de)compression performance, avoiding one pointer in the call stack likely doesn't matter (but I haven't benchmarked it). Many `lzma_crc64` calls can process a few kilobytes of data per call but I understand that in non-compression uses tiny buffers may be the most common.
+
+How big difference in speed does your patch make with your code? I would like understand the real-world improvement that ifunc can make specifically with `lzma_crc64`.
+
+
+C++ compiler isn't used so the check should be removed.
+
+By the way, have you checked xxhash if you need a very fast hash?
+
+Thanks!",positive,0.776431
+Lasse Collin,Hans Jansen,pr_53.csv,4-5 % isn't a huge difference but it's around the threshold where it becomes interesting. Jia and I discussed this and ifunc support is welcome while keeping the constructor attribute as the second choice. Thanks!,positive,0.769886
+Lasse Collin,Hans Jansen,pr_53.csv,"When fixing commits in a patchset / pull request, it usually should be done by editing the original commits instead of adding fix-up commits at the end. For example, in this case the commits first remove a feature and then add it back. This makes it harder to see what changes were _actually_ made in the end. This applies to both reviewing the changes before the merge and to people who read xz's commit log afterwards. I think this should be fixed.
+
+Thanks!",positive,0.291567
