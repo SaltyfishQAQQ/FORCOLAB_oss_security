@@ -1,8 +1,0 @@
-from,to,file_name,message,mood,score
-Lasse Collin,PLT,pr_53.csv,"Using ifunc for a static `crc64_func` means that `lzma_crc64` becomes a single-instruction function that just does a jump via PLT:
-
-```
-jmp    45a0 <*ABS*+0x15e00@plt>
-```
-
-I suppose it's better to make `lzma_crc64` itself the ifunc. This has been done in [v2](https://github.com/tukaani-project/xz/tree/ifunc-crc64-fast-v2) branch. Can you test it and tell if you notice any difference (speed or anything else) compared to your version. Thanks!",positive,0.375384

@@ -1,2 +1,0 @@
-from,to,file_name,message,mood,score
-Jia Tan,Dimitri Papadopoulos Orfanos,pr_58.csv,Thanks for the typo fixes! Maybe we should include codespell as part of the CI pipeline or a local git hook. Or even a manual step for myself before pushing...,positive,0.47269946336746216

@@ -1,9 +1,0 @@
-from,to,file_name,message,mood,score
-Jia Tan,Kian-Meng Ang,pr_74.csv,"Hello!
-
-Thanks for the PR. Could you please separate this into two separate commits? One for the typo fix in `file_io.c` and another for the typo fixes in the test files. 
-
-In the commit messages, the first should be prefixed with ""xz:"" instead of ""Docs:"". We use the ""Docs:"" prefix when referring to changes to things like the README, man pages, INSTALL, etc. The second commit should be prefixed with ""Tests:"".",positive,0.898565
-Jia Tan,Kian-Meng Ang,pr_74.csv,Thanks for making the changes!,positive,0.987078
-Jia Tan,Kian-Meng Ang,pr_74.csv,"
-Two separate commits is fine.",neutral,0.0

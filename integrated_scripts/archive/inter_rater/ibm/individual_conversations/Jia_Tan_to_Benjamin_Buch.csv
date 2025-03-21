@@ -1,7 +1,0 @@
-from,to,file_name,message,mood,score
-Jia Tan,Benjamin Buch,pr_51.csv,"Thanks the for PR! This is a great addition. It seems like the FindLibLZMA module has something similar to protect against multiple find_package() calls, so it seems like a common protection to include.
-
-Can you wrap your commit message with newlines around 73 character width? The first sentence in your commit message is a bit long. The reason we care is because in our releases the Changelog is generated from the commit messages. In order to keep this and the commit log itself looking nice, we have a few standards we try to enforce.",positive,0.808575
-Jia Tan,Benjamin Buch,pr_51.csv,"@bebuch I was able to make the commit message change during the Squash and Merge. The commit is in your name and I only made stylistic edits to the message (I did not change the meaning).
-
-Thanks for your contribution!",positive,0.52253

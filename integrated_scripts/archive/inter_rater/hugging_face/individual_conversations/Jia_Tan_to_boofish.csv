@@ -1,8 +1,0 @@
-from,to,file_name,message,mood,score
-Jia Tan,boofish,issue_20.csv,"Hi! Thank you for the bug report, but I will close this bug report because it is a documented feature of XZ Utils. 7zip and XZ Utils are almost completely compatible with how they treat .xz and .lzma files, but here is an example of where they differ.
-
-My quick maths determined this file has the settings pb = 1, lp = 3, lc = 5, which is unsupported by XZ Utils. XZ Utils will only compress or decompress .lzma and .xz files if lp + lc <=4.
-
-This is is documented in doc/lzma-file-format.txt (~ line 105 as of 2022-07-13) and src/liblzma/api/lzma/lzma12.h (~ line 280 as of version 5.4.1). I was not part of the project when this decision was made, but my understanding is that files with lc + lp > 4 are unlikely to improve compression significantly and will use a lot more memory and computation time when compressing or decompressing. 
-
-Since .lzma has been a legacy format since 2009 and .xz does not support these types of settings, we do not plan to change this. Old .lzma files that have been created with these settings can still be decompressed with 7zip and new files should be using the .xz format anyway.",neutral,-0.004403162747621536

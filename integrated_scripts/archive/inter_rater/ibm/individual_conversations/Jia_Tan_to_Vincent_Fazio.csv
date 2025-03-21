@@ -1,7 +1,0 @@
-from,to,file_name,message,mood,score
-Jia Tan,Vincent Fazio,pr_32.csv,"@vfazio Thanks for the bug report and PR! I am not familiar with the Microblaze platform and I am surprised that `__has_attribute` can report a false positive like this.
-
-Do you know if GCC on Microblaze supports symver? I am asking because if  `__attribute__((__symver__ ...))` is not supported then `__asm__("".symver "" ...)` is used instead with your patch. If symver is not supported on Microblaze, then the better solution would be to disable HAVE_SYMBOL_VERSIONS_LINUX in configure.ac (and in CMakeLists.txt) for Microblaze.
-
-By the way, as a temporary workaround, you can configure with --disable-symbol-versions and the build should work.",positive,0.659032
-Jia Tan,Vincent Fazio,pr_32.csv,Thanks for reporting this and helping us fix @vfazio and reporting to gcc! I am closing this since the issue seems resolved with our workaround. Let us know if there are any other issues that you find :),positive,0.836745

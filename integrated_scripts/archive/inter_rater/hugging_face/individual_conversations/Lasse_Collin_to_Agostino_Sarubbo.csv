@@ -1,6 +1,0 @@
-from,to,file_name,message,mood,score
-Lasse Collin,Agostino Sarubbo,issue_62.csv,"Thanks!
-
-It's fixed in the master branch now. The problem is that `crc64_clmul` uses 16-byte-aligned reads and this unavoidably trips the address sanitizer. The CI builds used `-fsanitize=address` but ci.yml worked around the problem with `--disable-clmul-crc`. Now there is `__attribute__((__no_sanitize_address__))` so the workaround isn't needed anymore.
-
-After 5.4.x (including the current master branch) you will need `--disable-ifunc` to make `-fsanitize=address` work. This is because `__attribute__((__ifunc(..)))` isn't compatible with address sanitizer. See [this](https://sourceware.org/glibc/wiki/GNU_IFUNC), search for ""asan"". The ifunc code likely won't be included in 5.4.x releases.",neutral,0.11386103928089142

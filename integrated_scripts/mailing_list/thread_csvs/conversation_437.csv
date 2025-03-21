@@ -1,6 +1,0 @@
-title,message_id,timestamp,author,who_it_is_replying_to,parent_message_id
-No Subject,LocalLinkMissing_0,N/A,Markus Rickert,,
-Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,20210130184113.257999d2@tukaani.org,"Sat, 30 Jan 2021 08:41:22 -0800",Lasse Collin,,
-Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,43aa7a8e-cf56-3f22-6818-70d19e44b6c1@fortiss.org,"Sun, 31 Jan 2021 08:18:47 -0800",Markus Rickert,Lasse Collin,20210130184113.257999d2@tukaani.org
-Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,20210213234422.6dca845b@tukaani.org,"Sat, 13 Feb 2021 13:44:30 -0800",Lasse Collin,Markus Rickert,43aa7a8e-cf56-3f22-6818-70d19e44b6c1@fortiss.org
-Re: [xz-devel] Compatibility between CMake config file and FindLibLZMA.cmake,acdcf8f7-d084-dae2-36c5-081c47b2746c@fortiss.org,"Sun, 14 Feb 2021 07:39:34 -0800",Markus Rickert,Lasse Collin,20210213234422.6dca845b@tukaani.org

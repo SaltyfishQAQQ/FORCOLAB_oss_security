@@ -3,21 +3,22 @@ venv/
 .vscode
 
 # Ignore specific library folders
-integrated_scripts/__pycache__/
-integrated_scripts/lib
-integrated_scripts/inter_rater
-integrated_scripts/tukaani-project_xz
-integrated_scripts/test
-integrated_scripts/test_code_effects
-integrated_scripts/test.ipynb
-integrated_scripts/wut.c
-integrated_scripts/embeddings_test.ipynb
+sentiment_analysis/mailing_list
+sentiment_analysis/archive
+sentiment_analysis/library
+sentiment_analysis/tukaani-project_xz
+sentiment_analysis/__pycache__
+sentiment_analysis/.vscode
+sentiment_analysis/lib
+sentiment_analysis/rdd
+
 
 *.py[cod]
 *$py.class
 
 # C extensions
 *.so
+*sentiment_analysis/mailing_list
 
 # Packages
 *.egg
