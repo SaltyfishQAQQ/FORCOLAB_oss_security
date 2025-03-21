@@ -12,7 +12,8 @@ sentiment_analysis/.vscode
 sentiment_analysis/lib
 sentiment_analysis/rdd
 
-
+rdd/mailing_list
+rdd/tukaani-project_xz
 *.py[cod]
 *$py.class
 
