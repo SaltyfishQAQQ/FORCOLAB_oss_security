@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+Jia Tan,Chenxi Mao,pr_77.csv,"
+Hello! Thanks for the PR. The point about not needing runtime detection likely needs more research. From a quick search, my understanding is that CRC32 instruction is optional in armv8.0 and required in ARMv8.1. So if all processors in practice actually supported CRC32 in armv8.0, then it will really simplify this feature since the runtime detection adds significant complexity. The runtime detection likely requires avoiding ifunc and having different versions based on the platform (`getauxval()`, `IsProcessorFeaturePresent()`, etc).
+
+A note on compile time detection: __ARM_FEATURE_CRC32 isn't supported by MSVC so we will need another way to detect CRC32 instruction support there.",neutral,0.17586656473577023

@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+Edward Vielmetti,P-EB,issue_92.csv,"CVE-2024-3094 is the CVE for this (and that should link to the Github internal page for this, let's see)",neutral,0.09968572086654603

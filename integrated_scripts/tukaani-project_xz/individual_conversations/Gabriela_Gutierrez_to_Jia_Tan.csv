@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Gabriela Gutierrez,Jia Tan,pr_67.csv,Yes sure! Will do!,positive,0.9707781185861677
+Gabriela Gutierrez,Jia Tan,pr_66.csv,"Ok, thanks for the confirmation, Jia!",positive,0.7491317787207663
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Hi Jia! Ok, nice, I'll open a PR! And yes, there's this downside of having to keep an eye to update the actions. You can update it manually or there's also the option to use [dependabot](https://github.blog/2020-06-01-keep-all-your-packages-up-to-date-with-dependabot/) or [renovatebot](https://docs.renovatebot.com/#why-use-renovate).",positive,0.42358612455427647
+Gabriela Gutierrez,Jia Tan,issue_65.csv,"Very interesting problem the Clang release one. I took a look at the commits and discussions, thanks for sharing! It seems like they are resolving the problems in the new patch and thanks for looking into this Jia! I'll retry the PR.",positive,0.947200738475658
+Gabriela Gutierrez,Jia Tan,pr_67.csv,See if it looks better now ,neutral,0.05995589913800359

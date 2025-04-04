@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+Paul Marquess,Jia Tan,issue_82.csv,"Thanks, installing `gettext` in the workflow did the trick",positive,0.9698186560999602

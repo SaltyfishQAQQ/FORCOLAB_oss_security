@@ -1,0 +1,3 @@
+from,to,file_name,message,mood,score
+Michael Cook (mackal),Janne Enberg,issue_92.csv,"
+I don't think it has actually been analyzed enough to verify it was only for sshd, just that it's confirmed for sshd.",neutral,-0.01927750464528799

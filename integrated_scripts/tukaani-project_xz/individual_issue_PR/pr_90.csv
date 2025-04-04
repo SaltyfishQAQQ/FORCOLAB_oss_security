@@ -1,0 +1,167 @@
+event,from,created_at,body,to
+thread_started,skosukhin,2024-03-13T11:53:44Z,"There are cases when the users want to decide themselves whether they want to have the generic (even on GNU/Linux) or the linux (even if we do not recommend that) symbol versioning variant. The former might be needed to circumvent compiler issues (i.e. the compiler does not support all features that are required for the linux versioning), the latter might help in overriding the assumptions made in the configure script.
+
+## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [x] Build was run locally and without warnings or errors
+- [x] All previous and new tests pass
+
+
+## Pull request type
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [x] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+It's not possible to override the symbol versioning variant on GNU/Linux:
+```console
+$ ./configure --enable-symbol-versions=auto | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=yes | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=no | grep 'library symbol versioning'
+checking if library symbol versioning should be used... no
+$ ./configure --enable-symbol-versions=linux | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=generic | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=something-else | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions --disable-shared | grep 'library symbol versioning'
+checking if library symbol versioning should be used... no (not building a shared library)
+$ ./configure --with-pic | grep 'library symbol versioning'
+checking if library symbol versioning should be used... 
+configure: error: 
+    On GNU/Linux, building both shared and static library at the same time
+    is not supported if --with-pic or --without-pic is used.
+    Use either --disable-shared or --disable-static to build one type
+    of library at a time. If both types are needed, build one at a time,
+    possibly picking only src/liblzma/.libs/liblzma.a from the static build.
+```
+
+## What is the new behavior?
+It is possible to override the symbol versioning variant:
+```console
+$ ./configure --enable-symbol-versions=auto | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=yes | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=no | grep 'library symbol versioning'
+checking if library symbol versioning should be used... no
+$ ./configure --enable-symbol-versions=linux | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (linux)
+$ ./configure --enable-symbol-versions=generic | grep 'library symbol versioning'
+checking if library symbol versioning should be used... yes (generic)
+$ ./configure --enable-symbol-versions=something-else | grep 'library symbol versioning'
+checking if library symbol versioning should be used... 
+configure: error: unknown symbol versioning variant 'something-else'
+$ ./configure --enable-symbol-versions --disable-shared | grep 'library symbol versioning'
+checking if library symbol versioning should be used... no (not building a shared library)
+$ ./configure --with-pic | grep 'library symbol versioning'
+checking if library symbol versioning should be used... 
+configure: error: 
+    On GNU/Linux, building both shared and static library at the same time
+    is not supported if --with-pic or --without-pic is used.
+    Use either --disable-shared or --disable-static to build one type
+    of library at a time. If both types are needed, build one at a time,
+    possibly picking only src/liblzma/.libs/liblzma.a from the static build.
+```
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+## Other information
+
+It looks like `--enable-symbol-versions=generic` was an unintended feature that existed before 0682439.",['skosukhin']
+commented,JiaT75,2024-03-13T15:27:52Z,"Hello!
+
+What specific situation led you to this? The reason I ask is so we can better help set our default (`enable_symbol_versions=auto`) symbol versioning setting. In general, allowing this to be configurable seems like a good idea though.
+
+Another question, when someone specifies `./configure --enable-symbol-versions=yes --disable-shared ` (any value yes|linux|generic), should configure fail with an error, give a warning, or just disable symbol versioning as it does now. Should it be more obvious to the user that their `--enable-symbol-versions` flag value was ignored?",['skosukhin']
+commented,skosukhin,2024-03-13T16:51:26Z,"`__has_attribute(__symver__)` for the Nvidia compiler is `0` and it chokes with `__asm__("".symver ..."")`:
+```console
+<inline asm>:1:85: error: unknown token in expression
+.symver lzma_get_progress_522,lzma_get_progress@XZ_5.2.2.symver lzma_get_progress_52,lzma_get_progress@@XZ_5.2
+```
+Something like
+```patch
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -92,7 +92,7 @@
+ 					LZMA_API(type) intname
+ #	else
+ #		define LZMA_SYMVER_API(extnamever, type, intname) \
+-			__asm__("".symver "" #intname "","" extnamever); \
++			__asm__("".symver "" #intname "","" extnamever "";""); \
+ 			extern LZMA_API(type) intname
+ #	endif
+ #endif
+```
+makes it possible to build but
+```console
+$ readelf -W --dyn-syms $(find . -name '*.so') | tr -s ' ' | cut -d' ' -f9 | grep '^lzma_get_progress'
+lzma_get_progress@@XZ_5.2
+```
+instead of
+```console
+$ readelf -W --dyn-syms $(find . -name '*.so') | tr -s ' ' | cut -d' ' -f9 | grep '^lzma_get_progress'
+lzma_get_progress@@XZ_5.2
+lzma_get_progress@XZ_5.2.2
+```
+
+This could be checked by the configure script, I guess (one should be careful with using something non-portable like `readelf` in a configure script though).
+
+In my opinion, `./configure --enable-symbol-versions=yes --disable-shared` should result in an error. However, `checking if library symbol versioning should be used... no (not building a shared library)` is informative enough.",XZ_5
+commented,Larhzu,2024-03-13T20:45:45Z,"Thanks! I've collected this into pr90_pr91 branch with matching CMake
+fixes.
+
+
+Quite possibly so. I agree it should be configurable.
+
+
+It is clear that the compiler doesn't support symbol versioning in any
+form. The linker still does, thus thus the ""generic"" versioning works.
+
+
+As you noticed, the additional symbols didn't appear. The correct way
+is to use the ""generic"" versioning which doesn't even attempt to add
+those extra symbol versions. This is assuming that the toolchain truly
+is targeting glibc (configure thinks it is).
+
+
+configure and CMakeLists.txt could check for __NVCOMPILER. I suppose
+that would be reasonable. I plan to add that in the near future, unless
+the problem is that the build isn't actually targeting glibc and
+configure is misdetecting that.
+
+Not very many users should be affected by changing from ""linux"" to
+""generic"". The ""linux"" one only helps with binary compatibility with
+some executables which hopefully aren't too common.
+
+
+It's simplest to just ignore --enable-symbol-versions in this case.
+Symbol versions make no sense in static libraries but they can cause
+breakage in some cases. If we rejected the option with static-only
+builds it could complicate build scripts that use mostly the same
+options for building shared and static liblzma in separate runs.",['skosukhin']
+commented,Larhzu,2024-05-08T09:43:40Z,"@skosukhin: The PRs #90 and #91 were created when the master branch of XZ Utils was already under the 0BSD license. Due to the recent events, I plan to make one more release from the old v5.2 and v5.4 branches which are public domain, not 0BSD.
+
+Is it OK to you if I backport your two commits to the public domain releases? These are f56ed6fac6619b56b005878d3b5210e2f0d721c0 and 096bc0e3f8fb4bfc4d2f3f64a7f219401ffb4c31 in the master branch.
+
+I apologize that this is likely a silly question. I just want this kind of details to be extra clear.
+
+Thanks!",skosukhin
+commented,skosukhin,2024-05-13T06:35:36Z,"@Larhzu sure, I'm fine with that",Larhzu
+commented,Larhzu,2024-05-14T11:50:02Z,Thank you!,['skosukhin']

@@ -1,0 +1,16 @@
+from,to,file_name,message,mood,score
+Jia Tan,Xi Ruoyao,pr_86.csv,"Hello! Thanks for the PR. Overall it looks like you did a great job with this.
+
+Can you provide benchmarks to show the speed increase from this? Specifically, can you show one version with the alignment adjustment in `crc32_arch_optimized()` and one without? I just want to be sure the alignment adjustment code is worth it for LoongArch. It would be great to vary the input buffer size to see how the speed improvements scale.
+
+Also, how necessary are the runtime detection checks? Are there LoongArch chips that do not have the CRC32 instruction? ",positive,0.9717623422620818
+Jia Tan,Xi Ruoyao,pr_86.csv,"
+Thanks!
+ 
+
+Ok that is great to know. I had not found any references to 32-bit LoongArch chips, so that makes sense. Is it likely that 32-bit chips will be made? Otherwise it will simplify things to just design the code for 64-bit LoongArch and not bother with the runtime checks at all. Future 32-bit LoongArch may need extra compiler flags or a function `__attribute__()` so the code wouldn't be able to work as-is anyway.",positive,0.8383097751066089
+Jia Tan,Xi Ruoyao,pr_86.csv,"Thanks for the benchmarking numbers, those easily justify including this feature :)
+
+
+If there are LoongArch CPUs that do not support unaligned access, that is plenty reason to have the code to align the buffer. Thanks for the info!
+",positive,0.8632676773704588

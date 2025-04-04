@@ -1,0 +1,62 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Jia Tan,pr_64.csv,"I'm glad this has been merged. Thanks!
+
+A few thoughts about 32-bit x86: Testing on modern 64-bit processor running 32-bit code was what I had in mind, so that part is fine. The results look strange though.
+
+The 32-bit assembly code implements the same algorithm as the generic C code. The CLMUL version should easily be faster with 1024-byte buffers, even if those were unaligned.
+
+With GCC 3.3/3.4 I remember that GCC couldn't fit all hot variables in registers and the resulting extra stack access was bad for speed. On x86-64 this isn't a problem anymore. My expectation is that the 32-bit x86 assembly code for CRC32 should have similar speed as the generic C code has on x86-64. I don't have clear expectations of the speed of the C code on 32-bit x86.
+
+On 32-bit x86, CRC64 benefits more from CLMUL because 32-bit x86 doesn't have 64-bit general-purpose registers. With the generic method, including the assembly implementation, the 64-bit CRC value needs two registers and updating it needs more instructions.
+
+I wondered if eight xmm registers could be a limiting factor on 32-bit x86. However, on x86-64 exactly eight xmm registers are used by both CRC32 and CRC64 CLMUL implementations with GCC 13.2.1. So I suppose the number of xmm registers shouldn't be a problem.
+
+We (or likely it's mostly Jia) will do a few tests later.
+
+Thanks again!",positive,0.8539178278297186
+Lasse Collin,Jia Tan,issue_61.csv,"There's now a little more information in the NVD. The [entry in Debian](https://security-tracker.debian.org/tracker/CVE-2020-22916) is somewhat informative:
+
+
+That makes me wonder if it could have been a file which uses a 4 GiB LZMA2 dictionary and thus needs lots of RAM even in single-threaded mode. xz has had memory usage limiting options for such files since the first stable version because high memory usage could be a denial of service. Strict limits (which would make xz refuse to decompress) aren't enabled by default because of the strong feedback I got before 5.0.0 was released: a too low limit can also result in a denial of service. The [Memory usage](https://tukaani.org/xz/man/xz.1.html#DESCRIPTION:_Memory_usage) section on the xz man page has been there since 5.0.0 too.
+
+This was just a guess; the CVE could be about something else, of course. With the information I currently have, I consider this CVE to be incorrect (not a bug or a security issue).",neutral,-0.025637085549533367
+Lasse Collin,Jia Tan,issue_61.csv,"The snappyJack repository is available again. It contains a corrupt .lzma file which uses a tiny 256-byte dictionary. So decompression needs very little memory. The reporter claims that decompressing it ""could cause endless output"".
+
+Both XZ Utils and even the long-deprecated LZMA Utils produce 114,881,179 bytes of output from the payload before reporting an error. This is not ""endless output"". The decompression speed is good too.
+
+There is no denial of service or other bug with this file.",neutral,0.12450671568512917
+Lasse Collin,Jia Tan,issue_89.csv,"
+Try adding `-vv` to the command line. It will show some information
+about memory usage.
+
+With `-9` the _compressor_ in threaded mode needs 1250 MiB per thread. A
+new thread is started every 192 MiB of uncompressed input (3 * 64 MiB
+where 64 MiB is the dictionary size at `-9`). So if the input file isn't
+huge, not many threads will be actually used.
+
+With lower presets memory usage goes down and threads are started more
+frequently. For example, `-6` starts a new thread every 24 MiB of input
+by default.",neutral,-0.09755313768982887
+Lasse Collin,Jia Tan,issue_68.csv,"Quite a few changes have been made to CMake support in the `master` branch in the past week. For example, configuration variables have been renamed and added. A few changes are pending still.
+
+Question: How old CMake version should be supported? Currently 3.14 is the minimum except that 3.20 is required to support message and man page translations and to create a relocatable `liblzma.pc`. **Is it OK to require CMake 3.20** in XZ Utils 5.8.0 (and 5.7.1alpha)?",neutral,-0.001728469505906105
+Lasse Collin,Jia Tan,pr_77.csv,"```
+for (buf_end = ((size - align_amount) - 8) + buf; buf < buf_end;
+		buf += 8)
+
+```
+
+I suspect that `clang -fsanitize=undefined` will complain at runtime. If `size` equals 1 and `align_amount` equals 0 or 1, it ends up calculating `buf - 8` or `buf - 7`. That is, the pointer arithmetic may go beyond the beginning of the buffer, which the C standard doesn't allow (but one element past the end is allowed).
+
+Although it should work in practice on ARM64 (unless the buffer is at a weird address where the address would overflow but that's unlikely), I think it should be possible to avoid the problem without a performance penalty.",negative,-0.3432445805519819
+Lasse Collin,Jia Tan,issue_61.csv,The CVE has been marked as disputed so I'm closing this issue.,negative,-0.7616778123192489
+Lasse Collin,Jia Tan,pr_53.csv,"My understanding is that ifunc is specific to glibc. `__constructor__` works on many ELF platforms, not just GNU/Linux.
+
+According to your link, ifunc is incompatible with `-fsanitize=address`. And indeed it makes `make check` fail with segfaults. (I also see that two tests fail with `-fsanitize=address` before your patch due to memory leaks but no segfaults.)
+
+Also, checking for `__cplusplus` isn't needed as this is C code and not a public header.
+
+How much difference (speed or memory or anything else) does ifunc make in this specific use case? I understand that the function pointer is an extra step on each call but the function itself is more expensive than `memcpy` or such which get called a lot with tiny buffers. Currently I feel the extra complication isn't worth it in liblzma as `__constructor__` is good to keep around too for ELF platforms that lack ifunc support.
+
+
+Thanks!",negative,-0.9063100554049015

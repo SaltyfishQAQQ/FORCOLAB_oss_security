@@ -1,0 +1,70 @@
+event,from,created_at,body,to
+thread_started,gabibguti,2023-10-12T12:35:31Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [x] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+Referencing actions by major tag (e.g. `v3`)
+
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: https://github.com/tukaani-project/xz/issues/65
+Resolves https://github.com/tukaani-project/xz/issues/65
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+Referencing actions by commit SHA (e.g. `8ade135a41bc03ea155e62e844d188df1ea18608`)
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->",['gabibguti']
+commented,JiaT75,2023-10-12T13:57:03Z,"Thanks for remaking the PR!
+
+Everything looks great except can you tweak your commit messages slightly? If you could prepend ""CI:"" before the first line of your commit message (""Bump and ref actions..."") that would be great. We like to do that to help search/filter commits by category. Also, in the first commit can you mention the reason why this change is needed? Something like the text from #65 could be enough:
+
+""Referencing actions by commit SHA in GitHub workflows guarantees you are using an immutable version. Actions referenced by tags and branches are more vulnerable to attacks, such as the tag being moved to a malicious commit or a malicious commit being pushed to the branch.""
+
+Or if you want to reword it at all.",['gabibguti']
+commented,gabibguti,2023-10-12T15:41:08Z,Yes sure! Will do!,['JiaT75']
+commented,gabibguti,2023-10-12T18:15:01Z,See if it looks better now ,['JiaT75']
+commented,JiaT75,2023-10-13T12:02:49Z,It looks great! Thanks,['gabibguti']
+commented,Larhzu,2023-10-13T16:00:15Z,"@gabibguti
+
+Thanks for your contributions! Friendly advice for the future:
+
+It is a good practice to manually wrap the lines in commit messages. With very long lines, `gitk` requires scrolling side ways and `git log` relies on `less` (or similar tool) to do the wrapping which typically isn't the most readable (`less --wordwrap` helps though). Even in the GitHub web UI where autowrapping is done in the web browser, the autowrapped lines can be as long as the browser window is wide, and thus the text is a bit hard to read.
+
+`git log` indents the messages by four spaces, thus 76 chars is the very maximum to keep things within 80 columns. The text box in `git gui` is conveniently 76 chars wide. Shorter lines (at most 72 chars or even shorter) are nicer though.
+
+Thanks!",gabibguti
+commented,gabibguti,2023-10-17T16:35:52Z,Thanks for the advice! I will follow that for future commit messages!,['Larhzu']

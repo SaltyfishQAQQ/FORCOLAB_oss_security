@@ -1,0 +1,34 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Ricky Tigg,issue_72.csv,"INSTALL.generic [does mention](https://github.com/tukaani-project/xz/blob/f481523baac946fa3bc13d79186ffaf0c0b818a7/INSTALL.generic#L85) `make uninstall`. Note that for it to work you practically need to keep the matching build tree around. Builds made with different options or builds of different package versions can install and thus uninstall a different set of files.
+
+`--prefix` sets the location where the files are expected to be when the programs or libraries are used. This matters because some paths may get hardcoded (like translations or library search path (rpath)).
+
+`DESTDIR` allows doing a kind of fake install to a temporary directory from which a distro-specific package (`.deb`, `.rpm`, `.txz` etc.) can be created. In general one cannot run the program in the `DESTDIR` directory.
+
+One option is to use
+
+```
+./configure --prefix=/home/foo/local-xz
+make install
+```
+
+and then put /home/foo/local-xz/bin to `PATH`. This way uninstallation is simple: just `rm -r /home/foo/local-xz`.
+
+In case of XZ Utils, if you only want the latest `xz` command line tool, build it against static liblzma without translation support. In case of `xz` there will then be no dependencies that rely on `--prefix`. With many other packages it's not so; this tip is specific to XZ Utils. You can also use the `-j` option with `make` to use multiple processor cores for a shorter build time.
+
+```
+./configure --disable-shared --disable-nls
+make -j4
+cp src/xz/xz /home/foo/bin/
+```
+
+The `/home/foo/bin/` is a directory of your choosing. That is, no need to use `make install` if you only need `xz`.",neutral,0.018449891358613968
+Lasse Collin,Ricky Tigg,issue_71.csv,"xz-5.4.5.tar.gz does have configure. Perhaps you downloaded ""Source code (tar.gz)"" which is what GitHub creates from the associated git tag and thus it contains only the files from the git repository and not all the generated files.
+
+There also are no signature files (.sig) for the generated files.
+
+I have understood that it's general knowledge that those Github-generated .tar.gz files should be ignored when other files are available in a release. Those generated files cannot be disabled.",neutral,-0.02731597051024437
+Lasse Collin,Ricky Tigg,issue_71.csv,"
+I hadn't realized this. When hovers of the link, it points to _v5.4.5.tar.gz_. If copy the link and use it with `wget` I will get _v5.4.5.tar.gz_. But if I click the link with Firefox, the name gets converted to _xz-5.4.5.tar.gz_.
+
+Having a way to get a tarball of the git tag is useful in general and for some projects it's all they need. But for many other projects it's confusing especially since the link is forcefully named _Source code_. The icons differ but a cube vs. a zipper doesn't convey any meaning to me at least.",neutral,-0.10641510039567947

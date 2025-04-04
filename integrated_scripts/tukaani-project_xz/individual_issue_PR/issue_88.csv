@@ -1,0 +1,461 @@
+event,from,created_at,body,to
+thread_started,rubyFeedback,2024-02-25T14:44:02Z,"### Describe the bug
+
+    make  all-recursive
+    make[1]: Entering directory '/Depot/jjj/xz-5.6.0'
+    Making all in src
+    make[2]: Entering directory '/Depot/jjj/xz-5.6.0/src'
+    Making all in liblzma
+    make[3]: Entering directory '/Depot/jjj/xz-5.6.0/src/liblzma'
+    Making all in api
+    make[4]: Entering directory '/Depot/jjj/xz-5.6.0/src/liblzma/api'
+    make[4]: Nothing to be done for 'all'.
+    make[4]: Leaving directory '/Depot/jjj/xz-5.6.0/src/liblzma/api'
+    make[4]: Entering directory '/Depot/jjj/xz-5.6.0/src/liblzma'
+    make[4]: Nothing to be done for 'all-am'.
+    make[4]: Leaving directory '/Depot/jjj/xz-5.6.0/src/liblzma'
+    make[3]: Leaving directory '/Depot/jjj/xz-5.6.0/src/liblzma'
+    Making all in xzdec
+    make[3]: Entering directory '/Depot/jjj/xz-5.6.0/src/xzdec'
+    gcc -DHAVE_CONFIG_H -I. -I../..  -DTUKLIB_GETTEXT=0 -I../../src/common -I../../src/liblzma/api -I../../lib  -pthread -fvisibility=hidden -Wall -Wextra -Wvla -Wformat=2 -Winit-self -Wmissing-include-dirs -Wshift-overflow=2 -Wstrict-overflow=3 -Walloc-zero -Wduplicated-cond -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wwrite-strings -Wdate-time -Wsign-conversion -Wfloat-conversion -Wlogical-op -Waggregate-return -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -O2 -fPIC -fno-strict-overflow -Wno-error -MT xzdec-xzdec.o -MD -MP -MF .deps/xzdec-xzdec.Tpo -c -o xzdec-xzdec.o `test -f 'xzdec.c'     || echo './'`xzdec.c
+    xzdec.c: In function ‘sandbox_enter’:
+    xzdec.c:329:36: error: ‘SYS_landlock_create_ruleset’ undeclared (first use in this function)
+      329 |         int landlock_abi = syscall(SYS_landlock_create_ruleset,
+          |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+    xzdec.c:329:36: note: each undeclared identifier is reported only once for each function it appears in
+    xzdec.c:349:29: error: ‘SYS_landlock_restrict_self’ undeclared (first use in this function)
+      349 |                 if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
+          |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+    make[3]: *** [Makefile:606: xzdec-xzdec.o] Error 1
+    make[3]: Leaving directory '/Depot/jjj/xz-5.6.0/src/xzdec'
+    make[2]: *** [Makefile:427: all-recursive] Error 1
+    make[2]: Leaving directory '/Depot/jjj/xz-5.6.0/src'
+    make[1]: *** [Makefile:597: all-recursive] Error 1
+    make[1]: Leaving directory '/Depot/jjj/xz-5.6.0'
+    make: *** [Makefile:487: all] Error 2
+
+
+I can compile older xz releases fine by the way, on the same system, so 5.4.x, 
+5.2.x. Not sure what changed.
+
+My system is a custom built slackware; I recompiled most
+things from source following mostly LFS/BLFS instructions.
+xz 5.6.x is not yet appearing on LFS, so I just poke in the
+dark here really.
+
+glibc is 2.33, gcc is 11.4.0.
+
+### Version
+
+5.6.0
+
+### Operating System
+
+linux
+
+### Relevant log output
+
+_No response_",['rubyFeedback']
+commented,hsk17,2024-02-25T20:59:02Z,"same here; can not compile xz-5.6.0 on opensuse leap 15.5, ""xzdec.c:329:29: error: ‘SYS_landlock_create_ruleset’ undeclared"",  ""xzdec.c:349:15: error: ‘SYS_landlock_restrict_self’ undeclared""
+
+seems, the unconditional use of SYS_landlock_... in xz-5.6.0 sources has somehow to be guarded if not-so-recent glibc is installed on the host",['rubyFeedback']
+commented,abcfy2,2024-02-26T01:47:54Z,"Seems here. I use musl.cc `x86_64-linux-musl` toolchain.
+
+```txt
+XZ Utils 5.6.0
+
+System type:
+checking build system type... x86_64-pc-linux-gnu
+checking host system type... x86_64-pc-linux-musl
+
+Configure options:
+checking if debugging code should be compiled... no
+checking which encoders to build... lzma1 lzma2 delta x86 powerpc ia64 arm armthumb arm64 sparc riscv
+checking which decoders to build... lzma1 lzma2 delta x86 powerpc ia64 arm armthumb arm64 sparc riscv
+checking which match finders to build... hc3 hc4 bt2 bt3 bt4
+checking which integrity checks to build... crc32 crc64 sha256
+checking if external SHA-256 should be used... no
+checking if MicroLZMA support should be built... yes
+checking if .lz (lzip) decompression support should be built... yes
+checking if assembler optimizations should be used... no
+checking if small size is preferred over speed... no
+checking if threading support is wanted... yes, posix
+checking how much RAM to assume if the real amount is unknown... 128 MiB
+checking if sandboxing should be used... maybe (autodetect)
+
+checking for a shell that conforms to POSIX... /bin/bash
+
+Initializing Automake:
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+checking for x86_64-linux-musl-strip... x86_64-linux-musl-strip
+checking for a race-free mkdir -p... /usr/bin/mkdir -p
+checking for gawk... no
+checking for mawk... mawk
+checking whether make sets $(MAKE)... yes
+checking whether make supports nested variables... yes
+checking whether ln -s works... yes
+checking whether make supports the include directive... yes (GNU style)
+checking for x86_64-linux-musl-gcc... x86_64-linux-musl-gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables...
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether x86_64-linux-musl-gcc accepts -g... yes
+checking for x86_64-linux-musl-gcc option to enable C11 features... none needed
+checking whether x86_64-linux-musl-gcc understands -c and -o together... yes
+checking dependency style of x86_64-linux-musl-gcc... gcc3
+checking dependency style of x86_64-linux-musl-gcc... gcc3
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking for wchar.h... yes
+checking for minix/config.h... no
+checking for sys/cdefs.h... no
+checking whether it is safe to define __EXTENSIONS__... yes
+checking whether _XOPEN_SOURCE should be defined... no
+checking for a sed that does not truncate output... /usr/bin/sed
+checking how to run the C preprocessor... x86_64-linux-musl-gcc -E
+checking for egrep -e... /usr/bin/grep -E
+
+POSIX threading support:
+checking whether x86_64-linux-musl-gcc is Clang... no
+checking whether pthreads work with ""-pthread"" and ""-lpthread""... yes
+checking for joinable pthread attribute... PTHREAD_CREATE_JOINABLE
+checking whether more special flags are required for pthreads... no
+checking for PTHREAD_PRIO_INHERIT... yes
+checking for pthread_condattr_setclock... yes
+
+Initializing Libtool:
+checking how to print strings... printf
+checking for a sed that does not truncate output... (cached) /usr/bin/sed
+checking for grep that handles long lines and -e... /usr/bin/grep
+checking for egrep... /usr/bin/grep -E
+checking for fgrep... /usr/bin/grep -F
+checking for ld used by x86_64-linux-musl-gcc... /cross_root/x86_64-linux-musl/bin/ld
+checking if the linker (/cross_root/x86_64-linux-musl/bin/ld) is GNU ld... yes
+checking for BSD- or MS-compatible name lister (nm)... /cross_root/bin/x86_64-linux-musl-nm -B
+checking the name lister (/cross_root/bin/x86_64-linux-musl-nm -B) interface... BSD nm
+checking the maximum length of command line arguments... 1572864
+checking how to convert x86_64-pc-linux-gnu file names to x86_64-pc-linux-musl format... func_convert_file_noop
+checking how to convert x86_64-pc-linux-gnu file names to toolchain format... func_convert_file_noop
+checking for /cross_root/x86_64-linux-musl/bin/ld option to reload object files... -r
+checking for x86_64-linux-musl-file... no
+checking for file... file
+checking for x86_64-linux-musl-objdump... x86_64-linux-musl-objdump
+checking how to recognize dependent libraries... pass_all
+checking for x86_64-linux-musl-dlltool... no
+checking for dlltool... no
+checking how to associate runtime and link libraries... printf %s\n
+checking for x86_64-linux-musl-ar... x86_64-linux-musl-ar
+checking for archiver @FILE support... @
+checking for x86_64-linux-musl-strip... (cached) x86_64-linux-musl-strip
+checking for x86_64-linux-musl-ranlib... x86_64-linux-musl-ranlib
+checking command to parse /cross_root/bin/x86_64-linux-musl-nm -B output from x86_64-linux-musl-gcc object... ok
+checking for sysroot... no
+checking for a working dd... /usr/bin/dd
+checking how to truncate binary pipes... /usr/bin/dd bs=4096 count=1
+checking for x86_64-linux-musl-mt... no
+checking for mt... no
+checking if : is a manifest tool... no
+checking for dlfcn.h... yes
+checking for objdir... .libs
+checking if x86_64-linux-musl-gcc supports -fno-rtti -fno-exceptions... no
+checking for x86_64-linux-musl-gcc option to produce PIC... -fPIC -DPIC
+checking if x86_64-linux-musl-gcc PIC flag -fPIC -DPIC works... yes
+checking if x86_64-linux-musl-gcc static flag -static works... yes
+checking if x86_64-linux-musl-gcc supports -c -o file.o... yes
+checking if x86_64-linux-musl-gcc supports -c -o file.o... (cached) yes
+checking whether the x86_64-linux-musl-gcc linker (/cross_root/x86_64-linux-musl/bin/ld -m elf_x86_64) supports shared libraries... yes
+checking dynamic linker characteristics... GNU/Linux ld.so
+checking how to hardcode library paths into programs... immediate
+checking whether stripping libraries is possible... yes
+checking if libtool supports shared libraries... yes
+checking whether to build shared libraries... no
+checking whether to build static libraries... yes
+checking for x86_64-linux-musl-windres... no
+checking for windres... no
+checking if library symbol versioning should be used... no
+
+Initializing gettext:
+checking whether NLS is requested... yes
+checking for msgfmt... no
+checking for gmsgfmt... :
+checking for xgettext... no
+checking for msgmerge... no
+checking for ld... /cross_root/x86_64-linux-musl/bin/ld -m elf_x86_64
+checking if the linker (/cross_root/x86_64-linux-musl/bin/ld -m elf_x86_64) is GNU ld... yes
+checking for shared library run path origin... done
+checking 32-bit host C ABI... no
+checking for ELF binary format... yes
+checking for the common suffixes of directories in the library search path... lib,lib,lib64
+checking for CFPreferencesCopyAppValue... no
+checking for CFLocaleCopyPreferredLanguages... no
+checking for GNU gettext in libc... yes
+checking whether to use NLS... yes
+checking where the gettext function comes from... libc
+
+System headers and functions:
+checking for fcntl.h... yes
+checking for limits.h... yes
+checking for sys/time.h... yes
+checking for immintrin.h... yes
+checking for cpuid.h... yes
+checking for _Bool... yes
+checking for stdbool.h that conforms to C99 or later... yes
+checking for uint8_t... yes
+checking for uint16_t... yes
+checking for int32_t... yes
+checking for uint32_t... yes
+checking for int64_t... yes
+checking for uint64_t... yes
+checking for uintptr_t... yes
+checking size of size_t... 8
+checking for struct stat.st_atim.tv_nsec... yes
+checking for struct stat.st_atimespec.tv_nsec... no
+checking for struct stat.st_atimensec... no
+checking for struct stat.st_uatime... no
+checking for struct stat.st_atim.st__tim.tv_nsec... no
+checking for x86_64-linux-musl-gcc option to enable large file support... none needed
+checking whether byte ordering is bigendian... no
+checking if __attribute__((__constructor__)) can be used... yes
+checking if __attribute__((__ifunc__())) can be used... no
+checking for x86_64-linux-musl-gcc options needed to detect all undeclared functions... none needed
+checking for getopt.h... yes
+checking for getopt_long... yes
+checking whether optreset is declared... yes
+checking for library containing clock_gettime... none required
+checking for clock_gettime... yes
+checking whether CLOCK_MONOTONIC is declared... yes
+checking for futimens... yes
+checking for posix_fadvise... yes
+checking whether program_invocation_name is declared... yes
+checking if __builtin_bswap16/32/64 are supported... yes
+checking if unaligned memory access should be used... yes
+checking if unsafe type punning should be used... no
+checking if __builtin_assume_aligned is supported... yes
+checking for sys/param.h... yes
+checking how to detect the amount of physical memory... sysconf
+checking for sys/param.h... (cached) yes
+checking how to detect the number of available CPU cores... sched_getaffinity
+checking whether mbrtowc and mbstate_t are properly declared... yes
+checking for wcwidth... yes
+checking whether _mm_movemask_epi8 is declared... yes
+checking if _mm_clmulepi64_si128 is usable... yes
+checking if ARM64 CRC32 instruction is usable... no
+checking for cap_rights_limit... no
+checking for pledge... no
+checking for linux/landlock.h... yes
+
+GCC extensions:
+checking whether the -Werror option is usable... yes
+checking for simple visibility declarations... yes
+checking if x86_64-linux-musl-gcc accepts -Wall... yes
+checking if x86_64-linux-musl-gcc accepts -Wextra... yes
+checking if x86_64-linux-musl-gcc accepts -Wvla... yes
+checking if x86_64-linux-musl-gcc accepts -Wformat=2... yes
+checking if x86_64-linux-musl-gcc accepts -Winit-self... yes
+checking if x86_64-linux-musl-gcc accepts -Wmissing-include-dirs... yes
+checking if x86_64-linux-musl-gcc accepts -Wshift-overflow=2... yes
+checking if x86_64-linux-musl-gcc accepts -Wstrict-overflow=3... yes
+checking if x86_64-linux-musl-gcc accepts -Walloc-zero... yes
+checking if x86_64-linux-musl-gcc accepts -Wduplicated-cond... yes
+checking if x86_64-linux-musl-gcc accepts -Wfloat-equal... yes
+checking if x86_64-linux-musl-gcc accepts -Wundef... yes
+checking if x86_64-linux-musl-gcc accepts -Wshadow... yes
+checking if x86_64-linux-musl-gcc accepts -Wpointer-arith... yes
+checking if x86_64-linux-musl-gcc accepts -Wbad-function-cast... yes
+checking if x86_64-linux-musl-gcc accepts -Wwrite-strings... yes
+checking if x86_64-linux-musl-gcc accepts -Wdate-time... yes
+checking if x86_64-linux-musl-gcc accepts -Wsign-conversion... yes
+checking if x86_64-linux-musl-gcc accepts -Wfloat-conversion... yes
+checking if x86_64-linux-musl-gcc accepts -Wlogical-op... yes
+checking if x86_64-linux-musl-gcc accepts -Waggregate-return... yes
+checking if x86_64-linux-musl-gcc accepts -Wstrict-prototypes... yes
+checking if x86_64-linux-musl-gcc accepts -Wold-style-definition... yes
+checking if x86_64-linux-musl-gcc accepts -Wmissing-prototypes... yes
+checking if x86_64-linux-musl-gcc accepts -Wmissing-declarations... yes
+checking if x86_64-linux-musl-gcc accepts -Wredundant-decls... yes
+checking if x86_64-linux-musl-gcc accepts -Wc99-compat... no
+checking if x86_64-linux-musl-gcc accepts -Wc11-extensions... no
+checking if x86_64-linux-musl-gcc accepts -Wc2x-compat... no
+checking if x86_64-linux-musl-gcc accepts -Wc2x-extensions... no
+checking if x86_64-linux-musl-gcc accepts -Wpre-c2x-compat... no
+checking if x86_64-linux-musl-gcc accepts -Warray-bounds-pointer-arithmetic... no
+checking if x86_64-linux-musl-gcc accepts -Wassign-enum... no
+checking if x86_64-linux-musl-gcc accepts -Wconditional-uninitialized... no
+checking if x86_64-linux-musl-gcc accepts -Wdocumentation... no
+checking if x86_64-linux-musl-gcc accepts -Wduplicate-enum... no
+checking if x86_64-linux-musl-gcc accepts -Wempty-translation-unit... no
+checking if x86_64-linux-musl-gcc accepts -Wflexible-array-extensions... no
+checking if x86_64-linux-musl-gcc accepts -Wmissing-variable-declarations... no
+checking if x86_64-linux-musl-gcc accepts -Wnewline-eof... no
+checking if x86_64-linux-musl-gcc accepts -Wshift-sign-overflow... no
+checking if x86_64-linux-musl-gcc accepts -Wstring-conversion... no
+
+checking that generated files are newer than configure... done
+configure: creating ./config.status
+config.status: creating Makefile
+config.status: creating po/Makefile.in
+config.status: creating lib/Makefile
+config.status: creating src/Makefile
+config.status: creating src/liblzma/Makefile
+config.status: creating src/liblzma/api/Makefile
+config.status: creating src/xz/Makefile
+config.status: creating src/xzdec/Makefile
+config.status: creating src/lzmainfo/Makefile
+config.status: creating src/scripts/Makefile
+config.status: creating tests/Makefile
+config.status: creating debug/Makefile
+config.status: creating src/scripts/xzdiff
+config.status: creating src/scripts/xzgrep
+config.status: creating src/scripts/xzmore
+config.status: creating src/scripts/xzless
+config.status: creating config.h
+config.status: executing depfiles commands
+config.status: executing libtool commands
+config.status: executing po-directories commands
+config.status: creating po/POTFILES
+config.status: creating po/Makefile
+config.status: executing build-to-host commands
+make  all-recursive
+make[1]: Entering directory '/usr/src/xz-v5.6.0'
+Making all in src
+make[2]: Entering directory '/usr/src/xz-v5.6.0/src'
+Making all in liblzma
+make[3]: Entering directory '/usr/src/xz-v5.6.0/src/liblzma'
+Making all in api
+make[4]: Entering directory '/usr/src/xz-v5.6.0/src/liblzma/api'
+make[4]: Nothing to be done for 'all'.
+make[4]: Leaving directory '/usr/src/xz-v5.6.0/src/liblzma/api'
+make[4]: Entering directory '/usr/src/xz-v5.6.0/src/liblzma'
+  CC       liblzma_la-tuklib_physmem.lo
+  CC       liblzma_la-tuklib_cpucores.lo
+  CC       liblzma_la-common.lo
+  CC       liblzma_la-block_util.lo
+  CC       liblzma_la-easy_preset.lo
+  CC       liblzma_la-filter_common.lo
+  CC       liblzma_la-hardware_physmem.lo
+  CC       liblzma_la-index.lo
+  CC       liblzma_la-stream_flags_common.lo
+  CC       liblzma_la-string_conversion.lo
+  CC       liblzma_la-vli_size.lo
+  CC       liblzma_la-hardware_cputhreads.lo
+  CC       liblzma_la-outqueue.lo
+  CC       liblzma_la-alone_encoder.lo
+  CC       liblzma_la-block_buffer_encoder.lo
+  CC       liblzma_la-block_encoder.lo
+  CC       liblzma_la-block_header_encoder.lo
+  CC       liblzma_la-easy_buffer_encoder.lo
+  CC       liblzma_la-easy_encoder.lo
+  CC       liblzma_la-easy_encoder_memusage.lo
+  CC       liblzma_la-filter_buffer_encoder.lo
+  CC       liblzma_la-filter_encoder.lo
+  CC       liblzma_la-filter_flags_encoder.lo
+  CC       liblzma_la-index_encoder.lo
+  CC       liblzma_la-stream_buffer_encoder.lo
+  CC       liblzma_la-stream_encoder.lo
+  CC       liblzma_la-stream_flags_encoder.lo
+  CC       liblzma_la-vli_encoder.lo
+  CC       liblzma_la-stream_encoder_mt.lo
+  CC       liblzma_la-microlzma_encoder.lo
+  CC       liblzma_la-alone_decoder.lo
+  CC       liblzma_la-auto_decoder.lo
+  CC       liblzma_la-block_buffer_decoder.lo
+  CC       liblzma_la-block_decoder.lo
+  CC       liblzma_la-block_header_decoder.lo
+  CC       liblzma_la-easy_decoder_memusage.lo
+  CC       liblzma_la-file_info.lo
+  CC       liblzma_la-filter_buffer_decoder.lo
+  CC       liblzma_la-filter_decoder.lo
+  CC       liblzma_la-filter_flags_decoder.lo
+  CC       liblzma_la-index_decoder.lo
+  CC       liblzma_la-index_hash.lo
+  CC       liblzma_la-stream_buffer_decoder.lo
+  CC       liblzma_la-stream_decoder.lo
+  CC       liblzma_la-stream_flags_decoder.lo
+  CC       liblzma_la-vli_decoder.lo
+  CC       liblzma_la-stream_decoder_mt.lo
+  CC       liblzma_la-microlzma_decoder.lo
+  CC       liblzma_la-lzip_decoder.lo
+  CC       liblzma_la-check.lo
+  CC       liblzma_la-crc32_table.lo
+  CC       liblzma_la-crc32_fast.lo
+  CC       liblzma_la-crc64_table.lo
+  CC       liblzma_la-crc64_fast.lo
+  CC       liblzma_la-sha256.lo
+  CC       liblzma_la-lz_encoder.lo
+  CC       liblzma_la-lz_encoder_mf.lo
+  CC       liblzma_la-lz_decoder.lo
+  CC       liblzma_la-lzma_encoder_presets.lo
+  CC       liblzma_la-lzma_encoder.lo
+  CC       liblzma_la-lzma_encoder_optimum_fast.lo
+  CC       liblzma_la-lzma_encoder_optimum_normal.lo
+  CC       liblzma_la-fastpos_table.lo
+  CC       liblzma_la-lzma_decoder.lo
+  CC       liblzma_la-lzma2_encoder.lo
+  CC       liblzma_la-lzma2_decoder.lo
+  CC       liblzma_la-price_table.lo
+  CC       liblzma_la-delta_common.lo
+  CC       liblzma_la-delta_encoder.lo
+  CC       liblzma_la-delta_decoder.lo
+  CC       liblzma_la-simple_coder.lo
+  CC       liblzma_la-simple_encoder.lo
+  CC       liblzma_la-simple_decoder.lo
+  CC       liblzma_la-x86.lo
+  CC       liblzma_la-powerpc.lo
+  CC       liblzma_la-ia64.lo
+  CC       liblzma_la-arm.lo
+  CC       liblzma_la-armthumb.lo
+  CC       liblzma_la-arm64.lo
+  CC       liblzma_la-sparc.lo
+  CC       liblzma_la-riscv.lo
+  PC       liblzma.pc
+  CCLD     liblzma.la
+make[4]: Leaving directory '/usr/src/xz-v5.6.0/src/liblzma'
+make[3]: Leaving directory '/usr/src/xz-v5.6.0/src/liblzma'
+Making all in xzdec
+make[3]: Entering directory '/usr/src/xz-v5.6.0/src/xzdec'
+  CC       xzdec-xzdec.o
+  CC       xzdec-tuklib_progname.o
+  CC       xzdec-tuklib_exit.o
+xzdec.c: In function ‘sandbox_enter’:
+xzdec.c:329:36: error: ‘SYS_landlock_create_ruleset’ undeclared (first use in this function)
+  329 |         int landlock_abi = syscall(SYS_landlock_create_ruleset,
+      |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+xzdec.c:329:36: note: each undeclared identifier is reported only once for each function it appears in
+xzdec.c:349:29: error: ‘SYS_landlock_restrict_self’ undeclared (first use in this function)
+  349 |                 if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
+      |                             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+make[3]: *** [Makefile:606: xzdec-xzdec.o] Error 1
+make[3]: *** Waiting for unfinished jobs....
+make[3]: Leaving directory '/usr/src/xz-v5.6.0/src/xzdec'
+make[2]: *** [Makefile:427: all-recursive] Error 1
+make[2]: Leaving directory '/usr/src/xz-v5.6.0/src'
+make[1]: *** [Makefile:597: all-recursive] Error 1
+make[1]: Leaving directory '/usr/src/xz-v5.6.0'
+make: *** [Makefile:487: all] Error 2
+```",FILE
+commented,JiaT75,2024-02-26T11:49:03Z,"Hello! Thanks for the bug report and build logs. Luckily, the workaround for this is very simple. With Autotools build, you can pass the flag `--disable-sandbox` to `configure`. With CMake, pass `-DENABLE_SANDBOX=OFF`.
+
+The underlying problem here is that we assumed having the `linux/landlock.h` header file meant that the system would also have `SYS_landlock_create_ruleset` and `SYS_landlock_restrict_self` defined in `sys/syscall.h`. So the fix on our side is to add checks for these system calls before setting `HAVE_LINUX_LANDLOCK_H` during configurations. ",['abcfy2']
+commented,JiaT75,2024-02-26T15:30:19Z,Added a [commit to master](https://github.com/tukaani-project/xz/commit/328c52da8a2bbb81307644efdb58db2c422d9ba7) for this. Let us know if this solves the problem!,['abcfy2']
+commented,hsk17,2024-02-26T17:17:09Z,"yes,  ""./autogen.sh;./configure;make;make check"" successful :-)
+
+thanks for the quick resolution",['JiaT75']
+commented,hsk17,2024-02-26T17:20:58Z,"any road map / time line, when a release containing the fix could be available?",['JiaT75']
+commented,JiaT75,2024-02-27T12:24:35Z,"
+We don't have an exact date yet for the next release (5.6.1) since we want to wait for more possible bug reports to come in. It should only be a few weeks though :)
+
+For this problem, if you need to use the 5.6.0 release you can just add `--disable-sandbox` to the `configure` command. You will not be missing out on the sandbox feature unnecessarily because unfortunately your system cannot support this feature until your system call definitions include `SYS_landlock_create_ruleset` and `SYS_landlock_restrict_self`.",['hsk17']
+commented,hsk17,2024-02-27T12:49:17Z,"ok, it is not urgent for me.
+thanks for your elaboration on sandbox and the SYS_landlock_... calls.",['JiaT75']
+commented,JiaT75,2024-03-11T14:37:01Z,We left this open so others could see this was a known bug. Closing now since the fix is included in 5.6.1. Thank you to everyone for reporting this and verifying it works now :),['hsk17']

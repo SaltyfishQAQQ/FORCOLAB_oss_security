@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Sam James,Jia Tan,pr_22.csv,What happened with this in the end?,neutral,-0.06110102357342839
+Sam James,Jia Tan,pr_77.csv,"
+Unfortunately, I have an arm64 machine without crc32, but it is an odd one ([X-Gene Mudan](https://en.wikichip.org/wiki/apm/x-gene/apm883408-x1)).",negative,-0.952393734594807

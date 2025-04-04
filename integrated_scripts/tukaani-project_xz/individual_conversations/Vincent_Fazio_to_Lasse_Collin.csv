@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+Vincent Fazio,Lasse Collin,pr_32.csv,I can try testing a build of your commit sans patch to see if it works sometime next week,neutral,0.03181056631729007
+Vincent Fazio,Lasse Collin,pr_32.csv,"GCC discussion
+
+https://gcc.gnu.org/pipermail/gcc/2023-February/240747.html",neutral,0.008322778157889843

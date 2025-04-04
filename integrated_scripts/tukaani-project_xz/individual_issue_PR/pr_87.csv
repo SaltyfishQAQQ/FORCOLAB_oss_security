@@ -1,0 +1,41 @@
+event,from,created_at,body,to
+thread_started,ivq,2024-02-25T14:16:11Z,"## Pull request checklist
+
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [ ] Build was run locally and without warnings or errors
+- [ ] All previous and new tests pass
+
+
+## Pull request type 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [x] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+The RISC-V filter option should be listed in the man page but not.
+
+
+## What is the new behavior?
+List the RISC-V filter.
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+
+## Other information
+
+The translation is not handled yet.
+Currently running po4a/update-po upon commit 5d8d915ebe2e345820a0f54d1baf8d7d4824c0c7 generates changes of over 455 lines and I'm sure sure if they are really needed. Plus, I'm not familiar with the po4a tools so help is needed. ",['ivq']
+commented,JiaT75,2024-02-26T12:20:07Z,"Thanks for the PR! This was indeed forgotten. There is no need to worry about the translations. Those are handled by the [Translation Project](https://translationproject.org/domain/xz-man.html).
+
+I don't think anything else is needed for this PR, so when you are satisfied with the PR you can mark it Ready for review :)",['ivq']

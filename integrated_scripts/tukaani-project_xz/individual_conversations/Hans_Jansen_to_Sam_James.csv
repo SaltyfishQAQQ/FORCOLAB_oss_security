@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Hans Jansen,Sam James,pr_77.csv,"Over the holidays I got an odroid which has the crc instruction and pmull, so I have been working on an arm64 clmul implementation for crc32 and crc64. I have compared this to my implementation with clmul and found that the performance is similar to mine for smaller inputs, but becomes faster the larger the input size. From what I have found it seems like the arm64 crc instruction is also more supported than the pmull instruction that the clmul implementation depends on.
+
+I will look into seeing how commonly supported the crc instruction and pmull are, and if runtime checks would be necessary. I have already run into cases where pmull has not been supported so it is likely we would need runtime check if we wanted to include crc64 clmul. The speed increase of crc clmul and the crc instruction were both very significant for larger bytes. The crc64 clmul reached up to 3 times as fast for these inputs.
+
+I still need to clean up my code and remove the crc32 clmul so I can make a pr for it after this is resolved.",positive,0.32279258966445923

@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Jia Tan,Chien Wong,pr_87.csv,"Thanks for the PR! This was indeed forgotten. There is no need to worry about the translations. Those are handled by the [Translation Project](https://translationproject.org/domain/xz-man.html).
+
+I don't think anything else is needed for this PR, so when you are satisfied with the PR you can mark it Ready for review :)",positive,0.962089046719484

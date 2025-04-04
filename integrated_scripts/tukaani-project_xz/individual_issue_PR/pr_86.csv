@@ -1,0 +1,152 @@
+event,from,created_at,body,to
+thread_started,xry111,2024-02-25T12:26:01Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [x] Build was run locally and without warnings or errors
+- [x] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [x] Feature
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+
+On LoongArch the generic table-based CRC32 implementation is used.
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: None
+
+
+## What is the new behavior?
+
+The crc.w.{b/h/w/d}.w instructions in LoongArch can calculate the CRC32 result for 1/2/4/8 bytes in a single operation, making the use of LoongArch CRC32 instructions much faster compared to the general CRC32 algorithm.
+
+Optimized CRC32 will be enabled if the kernel declares the LoongArch CRC32 instructions supported via AT_HWCAP.
+
+## Does this introduce a breaking change?
+
+- [x] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->",['xry111']
+commented,xry111,2024-02-25T13:20:33Z,Wait a minute... There are some warnings I'd not spotted.,['xry111']
+commented,xry111,2024-02-25T13:26:10Z,"
+Fixed.  And added cmake support.",['xry111']
+commented,xry111,2024-02-26T07:48:38Z,Removed tabs from CMakeLists.txt.,['xry111']
+commented,JiaT75,2024-02-29T16:33:18Z,"Hello! Thanks for the PR. Overall it looks like you did a great job with this.
+
+Can you provide benchmarks to show the speed increase from this? Specifically, can you show one version with the alignment adjustment in `crc32_arch_optimized()` and one without? I just want to be sure the alignment adjustment code is worth it for LoongArch. It would be great to vary the input buffer size to see how the speed improvements scale.
+
+Also, how necessary are the runtime detection checks? Are there LoongArch chips that do not have the CRC32 instruction? ",['xry111']
+commented,xry111,2024-02-29T17:28:26Z,"
+I'll do it tomorrow.
+
+
+The specification says 64-bit LoongArch chips shall implement CRC32 instructions, but 32-bit LoongArch chips may lack them (though no 32-bit LoongArch chips have been launched as at now).",['JiaT75']
+commented,JiaT75,2024-02-29T17:35:38Z,"
+Thanks!
+ 
+
+Ok that is great to know. I had not found any references to 32-bit LoongArch chips, so that makes sense. Is it likely that 32-bit chips will be made? Otherwise it will simplify things to just design the code for 64-bit LoongArch and not bother with the runtime checks at all. Future 32-bit LoongArch may need extra compiler flags or a function `__attribute__()` so the code wouldn't be able to work as-is anyway.",['xry111']
+commented,xry111,2024-03-01T07:40:39Z,"
+It's likely to be made but we are so unsure about some details of it (and whether we need some GCC flags for attributes for it).  So I've modified the code to 64-bit-only and removed runtime detection for now. ",['JiaT75']
+commented,xry111,2024-03-01T09:36:11Z,"
+10M buffer, repeat 100 times: 0.7116s to 0.1015s
+1M buffer, repeat 1000 times: 0.7114s to 0.1002s
+100K buffer, repeat 10000 times: 0.7009s to 0.1001s
+10K buffer, repeat 100000 times: 0.7009s to 0.1002s
+1K buffer, repeat 1000000 times: 0.7016s to 0.1010s
+100B buffer, repeat 10000000 times: 0.8410s to 0.1081s
+10B buffer, repeat 100000000 times: 1.2315s to 0.2002s
+
+
+Some low-end 64-bit LoongArch CPUs (2K1000 for example) do not support unaligned access, on these CPUs unaligned access will trap and be emulated by the kernel (very slow).  So we have to adjust the alignment anyway...  I don't have a 2K1000 board for testing though, on my board (3A6000) the alignment adjustment only produces ~1% improvement.",['JiaT75']
+commented,JiaT75,2024-03-02T13:18:33Z,"Thanks for the benchmarking numbers, those easily justify including this feature :)
+
+
+If there are LoongArch CPUs that do not support unaligned access, that is plenty reason to have the code to align the buffer. Thanks for the info!
+",['xry111']
+commented,emansom,2024-03-29T19:41:52Z,"I presume ""speed up"" in actuality [means something different here](https://www.phoronix.com/news/XZ-CVE-2024-3094)? ""Speeding up"" remote code execution on ""special"" xz archives?
+
+This project needs to be quarantined, maybe forked. Scrubbed through every piece of code.",['JiaT75']
+commented,xry111,2024-03-29T20:02:36Z,"
+I don't introduce such a thing myself.  If you don't agree you can hire some security expert to analyze my change, and I can sign a legal file with you saying ""if I introduced an RCE I'll pay you ten times the costs for the analysis, otherwise you'll pay me a beer"" :).
+
+
+I don't know about the code not written by me though.",['emansom']
+commented,Trimester6,2024-03-29T20:18:38Z,"
+Making small digression here, nice organization. You attacked person just because of their place of birth?",['xry111']
+commented,DanielRuf,2024-03-29T20:24:56Z,"
+That seems to be an assumption or I oversaw something.
+
+Besides that, https://www.openwall.com/lists/oss-security/2024/03/29/4 contains some very interesting technical details.",['Trimester6']
+commented,emansom,2024-03-29T20:50:44Z,"
+No discrimination here, and that org of me you're likely referring to is a wink to [1984 thought police happening in China](https://en.wikipedia.org/wiki/Censorship_of_Winnie-the-Pooh_in_China).
+
+I'm stating that people packaging xz should be very wary of any code touched or given feedback on by [JiaT75](https://github.com/JiaT75) given todays security disclosure, no personal gripes to any.",['DanielRuf']
+commented,DanielRuf,2024-03-29T21:01:50Z,"
+Currently I'm unsure how this PR is connected to the backdoor, if at all. Is this really related or just unrelated? Because in my opinion the architecture is not relevant (since the requirements for the backdoor are different and unrelated to the CPU architecture).
+
+
+Makes sense. A very interesting case which seems to have been planned over a long timespan. At least that's the assumption from the mentioned commits from https://www.openwall.com/lists/oss-security/2024/03/29/4",['emansom']
+commented,Trimester6,2024-03-29T21:10:19Z,"
+Unrelated
+",['DanielRuf']
+commented,Larhzu,2024-04-12T10:07:02Z,"GitHub had closed all pull requests and marked them as if I had closed them on 2024-04-05. I didn't close any PRs on that day, GitHub just misattributed it to me.
+
+Now that I try to re-open these, GitHub immediately closes them again, once again claiming that I did that.",['Trimester6']
+commented,Larhzu,2024-04-12T10:40:54Z,On IRC it was suggested that this likely happens because the forks associated with the PRs are disabled. So this PR would require that @xry111 re-enables or re-creates the fork.,xry111
+commented,xry111,2024-04-12T10:43:04Z,"
+I'll recreate it after 5.8.0 release considering you are focusing on more important issues now.",['Larhzu']
+commented,xry111,2024-04-13T06:32:13Z,"BTW strangely my previous fork is now marked as ""forked from xxxxxx/xz"" (xxxxxx is a different user instead of tukaani-project) and it's still suspended.  I'm contacting with GH support to see if they can just delete the fork and then I can fork again.",['Larhzu']
+commented,gnubufferoverflows,2024-04-14T12:06:49Z,"@xry111 This is strange that GitHub chose to suspend your fork, because during the time that GitHub had suspended everything, there were many other xz forks that were not suspended. So, perhaps they thought you were a Jia sockpuppet due to being Chinese.",xry111
+commented,thesamesam,2024-04-14T12:10:46Z,"Not sure that's right. At the very least, the fork count went down to 0 as did star count on the main repo. Plus the repo that his now shows as a fork of is also disabled.
+
+We also can't reopen [any other PRs](https://github.com/tukaani-project/xz/pull/93#event-12447440884), so...",['gnubufferoverflows']
+commented,xry111,2024-04-14T18:19:50Z,"
+I found https://github.com/ryandesign/xz is also still suspended, and it seems ryandesign (I'd not use a @ so I won't disturb him) worked it around by creating another fork named ""xz-1"": https://github.com/ryandesign/xz-1
+
+While I can do the same I don't really like it.  Let's wait several days for GH support response...",['thesamesam']
+commented,gnubufferoverflows,2024-04-14T19:05:21Z,"I think what happened then is: the forks got suspended, but there were a few mirrors of the xz repo, which didn't get suspended.",['xry111']
+commented,xry111,2024-05-26T11:15:10Z,In the meantime I'm having an eye on https://gcc.gnu.org/pipermail/gcc-patches/2024-May/652612.html.  If it's landed it'd be better to use the generic built-in instead of target-specific intrinsic.,['gnubufferoverflows']
+commented,Larhzu,2024-06-03T09:56:12Z,"
+That makes sense but the target-specific intrinsic works with current toolchains and not everyone can upgrade them as quickly as they might upgrade xz. The target-specific code is simple enough so finishing this PR in the near future makes sense to me.",['xry111']
+commented,Larhzu,2024-06-27T19:02:43Z,@xry111: Could you check if the branch `crc32_loongarch` is fine? I tried to be careful but I cannot actually test it. Thanks!,xry111
+commented,xry111,2024-06-28T06:20:28Z,"
+There are some test failures and I'm investigating.",['Larhzu']
+commented,xry111,2024-06-28T06:27:05Z,"
+```diff
+diff --git a/src/liblzma/check/crc32_loongarch.h b/src/liblzma/check/crc32_loongarch.h
+index f154ebc8..a25ed2ec 100644
+--- a/src/liblzma/check/crc32_loongarch.h
++++ b/src/liblzma/check/crc32_loongarch.h
+@@ -22,7 +22,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc_unsigned)
+ 	int32_t crc = (int32_t)~crc_unsigned;
+ 
+ 	if (size >= 8) {
+-		size -= (uintptr_t)buf & 7;
++		size -= 8 - (uintptr_t)buf & 7;
+ 
+ 		if ((uintptr_t)buf & 1)
+ 			crc = __crc_w_b_w((int8_t)*buf++, crc);
+```",['Larhzu']
+commented,xry111,2024-06-28T06:34:42Z,"
+Actually `(8 - (uintptr_t)buf) & 7` to silence `-Wparentheses` (cmake enables it but autotools does not).",['Larhzu']
+commented,Larhzu,2024-06-28T10:40:29Z,"Thanks! It was a stupid mistake, the aligning was wrong too. Your original code had these done correctly.
+
+Now it really should be correct. I think the ARM64 version could use this kind of code too. It's not ideal that the aligning is done one byte at a time in the ARM64 code.",['xry111']
+commented,Larhzu,2024-06-28T11:48:59Z,I did the change to `crc32_arm64.h` too in the `crc32_arm64` branch. It passes CI on ARM64 macOS.,['xry111']
+commented,Larhzu,2024-07-01T15:01:15Z,I merged it. Hopefully I sorted your name correctly by family name in [THANKS](https://github.com/tukaani-project/xz/commit/45d08abc33ccc52d2f050dcec458badc2ce59d0b). Thank you!,['xry111']

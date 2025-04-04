@@ -1,0 +1,11 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Xin Li,pr_43.csv,"I fully agree with your reasoning. A warning message would also break `make check` in test_scripts.sh.
+
+I merged JiaT75's commits to master which remove the warning message and the changing of the exit status. Now master is effectively quite similar to what capsicum_improvements was except that master checks for ENOSYS for all `cap_*` calls.
+
+I squashed the commits to the v5.4 branch already for 5.4.2. It will be in 5.2.11 too.
+
+I think this issue should now have been solved. Thanks!
+
+Also thanks for updating the cap_*(2) man pages!",positive,0.21262484043836594
+Lasse Collin,Xin Li,pr_43.csv,"In contrast to v5.4, v5.2 (and thus 5.2.10) don't exit if enabling the sandbox fails. v5.2 only displays a message if double-verbose (`xz -vv`). The new stricter behavior was intentionally not backported to v5.2 since it seemed a risky change. So that's why the problem didn't appear until 5.4.x got into FreeBSD. I will discuss with JiaT75, perhaps it's best to not change the Capsicum code in v5.2 at all, we'll see.",negative,-0.268846170976758

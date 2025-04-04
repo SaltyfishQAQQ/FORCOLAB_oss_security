@@ -1,0 +1,61 @@
+event,from,created_at,body,to
+thread_started,nika-begiashvili,2024-01-05T10:03:45Z,"### Describe the bug
+
+After updating to v5.2.12 it seems --disable-assembler flag is not fully affecting liblzma  
+
+compiler is not standard but for this case it can be considered as clang, also tried v5.2.11 and it's working fine so I'm guessing it must be a configuration changes between these two versions
+
+### Version
+
+v5.2.12
+
+### Operating System
+
+docker/ubuntu:jammy
+
+### Relevant log output
+
+```shell
+22.71 make[3]: Entering directory '/opt/xz-5.2.12/src/liblzma'
+22.71 /bin/bash ../../libtool  --tag=CC   --mode=compile /emsdk/upstream/emscripten/emcc -DHAVE_CONFIG_H -I. -I../..  -I../../src/liblzma/api -I../../src/liblzma/common -I../../src/liblzma/check -I../../src/liblzma/lz -I../../src/liblzma/rangecoder -I../../src/liblzma/lzma -I../../src/liblzma/delta -I../../src/liblzma/simple -I../../src/common -DTUKLIB_SYMBOL_PREFIX=lzma_ -I/usr/local/include/ -I/opt/zlib-1.3 -I/opt/bzip2-1.0.8 -I/opt/openssl-1.0.2s/include -I/opt/openssl-1.0.2s/test -fvisibility=hidden -Wall -Wextra -Wvla -Wformat=2 -Winit-self -Wmissing-include-dirs -Wstrict-aliasing -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wmissing-noreturn -Wredundant-decls -g -O2 -MT liblzma_la-common.lo -MD -MP -MF .deps/liblzma_la-common.Tpo -c -o liblzma_la-common.lo `test -f 'common/common.c' || echo './'`common/common.c
+22.76 libtool: compile:  /emsdk/upstream/emscripten/emcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/liblzma/api -I../../src/liblzma/common -I../../src/liblzma/check -I../../src/liblzma/lz -I../../src/liblzma/rangecoder -I../../src/liblzma/lzma -I../../src/liblzma/delta -I../../src/liblzma/simple -I../../src/common -DTUKLIB_SYMBOL_PREFIX=lzma_ -I/usr/local/include/ -I/opt/zlib-1.3 -I/opt/bzip2-1.0.8 -I/opt/openssl-1.0.2s/include -I/opt/openssl-1.0.2s/test -fvisibility=hidden -Wall -Wextra -Wvla -Wformat=2 -Winit-self -Wmissing-include-dirs -Wstrict-aliasing -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wmissing-noreturn -Wredundant-decls -g -O2 -MT liblzma_la-common.lo -MD -MP -MF .deps/liblzma_la-common.Tpo -c common/common.c  -fPIC -DPIC -o .libs/liblzma_la-common.o
+22.87 <inline asm>:1:1: error: unknown directive
+22.87     1 | .symver lzma_get_progress_522,lzma_get_progress@XZ_5.2.2
+22.87       | ^
+22.87 <inline asm>:2:1: error: unknown directive
+22.87     2 | .symver lzma_get_progress_52,lzma_get_progress@@XZ_5.2
+22.87       | ^
+22.89 2 errors generated.
+```",XZ_5
+commented,JiaT75,2024-01-05T13:17:51Z,"Hello!
+
+There were no changes to any of the assembly related code between `5.2.11` and `5.2.12`. I see you are using `emscripten`, so I was able to recreate your error on both `5.2.11` and `5.2.12` using:
+
+```bash
+emconfigure ./configure
+make
+```
+
+```shell
+<inline asm>:1:1: error: unknown directive
+.symver lzma_get_progress_522,lzma_get_progress@XZ_5.2.2
+^
+<inline asm>:2:1: error: unknown directive
+.symver lzma_get_progress_52,lzma_get_progress@@XZ_5.2
+^
+```
+
+So the problem isn't a difference between `5.2.11` and `5.2.12`. Also, unless you are building on 32-bit x86 the `disable-assembler` flag has no effect. In order to build, you need to pass the `disable-symbol-versions` flag.
+
+```bash
+emconfigure ./configure --disable-symbol-versions
+make
+```
+
+The underlying issue here is that `emcc` (and I believe WebAssembly in general) does not support symbol versioning so it needs to be manually disabled. `emconfigure` does not change the underlying `$host_os` or `$host_cpu` so `configure` will guess that symbol versioning is supported on GNU or FreeBSD systems.",XZ_5
+commented,nika-begiashvili,2024-01-06T17:34:27Z,"Hi,
+
+Strangely 5.2.11 works for me [here's my docker file](https://github.com/nika-begiashvili/libarchivejs/blob/v2/lib/tools/docker/Dockerfile)",['JiaT75']
+commented,JiaT75,2024-01-08T13:44:06Z,"Thanks for sharing your Dockerfile. The reason that 5.2.11 ""works"" is because there was a bug when disabling threads. See [this issue](https://github.com/tukaani-project/xz/issues/45). The bug was fixed in 5.2.12, so with your `configure` options you are building shared libraries again. So you can use `--disable-shared` instead of `--enable-static=yes` and this will disable symbol versioning as a side effect (symbol versioning is only enabled when building a shared library). Or, if you actually want a shared library, you can use `--disable-symbol-versions` as I mentioned before.
+
+Hope this helps!",['nika-begiashvili']

@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+Noah Leick,Michael Cook (mackal),issue_92.csv,"
+Lmao, a good chunk of my system is going to need to be rebuilt. Gentoo downgraded [app-arch/xz-utils](https://packages.gentoo.org/packages/app-arch/xz-utils) to 5.4.6-r1.
+
+Edit: Did not know that xz-utils is not statically linked",negative,-0.701874416321516

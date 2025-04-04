@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Daniel Ruf,David Chalmers,issue_92.csv,"The code checks for linux and x86-64 as architecture according to Andres Freund (see https://www.openwall.com/lists/oss-security/2024/03/29/4).
+
+Apple has a different architecture.",neutral,0.024580257013440132

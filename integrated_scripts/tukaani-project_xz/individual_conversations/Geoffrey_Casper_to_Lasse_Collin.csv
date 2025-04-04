@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+Geoffrey Casper,Lasse Collin,issue_81.csv,"It's hilarious that you are mentioning a Windows build for version 5.6.0, since the blackdoor added to this version would likely break builds for Windows.",negative,-0.35006846114993095

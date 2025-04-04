@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Chenxi Mao,Hans Jansen,pr_77.csv,"
+Would you please share your implementation here, I would like to double check the CRC32 speed on my side.
+For CRC32d insns, I can unroll it for larger size, e.g 4K or 16K like google did, that will be much better performance but larger  code size. ",positive,0.4941990920342505

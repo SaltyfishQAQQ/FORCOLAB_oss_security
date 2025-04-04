@@ -1,0 +1,39 @@
+from,to,file_name,message,mood,score
+Jia Tan,Gabriela Gutierrez,pr_67.csv,"Thanks for remaking the PR!
+
+Everything looks great except can you tweak your commit messages slightly? If you could prepend ""CI:"" before the first line of your commit message (""Bump and ref actions..."") that would be great. We like to do that to help search/filter commits by category. Also, in the first commit can you mention the reason why this change is needed? Something like the text from #65 could be enough:
+
+""Referencing actions by commit SHA in GitHub workflows guarantees you are using an immutable version. Actions referenced by tags and branches are more vulnerable to attacks, such as the tag being moved to a malicious commit or a malicious commit being pushed to the branch.""
+
+Or if you want to reword it at all.",positive,0.8282316555269063
+Jia Tan,Gabriela Gutierrez,pr_67.csv,It looks great! Thanks,positive,0.9904258030001074
+Jia Tan,Gabriela Gutierrez,issue_38.csv,"Hi Gabriela!
+
+Thank you for notifying us about this important security practice. I had not set the more restrictive Workflow permissions, so I have just updated the default to be read-only. Our CI tests are quite simple, so read-only is enough permissions for us.
+
+Specifying the permissions explicitly in the ci.yml file probably isn't needed now that the default permissions have been updated, but it also doesn't hurt. I suppose it will keep us safe in case GitHub updates their default permission policy. If you submit a PR to update it, I will be happy to review and accept it :)
+
+XZ Utils is still new to GitHub, so if you have any other security recommendations for us, please notify us.",positive,0.8684535091742873
+Jia Tan,Gabriela Gutierrez,pr_47.csv,"Thanks for the PR! I recently enabled GitHub's Security Advisories feature so we should list that as a reporting option. Email is the preferred option, so we should list that option first. 
+
+Can you move the SECURITY.md to the .github folder? Since this is a GitHub specific file and the rest of our documentation is .txt files, this would fit better.
+
+The 90 day timeline to fix security reports is plenty of time for us, so I think that is very reasonable for us to adhere to.",positive,0.8550699938787147
+Jia Tan,Gabriela Gutierrez,pr_47.csv,Looks great. Thanks for the contribution!,positive,0.9904953390359879
+Jia Tan,Gabriela Gutierrez,issue_65.csv,"Hello!
+
+Thanks again for the security advice. I suppose the only downside for this is not receiving potential bugfixes for the version we reference for the action. This can be mitigated by me not being lazy and subscribing to receive notifications when these repositories publish a release, so I have done that :)
+
+Feel free to provide a PR for this. I believe all that needs changing is:
+
+ci.yml
+- actions/checkout
+- actions/upload-artifact
+
+windows-ci.yml
+- actions/checkout
+- actions/upload-artifact
+- msys2/setup-msys2",neutral,0.10036209225654602
+Jia Tan,Gabriela Gutierrez,issue_65.csv,"The issues preventing Windows-CI from passing have been fixed on master. There were actually two problems, both related to Clang 17.0.1 release. If you are curious, [this](https://github.com/tukaani-project/xz/commit/0570308ddd9c0e39e85597ebc0e31d4fc81d436f) and [this](https://github.com/tukaani-project/xz/commit/01e34aa1171b04f8b28960b1cc6135a903e0c13d) are the commits. The related bugs for Clang are in the commit messages :)
+
+So feel free to continue your work on a PR now that the issues are resolved. Thanks for bringing this to our attention!",neutral,-0.0009034052491188049

@@ -1,0 +1,317 @@
+event,from,created_at,body,to
+thread_started,pmqs,2024-02-24T09:45:31Z,"### Describe the bug
+
+Downstream testing an Ubuntu build (see https://github.com/pmqs/Compress-Raw-Lzma/actions/runs/8027548262/job/21931652300)  with xz mainline is failing with the error below on 
+
+```
+CMake Error at build/cmake_install.cmake:162 (file):
+  file INSTALL cannot find ""/home/paul/git/xz/po/ca.gmo"": No such file or directory.
+```
+
+### Version
+
+mainline from github
+
+### Operating System
+
+Ubuntu 23.10
+
+### Relevant log output
+
+```shell
+$ cmake -B build --install-prefix /tmp/xz .
+-- The C compiler identification is GNU 13.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test TUKLIB_LARGE_FILE_SUPPORT_BY_DEFAULT
+-- Performing Test TUKLIB_LARGE_FILE_SUPPORT_BY_DEFAULT - Success
+-- Performing Test HAVE___BUILTIN_BSWAPXX
+-- Performing Test HAVE___BUILTIN_BSWAPXX - Success
+-- Performing Test HAVE___BUILTIN_ASSUME_ALIGNED
+-- Performing Test HAVE___BUILTIN_ASSUME_ALIGNED - Success
+-- Looking for clock_gettime
+-- Looking for clock_gettime - found
+-- Looking for CLOCK_MONOTONIC
+-- Looking for CLOCK_MONOTONIC - found
+-- Found Intl: built in to C library  
+-- Could NOT find Gettext (missing: GETTEXT_MSGMERGE_EXECUTABLE GETTEXT_MSGFMT_EXECUTABLE) 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Looking for pthread_condattr_setclock
+-- Looking for pthread_condattr_setclock - found
+-- Looking for cap_rights_limit
+-- Looking for cap_rights_limit - not found
+-- Looking for pledge
+-- Looking for pledge - not found
+-- Looking for linux/landlock.h
+-- Looking for linux/landlock.h - found
+-- Checking how to detect the number of available CPU cores
+-- Performing Test TUKLIB_CPUCORES_SCHED_GETAFFINITY
+-- Performing Test TUKLIB_CPUCORES_SCHED_GETAFFINITY - Success
+-- Checking how to detect the amount of physical memory
+-- Performing Test TUKLIB_PHYSMEM_SPECIAL
+-- Performing Test TUKLIB_PHYSMEM_SPECIAL - Failed
+-- Performing Test TUKLIB_PHYSMEM_AIX
+-- Performing Test TUKLIB_PHYSMEM_AIX - Failed
+-- Performing Test TUKLIB_PHYSMEM_SYSCONF
+-- Performing Test TUKLIB_PHYSMEM_SYSCONF - Success
+-- Performing Test HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+-- Performing Test HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR - Success
+-- Performing Test SYSTEM_SUPPORTS_IFUNC
+-- Performing Test SYSTEM_SUPPORTS_IFUNC - Success
+-- Looking for cpuid.h
+-- Looking for cpuid.h - found
+-- Looking for immintrin.h
+-- Looking for immintrin.h - found
+-- Performing Test HAVE__MM_MOVEMASK_EPI8
+-- Performing Test HAVE__MM_MOVEMASK_EPI8 - Success
+-- Performing Test HAVE_USABLE_CLMUL
+-- Performing Test HAVE_USABLE_CLMUL - Success
+-- Performing Test HAVE_ARM64_CRC32
+-- Performing Test HAVE_ARM64_CRC32 - Failed
+-- Looking for getopt_long
+-- Looking for getopt_long - found
+-- Looking for program_invocation_name
+-- Looking for program_invocation_name - found
+-- Looking for mbrtowc
+-- Looking for mbrtowc - found
+-- Looking for wcwidth
+-- Looking for wcwidth - found
+-- Looking for optreset
+-- Looking for optreset - not found
+-- Looking for posix_fadvise
+-- Looking for posix_fadvise - found
+-- Performing Test HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC
+-- Performing Test HAVE_STRUCT_STAT_ST_ATIM_TV_NSEC - Success
+-- Looking for futimens
+-- Looking for futimens - found
+-- Configuring done (12.0s)
+-- Generating done (0.2s)
+-- Build files have been written to: /home/paul/git/xz/build
+
+$ cmake --build build
+[  0%] Building C object CMakeFiles/liblzma.dir/src/common/tuklib_physmem.c.o
+[  1%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/check.c.o
+[  2%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_util.c.o
+[  2%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/common.c.o
+[  3%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/easy_preset.c.o
+[  4%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_common.c.o
+[  5%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/hardware_physmem.c.o
+[  5%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/index.c.o
+[  6%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_flags_common.c.o
+[  7%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/string_conversion.c.o
+[  8%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/vli_size.c.o
+[  8%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/crc32_fast.c.o
+[  9%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/crc32_table.c.o
+[ 10%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/crc64_fast.c.o
+[ 10%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/crc64_table.c.o
+[ 11%] Building C object CMakeFiles/liblzma.dir/src/liblzma/check/sha256.c.o
+[ 12%] Building C object CMakeFiles/liblzma.dir/src/common/tuklib_cpucores.c.o
+[ 13%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/hardware_cputhreads.c.o
+[ 13%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/outqueue.c.o
+[ 14%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/alone_encoder.c.o
+[ 15%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_buffer_encoder.c.o
+[ 16%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_encoder.c.o
+[ 16%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_header_encoder.c.o
+[ 17%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/easy_buffer_encoder.c.o
+[ 18%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/easy_encoder.c.o
+[ 18%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/easy_encoder_memusage.c.o
+[ 19%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_buffer_encoder.c.o
+[ 20%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_encoder.c.o
+[ 21%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_flags_encoder.c.o
+[ 21%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/index_encoder.c.o
+[ 22%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_buffer_encoder.c.o
+[ 23%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_encoder.c.o
+[ 24%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_flags_encoder.c.o
+[ 24%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/vli_encoder.c.o
+[ 25%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_encoder_mt.c.o
+[ 26%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/simple_encoder.c.o
+[ 27%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma_encoder.c.o
+[ 27%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma_encoder_optimum_fast.c.o
+[ 28%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma_encoder_optimum_normal.c.o
+[ 29%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lz/lz_encoder.c.o
+[ 29%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lz/lz_encoder_mf.c.o
+[ 30%] Building C object CMakeFiles/liblzma.dir/src/liblzma/rangecoder/price_table.c.o
+[ 31%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/fastpos_table.c.o
+[ 32%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma2_encoder.c.o
+[ 32%] Building C object CMakeFiles/liblzma.dir/src/liblzma/delta/delta_encoder.c.o
+[ 33%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/alone_decoder.c.o
+[ 34%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/auto_decoder.c.o
+[ 35%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_buffer_decoder.c.o
+[ 35%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_decoder.c.o
+[ 36%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/block_header_decoder.c.o
+[ 37%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/easy_decoder_memusage.c.o
+[ 37%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/file_info.c.o
+[ 38%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_buffer_decoder.c.o
+[ 39%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_decoder.c.o
+[ 40%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/filter_flags_decoder.c.o
+[ 40%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/index_decoder.c.o
+[ 41%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/index_hash.c.o
+[ 42%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_buffer_decoder.c.o
+[ 43%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_decoder.c.o
+[ 43%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_flags_decoder.c.o
+[ 44%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/vli_decoder.c.o
+[ 45%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/stream_decoder_mt.c.o
+[ 45%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/simple_decoder.c.o
+[ 46%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma_decoder.c.o
+[ 47%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lz/lz_decoder.c.o
+[ 48%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma2_decoder.c.o
+[ 48%] Building C object CMakeFiles/liblzma.dir/src/liblzma/delta/delta_decoder.c.o
+[ 49%] Building C object CMakeFiles/liblzma.dir/src/liblzma/lzma/lzma_encoder_presets.c.o
+[ 50%] Building C object CMakeFiles/liblzma.dir/src/liblzma/delta/delta_common.c.o
+[ 51%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/simple_coder.c.o
+[ 51%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/x86.c.o
+[ 52%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/arm.c.o
+[ 53%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/armthumb.c.o
+[ 54%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/arm64.c.o
+[ 54%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/powerpc.c.o
+[ 55%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/ia64.c.o
+[ 56%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/sparc.c.o
+[ 56%] Building C object CMakeFiles/liblzma.dir/src/liblzma/simple/riscv.c.o
+[ 57%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/microlzma_encoder.c.o
+[ 58%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/microlzma_decoder.c.o
+[ 59%] Building C object CMakeFiles/liblzma.dir/src/liblzma/common/lzip_decoder.c.o
+[ 59%] Linking C static library liblzma.a
+[ 59%] Built target liblzma
+[ 59%] Built target libgnu
+[ 59%] Building C object CMakeFiles/xzdec.dir/src/common/tuklib_exit.c.o
+[ 60%] Building C object CMakeFiles/xzdec.dir/src/common/tuklib_progname.c.o
+[ 61%] Building C object CMakeFiles/xzdec.dir/src/xzdec/xzdec.c.o
+[ 62%] Linking C executable xzdec
+[ 62%] Built target xzdec
+[ 63%] Building C object CMakeFiles/lzmadec.dir/src/common/tuklib_exit.c.o
+[ 64%] Building C object CMakeFiles/lzmadec.dir/src/common/tuklib_progname.c.o
+[ 65%] Building C object CMakeFiles/lzmadec.dir/src/xzdec/xzdec.c.o
+[ 65%] Linking C executable lzmadec
+[ 65%] Built target lzmadec
+[ 66%] Building C object CMakeFiles/lzmainfo.dir/src/common/tuklib_exit.c.o
+[ 67%] Building C object CMakeFiles/lzmainfo.dir/src/common/tuklib_progname.c.o
+[ 67%] Building C object CMakeFiles/lzmainfo.dir/src/lzmainfo/lzmainfo.c.o
+[ 68%] Linking C executable lzmainfo
+[ 68%] Built target lzmainfo
+[ 68%] Building C object CMakeFiles/xz.dir/src/common/tuklib_exit.c.o
+[ 69%] Building C object CMakeFiles/xz.dir/src/common/tuklib_mbstr_fw.c.o
+[ 70%] Building C object CMakeFiles/xz.dir/src/common/tuklib_mbstr_width.c.o
+[ 71%] Building C object CMakeFiles/xz.dir/src/common/tuklib_open_stdxxx.c.o
+[ 71%] Building C object CMakeFiles/xz.dir/src/common/tuklib_progname.c.o
+[ 72%] Building C object CMakeFiles/xz.dir/src/xz/args.c.o
+[ 73%] Building C object CMakeFiles/xz.dir/src/xz/coder.c.o
+[ 74%] Building C object CMakeFiles/xz.dir/src/xz/file_io.c.o
+[ 74%] Building C object CMakeFiles/xz.dir/src/xz/hardware.c.o
+[ 75%] Building C object CMakeFiles/xz.dir/src/xz/main.c.o
+[ 76%] Building C object CMakeFiles/xz.dir/src/xz/message.c.o
+[ 76%] Building C object CMakeFiles/xz.dir/src/xz/mytime.c.o
+[ 77%] Building C object CMakeFiles/xz.dir/src/xz/options.c.o
+[ 78%] Building C object CMakeFiles/xz.dir/src/xz/sandbox.c.o
+[ 79%] Building C object CMakeFiles/xz.dir/src/xz/signals.c.o
+[ 79%] Building C object CMakeFiles/xz.dir/src/xz/suffix.c.o
+[ 80%] Building C object CMakeFiles/xz.dir/src/xz/util.c.o
+[ 81%] Building C object CMakeFiles/xz.dir/src/xz/list.c.o
+[ 82%] Linking C executable xz
+[ 82%] Built target xz
+[ 83%] Building C object CMakeFiles/test_bcj_exact_size.dir/tests/test_bcj_exact_size.c.o
+[ 84%] Linking C executable tests_bin/test_bcj_exact_size
+[ 84%] Built target test_bcj_exact_size
+[ 84%] Building C object CMakeFiles/test_block_header.dir/tests/test_block_header.c.o
+[ 85%] Linking C executable tests_bin/test_block_header
+[ 85%] Built target test_block_header
+[ 86%] Building C object CMakeFiles/test_check.dir/tests/test_check.c.o
+[ 87%] Linking C executable tests_bin/test_check
+[ 87%] Built target test_check
+[ 87%] Building C object CMakeFiles/test_filter_flags.dir/tests/test_filter_flags.c.o
+[ 88%] Linking C executable tests_bin/test_filter_flags
+[ 88%] Built target test_filter_flags
+[ 89%] Building C object CMakeFiles/test_filter_str.dir/tests/test_filter_str.c.o
+[ 89%] Linking C executable tests_bin/test_filter_str
+[ 89%] Built target test_filter_str
+[ 90%] Building C object CMakeFiles/test_hardware.dir/tests/test_hardware.c.o
+[ 91%] Linking C executable tests_bin/test_hardware
+[ 91%] Built target test_hardware
+[ 92%] Building C object CMakeFiles/test_index.dir/tests/test_index.c.o
+[ 92%] Linking C executable tests_bin/test_index
+[ 92%] Built target test_index
+[ 93%] Building C object CMakeFiles/test_index_hash.dir/tests/test_index_hash.c.o
+[ 94%] Linking C executable tests_bin/test_index_hash
+[ 94%] Built target test_index_hash
+[ 95%] Building C object CMakeFiles/test_lzip_decoder.dir/tests/test_lzip_decoder.c.o
+[ 95%] Linking C executable tests_bin/test_lzip_decoder
+[ 95%] Built target test_lzip_decoder
+[ 96%] Building C object CMakeFiles/test_memlimit.dir/tests/test_memlimit.c.o
+[ 97%] Linking C executable tests_bin/test_memlimit
+[ 97%] Built target test_memlimit
+[ 98%] Building C object CMakeFiles/test_stream_flags.dir/tests/test_stream_flags.c.o
+[ 98%] Linking C executable tests_bin/test_stream_flags
+[ 98%] Built target test_stream_flags
+[ 99%] Building C object CMakeFiles/test_vli.dir/tests/test_vli.c.o
+[100%] Linking C executable tests_bin/test_vli
+[100%] Built target test_vli
+
+$ cmake --install build
+-- Install configuration: """"
+-- Installing: /tmp/xz/lib/liblzma.a
+-- Installing: /tmp/xz/include
+-- Installing: /tmp/xz/include/lzma
+-- Installing: /tmp/xz/include/lzma/filter.h
+-- Installing: /tmp/xz/include/lzma/index_hash.h
+-- Installing: /tmp/xz/include/lzma/check.h
+-- Installing: /tmp/xz/include/lzma/block.h
+-- Installing: /tmp/xz/include/lzma/delta.h
+-- Installing: /tmp/xz/include/lzma/base.h
+-- Installing: /tmp/xz/include/lzma/index.h
+-- Installing: /tmp/xz/include/lzma/stream_flags.h
+-- Installing: /tmp/xz/include/lzma/hardware.h
+-- Installing: /tmp/xz/include/lzma/container.h
+-- Installing: /tmp/xz/include/lzma/bcj.h
+-- Installing: /tmp/xz/include/lzma/vli.h
+-- Installing: /tmp/xz/include/lzma/lzma12.h
+-- Installing: /tmp/xz/include/lzma/version.h
+-- Installing: /tmp/xz/include/lzma.h
+-- Installing: /tmp/xz/lib/cmake/liblzma/liblzma-targets.cmake
+-- Installing: /tmp/xz/lib/cmake/liblzma/liblzma-targets-noconfig.cmake
+-- Installing: /tmp/xz/lib/cmake/liblzma/liblzma-config.cmake
+-- Installing: /tmp/xz/lib/cmake/liblzma/liblzma-config-version.cmake
+-- Installing: /tmp/xz/lib/pkgconfig/liblzma.pc
+-- Installing: /tmp/xz/bin/xzdec
+-- Installing: /tmp/xz/bin/lzmadec
+-- Installing: /tmp/xz/share/man/man1/xzdec.1
+-- Installing: /tmp/xz/bin/lzmainfo
+-- Installing: /tmp/xz/share/man/man1/lzmainfo.1
+CMake Error at build/cmake_install.cmake:162 (file):
+  file INSTALL cannot find ""/home/paul/git/xz/po/ca.gmo"": No such file or
+  directory.
+```",['pmqs']
+commented,pmqs,2024-02-24T10:39:29Z,Just tried with the brand new 5.6.0 release -- same issue. See https://github.com/pmqs/Compress-Raw-Lzma/actions/runs/8029997217/job/21936892044,['pmqs']
+commented,JiaT75,2024-02-24T11:19:43Z,"Thanks for the bug report! The problem here is that you do not have Gettext installed. 
+
+`-- Could NOT find Gettext (missing: GETTEXT_MSGMERGE_EXECUTABLE GETTEXT_MSGFMT_EXECUTABLE) `
+
+Perhaps we can create a better error message here, but if you do not have Gettext installed then you need to already have the .gmo files built. These are available in the source code releases, so you should be able to build from there instead of from the development repository.
+
+There are several workarounds here. The best solution is to install Gettext on your CI runner. It appears your CI runner is Ubuntu, so adding a step:
+
+```shell
+apt install gettext
+```
+
+Otherwise, you can disable NLS by setting -DENABLE_NLS=OFF when configuring with CMake.
+
+In CMakeLists.txt there is a bit of documentation about this in a comment near the beginning of the file:
+
+```
+# If building from xz.git instead of a release tarball, consider
+# the following *before* running cmake:
+#
+#   - To get translated messages, install GNU gettext tools (the
+#     command msgfmt is needed). Alternatively disable translations
+#     by setting ENABLE_NLS=OFF.
+#
+#   - To get translated man pages, run po4a/update-po which requires
+#     the po4a tool. The build works without this step too.
+```
+
+Let me know if you have further questions. I hope this helps!",['pmqs']
+commented,pmqs,2024-02-24T15:16:10Z,"Thanks, installing `gettext` in the workflow did the trick",['JiaT75']

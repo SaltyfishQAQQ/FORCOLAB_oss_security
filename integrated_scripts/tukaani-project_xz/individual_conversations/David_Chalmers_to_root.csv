@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+David Chalmers,root,issue_92.csv,"The scope is probably quite limited, but as Homebrew has rolled the package back just in case; I would update Brew. Although systemd isn't there, glibc does exist on Brew and might be present.",neutral,0.105060706846416

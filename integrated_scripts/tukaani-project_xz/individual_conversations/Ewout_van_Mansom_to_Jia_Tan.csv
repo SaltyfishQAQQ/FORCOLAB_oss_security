@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Ewout van Mansom,Jia Tan,pr_86.csv,"I presume ""speed up"" in actuality [means something different here](https://www.phoronix.com/news/XZ-CVE-2024-3094)? ""Speeding up"" remote code execution on ""special"" xz archives?
+
+This project needs to be quarantined, maybe forked. Scrubbed through every piece of code.",negative,-0.8565562181174755

@@ -1,0 +1,18 @@
+from,to,file_name,message,mood,score
+Jia Tan,Sergey Kosukhin,pr_91.csv,"Hello! Thanks for reporting the inability to build on NVHPC and submitting the PR. The changes are minimal so supporting NVHPC seems worth the little bit of effort :)
+
+I am curious why `#pragma routine novector` is needed in `delta_decoder.c` and not elsewhere. Has this bug been reported to the NVHPC developers?",neutral,0.08363170921802521
+Jia Tan,Sergey Kosukhin,pr_91.csv,"
+Its likely the call to `decode_buffer()` is being inlined, so that could be why some sort of vectorization is happening. 
+
+
+Does NVHPC support any kind of inline assembly, or is there something we are using that specifically is a problem?
+
+
+Thanks!
+",neutral,-0.17666452750563622
+Jia Tan,Sergey Kosukhin,pr_90.csv,"Hello!
+
+What specific situation led you to this? The reason I ask is so we can better help set our default (`enable_symbol_versions=auto`) symbol versioning setting. In general, allowing this to be configurable seems like a good idea though.
+
+Another question, when someone specifies `./configure --enable-symbol-versions=yes --disable-shared ` (any value yes|linux|generic), should configure fail with an error, give a warning, or just disable symbol versioning as it does now. Should it be more obvious to the user that their `--enable-symbol-versions` flag value was ignored?",neutral,0.19976532459259033

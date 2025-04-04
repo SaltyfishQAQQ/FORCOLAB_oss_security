@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Michael Catanzaro,Rayen Ouni,issue_94.csv,"Why didn't you link to the commits that you're concerned about? How is anybody to know what to do with this issue report if you don't provide any specifics?
+
+I guess you're referring to https://github.com/libarchive/libarchive/pull/1609. I'm not amazingly familiar with xz and libarchive, but pretty sure they're entirely separate. So this is just not the right issue tracker. You could report to libarchive instead, but even then, first consider whether there is really anything wrong with the changes. Certainly attackers cannot control the output of `strerror()` so there's nothing wrong there. Haven't checked `archive_error_string()`; looks like that could maybe contain attacker-controlled filesystem paths?",negative,-0.7980391348246485

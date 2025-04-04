@@ -1,0 +1,40 @@
+from,to,file_name,message,mood,score
+Hans Jansen,Jia Tan,pr_64.csv,I have made all of the changes listed above. I am also planning to work on implementations for arm versions of crc32_clmul and crc64_clmul after this is finished.,positive,0.23036302300170064
+Hans Jansen,Jia Tan,pr_64.csv,"
+Thank you for the update, and I agree that it should not be much extra work to incorporate the changes into the code I have already written. ",positive,0.6768494131974876
+Hans Jansen,Jia Tan,pr_64.csv,"
+I tested the difference that using GCC and Clang made in general and found that when using Clang instead of GCC there was negligible difference.
+
+The difference that using GCC and Clang made on the inline assembly was a 2% increase on GCC and 1% or less for Clang. Since this increase is not very significant I can get rid of the changes if you would like.
+
+Replacing CRC_SIMD_BODY with an inline function had no change to the runtime. Ill upload the Inline function as an extra commit, and squash it once you decide which one you like better.",neutral,0.04287799820303917
+Hans Jansen,Jia Tan,pr_77.csv,"
+I tested your code and found a problem with the crc32_arch_optimized function. the updated function below should fix this.
+
+I made two changes to this function. First was making align_amount the difference from 8 instead of just the remainder. I also xor this with 8 so buf_end does not change if it is already properly aligned. The second thing was changing __crc32w to __crc32d.
+```c
+crc_attr_target
+static uint32_t
+crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
+{
+	crc = ~crc;
+
+	// Align the input buffer because this was shown to be
+	// significantly faster than unaligned accesses.
+	const size_t align_amount = my_min(size, ((8-((uintptr_t)(buf) & 7))^8));
+	const uint8_t *buf_end = buf + align_amount;
+
+	for (; buf < buf_end; ++buf)
+		crc = __crc32b(crc, *buf);
+
+	for (buf_end = ((size - align_amount) - 8) + buf; buf < buf_end;
+			buf += 8)
+		crc = __crc32d(crc, aligned_read64le(buf));
+
+	for (buf_end += 8; buf < buf_end; ++buf)
+		crc = __crc32b(crc, *buf);
+
+	return ~crc;
+}
+```",neutral,-0.047038037329912186
+Hans Jansen,Jia Tan,pr_64.csv,"While working on implementing arm support for crc_clmul I found that the processor I am using does not have support for PMULL. I am not going to continue work on this at the moment since the devices I have can't test my code, but I might continue later if I get hardware that supports this.",negative,-0.8836772311478853

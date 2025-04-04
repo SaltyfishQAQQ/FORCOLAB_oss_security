@@ -1,0 +1,81 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Agostino Sarubbo,issue_62.csv,"Thanks!
+
+It's fixed in the master branch now. The problem is that `crc64_clmul` uses 16-byte-aligned reads and this unavoidably trips the address sanitizer. The CI builds used `-fsanitize=address` but ci.yml worked around the problem with `--disable-clmul-crc`. Now there is `__attribute__((__no_sanitize_address__))` so the workaround isn't needed anymore.
+
+After 5.4.x (including the current master branch) you will need `--disable-ifunc` to make `-fsanitize=address` work. This is because `__attribute__((__ifunc(..)))` isn't compatible with address sanitizer. See [this](https://sourceware.org/glibc/wiki/GNU_IFUNC), search for ""asan"". The ifunc code likely won't be included in 5.4.x releases.",neutral,0.11385992169380188
+Lasse Collin,Agostino Sarubbo,issue_89.csv,"
+I realized only now what made you ask this question. :-( At the default
+verbosity level, the message only tells what the limit is but not how
+much is needed. One needs -vv to see what would actually be required
+but there is no hint about the need for -vv.
+
+
+You summarized the problem well. The on-going thread on xz-devel might
+be worth reading too about the identified pros and cons of different
+options, including the problems with the current behavior:
+
+***@***.***/msg00655.html
+
+Threaded compression has been supported in for nine years but only now
+is the threaded mode enabled by default. Thus more people are seeing
+these messages now.
+
+Historically, memory usage limits in xz have been a controversial
+topic. Threaded compression with automatic number of threads and
+threaded decompression with automatic or user-defined number of threads
+require a memory limit, otherwise the memory usage could become
+ridiculous in some cases. That could cause security issues (denial of
+service).
+
+The current automatic limit is 25 % of total RAM (in 32-bit xz
+executables also at most 1400 MiB). Some people think it's a bit too
+low, some think it's a bit too high.
+
+There is also a Linux-specific suggestion of using MemAvailable from
+/proc/meminfo to determine how much memory could be used. For example,
+using 80 % of MemAvailable. That could often allow more than 25 % of
+RAM. This idea wasn't discussed and polished for XZ Utils 5.6.0 though
+but it likely should be revisited later. And if done on Linux, a
+similar thing likely should be done on a few other OSes too.
+
+
+While I don't know about your use case, in general it can be worth
+considering if -9 is the best compression preset to use. -9 uses 64 MiB
+dictionary and 192 MiB block size. Perhaps --block-size=96MiB would
+give good enough compression while allowing more threads and thus more
+speed if the file size isn't huge (gigabytes).
+
+Or using the default -6 (8 MiB dict, 24 MiB blocks) or a bit higher -7
+(16 MiB dict, 48 MiB blocks) to get better parallelization with
+medium-sized files at the expense of worse compression.
+
+The default block_size = 3 * dict_size is somewhat arbitrary. It's a
+compromise between compression ratio and memory usage. If memory usage
+doesn't matter, block_size = dict_size is the best. Multiplier in the
+range 1-4 is likely a good choice in typical cases.
+
+xz --help includes a warning about memory usage with presets 7-9. When
+it was written, computers with 256-512 MiB RAM weren't obsolete. With
+threading that warning has some point again.
+
+Note that -9 and its 64 MiB dictionary isn't the maximum possible
+compression setting. It's just the highest preset level. The encoder
+supports up to 1536 MiB. Some use 256 MiB together with a fast preset
+because *with some types of data* it can be both faster than -9 and
+compress the same (or even better):
+
+    xz --lzma2=preset=1,dict=256MiB
+
+So it's about understanding the use case and doing some experimenting.
+
+
+I recognize that there is a problem and it could be documented
+somewhere and perhaps the message from xz should be clearer too. If the
+thread count reduction was shown at only -vv then it likely would be
+clearer already except that fewer people would be aware of the reduced
+thread count. Right now I don't know what is the best solution. It
+might be that in the short term the message is put behind -v or -vv to
+solve one set of problems and the solution is tweaked later.
+
+Thanks!",negative,-0.548947342671454

@@ -1,0 +1,14 @@
+from,to,file_name,message,mood,score
+Janne Enberg,ShalokShalom,issue_92.csv,"So I found it a bit strange that people only mention `ssh` as potentially affected by `liblzma`, so I made a quick bash script that loops through files in `/usr/lib` + `/lib` checking with `ldd` for references to `liblzma.so.5`, and then adds that file to a growing list of potential worries, then scans `/usr/bin` + `/bin` + `/usr/local/bin` for binaries that `ldd` says uses any of those potentially problematic libraries and .. well .. the list isn't short.
+
+It includes stuff like `lxc`, `NetworkManager`, `nmap`, `llvm`, `qemu`, `clang`, `plasma` and `kde`, `pgrep`, `kmod`, `cupsd`, `lspci`, `file`, `dosbox`, `smbd`, `dockerd`, `xmlsec`, overall a lot of generic desktop software as well as incredibly commonplace system utilities. I didn't investigate the vulnerability in detail but with a quick look it seems the potential ramifications of this malicious actor's commit history are a bit larger than initially suspected, especially if `ssh` was affected just because of some connection to `libsystemd`, as quite a large % of my system's binaries depend on `liblzma.so.5`.
+
+https://gist.github.com/lietu/c9b3fc27642d59edb375edc3b4a16c72
+
+EDIT: Writing even slightly more complex BASH is always a minefield, migrated to Python instead to get proper recursive lookups of libraries, and well..
+
+![image](https://github.com/tukaani-project/xz/assets/1296558/86a94392-ff89-4e34-a867-33037549761c)
+
+IF there are other malicious pieces included the scope is indeed rather meaningful .. quick maths tells me about 29% of my system binaries, and 50% of the libraries.
+
+https://gist.github.com/lietu/9f01eb7cb47a893341883c03b24682f6",negative,-0.3661901503801346

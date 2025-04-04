@@ -1,0 +1,19 @@
+from,to,file_name,message,mood,score
+Xi Ruoyao,Jia Tan,pr_86.csv,"
+I'll do it tomorrow.
+
+
+The specification says 64-bit LoongArch chips shall implement CRC32 instructions, but 32-bit LoongArch chips may lack them (though no 32-bit LoongArch chips have been launched as at now).",neutral,-0.004385447129607201
+Xi Ruoyao,Jia Tan,pr_86.csv,"
+It's likely to be made but we are so unsure about some details of it (and whether we need some GCC flags for attributes for it).  So I've modified the code to 64-bit-only and removed runtime detection for now. ",neutral,-0.1921917824074626
+Xi Ruoyao,Jia Tan,pr_86.csv,"
+10M buffer, repeat 100 times: 0.7116s to 0.1015s
+1M buffer, repeat 1000 times: 0.7114s to 0.1002s
+100K buffer, repeat 10000 times: 0.7009s to 0.1001s
+10K buffer, repeat 100000 times: 0.7009s to 0.1002s
+1K buffer, repeat 1000000 times: 0.7016s to 0.1010s
+100B buffer, repeat 10000000 times: 0.8410s to 0.1081s
+10B buffer, repeat 100000000 times: 1.2315s to 0.2002s
+
+
+Some low-end 64-bit LoongArch CPUs (2K1000 for example) do not support unaligned access, on these CPUs unaligned access will trap and be emulated by the kernel (very slow).  So we have to adjust the alignment anyway...  I don't have a 2K1000 board for testing though, on my board (3A6000) the alignment adjustment only produces ~1% improvement.",neutral,0.009448226541280746

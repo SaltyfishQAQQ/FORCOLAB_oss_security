@@ -1,0 +1,22 @@
+event,from,created_at,body,to
+thread_started,nullyfae,2024-03-30T00:23:17Z,"### Describe the Feature
+
+About the backdoor report (https://www.cve.org/CVERecord?id=CVE-2024-3094), an ""easy"" fix to ensure is impossible to happen again is to rewrite xz in rust.
+
+### Expected Complications
+
+- Learning rust
+- Regain comunity trust
+- Integration with other softwares that depends on xz.
+
+### Will I try to implement this new feature?
+
+No",['nullyfae']
+commented,AffSeda,2024-03-30T00:25:41Z,"You... want the malicious threat actor to re-write his malicious threat in Rust, so that it's a memory-safe malicious backdoor?",['nullyfae']
+commented,Theldus,2024-03-30T00:26:39Z,As if rewriting in `<safest-language-that-exists>` would prevent malicious people from committing to the project...,['AffSeda']
+commented,nullyfae,2024-03-30T00:46:52Z,"@AffSeda @Theldus oh fuck, you are right! XDDD
+please tukaani-project, do NOT rewrite xz in rust.",AffSeda
+commented,doclic,2024-04-09T21:26:34Z,"
+this project should clearly be rewritten in haskell so that it's too confusing to write a backdoor for!!",['nullyfae']
+commented,Co3co,2024-04-10T23:48:22Z,"Never open an issue on GitHub ever again, for everybody's sake.",['doclic']
+commented,reitowo,2024-04-15T02:40:04Z,"you should more like, rewrite yourself in rust",['Co3co']

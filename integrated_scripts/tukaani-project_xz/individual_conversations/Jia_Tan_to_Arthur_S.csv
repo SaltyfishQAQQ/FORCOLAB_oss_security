@@ -1,0 +1,11 @@
+from,to,file_name,message,mood,score
+Jia Tan,Arthur S,issue_18.csv,"
+I am not sure how experienced you are with CMake, but we shouldn't need anything too complicated. I haven't fully thought through it, but here are a few ideas I have had so far:
+- The GitHub Windows runner comes with CMake by default. You will not need to install it manually (https://github.com/actions/runner-images/blob/main/images/win/Windows2022-Readme.md)
+- It's probably a good idea to make most of the work be done in a separate script in the build-aux folder, similar to the concept of build-aux/ci_build.sh. The reason to do this is because the GitHub Workflow .yml files are harder to test/debug since you cannot run them locally. It's a lot easier to develop the script and then use the GitHub Workflow to wrap around it.
+- In the script, you should be able to specify the Visual Studios build with the -g option (https://cmake.org/cmake/help/latest/generator/Visual%20Studio%2017%202022.html).
+- After the generating step, `cmake --build` should compile and project
+- As of right now, CMake should not build the xz command line tool, just liblzma. The same number of tests should still build and pass, but I have not run these tests personally on MSVC so I cannot guarantee they will work as expected. If any of them fail unexpectedly, send us the log and we will fix it :)
+
+I hope this helps! Thanks again for your contributions so far. Let me know what other questions you may have.
+",positive,0.2528714626096189

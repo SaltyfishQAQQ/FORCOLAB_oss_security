@@ -1,0 +1,48 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Sergey Kosukhin,pr_90.csv,"Thanks! I've collected this into pr90_pr91 branch with matching CMake
+fixes.
+
+
+Quite possibly so. I agree it should be configurable.
+
+
+It is clear that the compiler doesn't support symbol versioning in any
+form. The linker still does, thus thus the ""generic"" versioning works.
+
+
+As you noticed, the additional symbols didn't appear. The correct way
+is to use the ""generic"" versioning which doesn't even attempt to add
+those extra symbol versions. This is assuming that the toolchain truly
+is targeting glibc (configure thinks it is).
+
+
+configure and CMakeLists.txt could check for __NVCOMPILER. I suppose
+that would be reasonable. I plan to add that in the near future, unless
+the problem is that the build isn't actually targeting glibc and
+configure is misdetecting that.
+
+Not very many users should be affected by changing from ""linux"" to
+""generic"". The ""linux"" one only helps with binary compatibility with
+some executables which hopefully aren't too common.
+
+
+It's simplest to just ignore --enable-symbol-versions in this case.
+Symbol versions make no sense in static libraries but they can cause
+breakage in some cases. If we rejected the option with static-only
+builds it could complicate build scripts that use mostly the same
+options for building shared and static liblzma in separate runs.",positive,0.2932506315410137
+Lasse Collin,Sergey Kosukhin,pr_90.csv,Thank you!,positive,0.9814261374995112
+Lasse Collin,Sergey Kosukhin,pr_91.csv,"The code selected with 0x100 is the simplest assembly piece and it has
+fewer input and output variables too. So it could be something about
+the number of variables or the length of the assembly code but this is
+just a guess.
+
+Keeping the code disabled with NVIDIA HPC seems the simplest solution
+for now. I like to make the code portable as in ""works reliably"" but
+getting the best speed has some bias towards FOSS toolchains and
+operating systems.
+
+The PRs #90 and #91 are now merged to master along with related commits
+that should make the symbol version autodetection work too.
+
+Thank you for reporting the issues and for the patches!",neutral,0.06012614071369171

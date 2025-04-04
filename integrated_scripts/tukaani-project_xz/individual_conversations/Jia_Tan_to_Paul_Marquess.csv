@@ -1,0 +1,30 @@
+from,to,file_name,message,mood,score
+Jia Tan,Paul Marquess,issue_82.csv,"Thanks for the bug report! The problem here is that you do not have Gettext installed. 
+
+`-- Could NOT find Gettext (missing: GETTEXT_MSGMERGE_EXECUTABLE GETTEXT_MSGFMT_EXECUTABLE) `
+
+Perhaps we can create a better error message here, but if you do not have Gettext installed then you need to already have the .gmo files built. These are available in the source code releases, so you should be able to build from there instead of from the development repository.
+
+There are several workarounds here. The best solution is to install Gettext on your CI runner. It appears your CI runner is Ubuntu, so adding a step:
+
+```shell
+apt install gettext
+```
+
+Otherwise, you can disable NLS by setting -DENABLE_NLS=OFF when configuring with CMake.
+
+In CMakeLists.txt there is a bit of documentation about this in a comment near the beginning of the file:
+
+```
+# If building from xz.git instead of a release tarball, consider
+# the following *before* running cmake:
+#
+#   - To get translated messages, install GNU gettext tools (the
+#     command msgfmt is needed). Alternatively disable translations
+#     by setting ENABLE_NLS=OFF.
+#
+#   - To get translated man pages, run po4a/update-po which requires
+#     the po4a tool. The build works without this step too.
+```
+
+Let me know if you have further questions. I hope this helps!",negative,-0.821275903377682

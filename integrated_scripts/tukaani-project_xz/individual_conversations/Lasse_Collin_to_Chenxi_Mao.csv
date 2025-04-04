@@ -1,0 +1,24 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Chenxi Mao,pr_75.csv,The 8-byte version is now enabled in memcmplen.h for ARM64 in the master branch. It will be included in XZ Utils 5.6.0. Thanks!,positive,0.9791316163027659
+Lasse Collin,Chenxi Mao,pr_75.csv,"I created a branch memcmplen_arm64 which should do the same as your first commit and also adds MSVC support on ARM64 (untested).
+
+The commit message of your second commit has significantly higher numbers on the memcpy line. I'm not familiar with lzbench but I wonder if 10 % difference in memcpy could indicate that there was something different on the test computer and thus the benchmark results could be slightly different too. The difference in compression speed is small so it would be good to be sure that it's not due to noise.
+
+In any case, the second patch cannot be accepted. Unfortunately you have misunderstood the problem with type punning. It's about the C programming language and how modern compilers optimize while still staying within the exact requirements of the C standard. Unsafe use of type punning breaks strict aliasing rules and might result in broken executables. The instruction set being used doesn't matter; even if unaligned access wasn't supported by the hardware, type punning would be problematic with modern compilers when accessing aligned data.
+
+The memcpy method used by tuklib_integer.h should compile to a single instruction with modern GCC and Clang/LLVM versions when building for a target that supports fast unaligned access. Thus the use of type punning shouldn't make a difference on ARM64. However, it's possible that compilers do something slightly differently still and thus there could be a difference in practice, or the violation of aliasing rules allows compilers to do something that happens to work but could cause problems some day. It's a bit annoying situation but I don't know any better way.
+
+Thanks!",neutral,0.05432650540024042
+Lasse Collin,Chenxi Mao,pr_77.csv,"Thanks! A quick few early comments (I or Jia will comment more later):
+
+The `Data` pointer seems pointless. I don't see a reason to cast away the const qualifier.
+
+ARM64 processors tend to support unaligned memory access but would it still be worth it (better speed) to align the `buf` first with calls to `__builtin_aarch64_crc32b`? See how aligning is done in the generic code.
+
+I'm not sure but I guess the input `crc` variable doesn't need byte-swapping but reading the input in loop will need it. So it should use `read64le` instead, or `aligned_read64le` if `buf` is first aligned. This should be investigated or the code should be marked little-endian-only if we aren't sure.
+
+`getauxval` is a libc function (not inline) so it's unsafe to combine it with ifunc. That is, ifunc would need to stay disabled on ARM64.
+
+Are ARM64 processors without CRC32 common enough that runtime detection is worth it? Even they are, `#ifdef __ARM_FEATURE_CRC32` could be used at compile time to detect if CRC32 can be assumed to be supported.
+
+The crc_edits branch is still under consideration so that may change where the code will go, possibly making things simpler.",neutral,0.06625110283493996

@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+David Chalmers,🏴‍☠️ ,issue_92.csv,"Sorry, I meant update brew in the sense of ""update the package you have installed on brew"" which will actually result in a downgrade. You can view their report here:
+https://github.com/orgs/Homebrew/discussions/5243
+
+I'm afraid I do not have the expertise to speculate on the answers to your questions, so I'm going with the option provided by Homebrew maintainers. They do not believe theirs was affected.",negative,-0.6574654541909695

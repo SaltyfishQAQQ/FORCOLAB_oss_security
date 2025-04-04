@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Alan Coopersmith,Hakkin Lain,issue_92.csv,"
+It appears github has suspended the accounts of both project maintainers, but this is only shown in their entries in the ""following"" lists of accounts who follow them, not their main profiles:
+
+- https://github.com/JiaT75?tab=following
+- https://github.com/Larhzu?tab=following",negative,-0.8043237293604761

@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Nika,Jia Tan,issue_76.csv,"Hi,
+
+Strangely 5.2.11 works for me [here's my docker file](https://github.com/nika-begiashvili/libarchivejs/blob/v2/lib/tools/docker/Dockerfile)",positive,0.9006639632862061

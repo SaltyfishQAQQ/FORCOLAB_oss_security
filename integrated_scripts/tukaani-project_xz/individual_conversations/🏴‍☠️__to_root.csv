@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+🏴‍☠️ ,root,issue_92.csv,"Without adding fuel to the fire, this is a good reminder about discretion in trust, vigilance, and security practices in F{L,}OSS dev and packaging. Recall also ProFTPD, OpenBSD, PyPi, rest-client.
+
+In the future, it would be useful for researchers and laypeople to submit SHA256, etc. hashes of known good and known bad artifacts to make tracing simpler.
+
+Cheers peeps and best wishes for cleanup and recovery. xz is a core package to FLOSS.",positive,0.8677904361393303

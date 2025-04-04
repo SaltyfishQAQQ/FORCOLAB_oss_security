@@ -1,0 +1,42 @@
+event,from,created_at,body,to
+thread_started,milkylainen,2024-02-24T16:59:20Z,"Well. Not really a bug, but perhaps more a question of default and helpful information.
+Please correct me if I'm wrong here.
+I've always lived with the assumption that using xz with more than one thread isn't deterministic.
+Ie, the compression result will vary with threads?
+By changing the default, various usages will start to perhaps experience different results when building on different machines.
+Like packagers, embedded build envs etc.
+
+Has anything changed in the determinism department or can users just expect that default is to create variable results with the defaults?
+
+### Version
+
+5.6
+
+### Operating System
+
+Linux
+
+### Relevant log output
+
+_No response_",['milkylainen']
+commented,thesamesam,2024-02-24T17:07:38Z,"Please see https://github.com/tukaani-project/xz/commit/6daa4d0ea46a8441f21f609149f3633158bf4704:
+
+I believe (although see if a maintainer confirms) that the threaded compressor is deterministic - it doesn't depend on the thread count and so on, so even with 1 thread, the threaded compressor output is the same. I believe the only difference is that it's chunked / includes sizes so it can be decompressed in parallel.
+
+It's just that it's different compared to the non-threaded compressor.
+
+But the non-threaded compressor could've changed output at some point anyway, it just didn't.
+
+`xz(1)` also says:",['milkylainen']
+commented,milkylainen,2024-02-24T18:09:09Z,"Oh. Looks like I've been mistaken and using -T0 should always result in deterministic results.
+Hopefully a maintainer can confirm. @thesamesam, appreciate the hint!",thesamesam
+commented,JiaT75,2024-02-25T03:27:58Z,"Hello!
+
+I have seen this misconception before and I can understand where it is coming from. The short answer is that multi threaded compression mode is in fact deterministic.
+
+It does not matter how many threads are used. @thesamesam is correct, multi threaded encoding mode with 1 thread will produce the same as output as 10 threads. The output is *different* from single threaded mode, which is where the confusion happens. Single threaded mode does not put the block sizes in the headers and will put all of the data in a single block by default.
+
+Setting -T0 will always use multi threaded mode. In the past, if only one thread was used in -T0 mode then it would operate in single threaded mode and thus produce single threaded output. So I believe that is where the non-determinstic belief originated from, since sometimes the output would be different when using -T0. This is no longer the case.
+
+I hope this helps!",thesamesam
+commented,milkylainen,2024-02-25T14:19:57Z,Thanks for clearing things up!,['JiaT75']

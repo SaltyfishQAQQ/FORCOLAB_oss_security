@@ -1,0 +1,54 @@
+event,from,created_at,body,to
+thread_started,JiaT75,2022-12-20T13:57:34Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [X] Tests for the changes have been added (for bug fixes / features)
+- [X] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [X] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+<!-- Please describe the current behavior that you are modifying. -->
+Doxygen was outdated and never used
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: 
+
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+
+- Doxygen will now only generate liblzma API functions documentation
+- No longer generate LaTex documentation
+- Update Doxygen from 1.4.7 to 1.8.17
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+<!-- If this introduces a breaking change, please describe the impact and
+migration path for existing applications below. -->
+
+
+## Other information
+
+<!-- Any other information that is important to this PR. -->",['JiaT75']
+commented,JiaT75,2022-12-20T14:08:52Z,"We will still need to have a few updates for the documentation before it is ready to be published on the website, but I am still working through them. It better to break these PRs up to make it a bit more manageable. I figured this was a good start.",['JiaT75']

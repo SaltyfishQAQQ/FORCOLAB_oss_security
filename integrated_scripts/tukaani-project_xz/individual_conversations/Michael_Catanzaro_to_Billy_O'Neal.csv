@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Michael Catanzaro,Billy O'Neal,issue_94.csv,https://github.com/tukaani-project/xz/issues/92 already exists for discussing that issue.,neutral,0.013472998049110174
+Michael Catanzaro,Billy O'Neal,issue_94.csv,"
+Sure, but that serious problem is unrelated to fprintf changes in libarchive. This bug report is effectively just spam.",negative,-0.9630382496397942

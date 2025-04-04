@@ -1,0 +1,12 @@
+from,to,file_name,message,mood,score
+ShalokShalom,imide,issue_92.csv,"As the original email announcement has stated, only deb and rpm distros are targeted. 
+Then, only those who use glibc and link sshd to libsystemd, and libsystemd to liblzma for sd_notify. 
+
+Alpine, Arch, NixOS, Void, and so on should all be fine. 
+
+
+
+
+Imagine the face that they make, once they wake up tomorrow to this issue. 
+Sober in a second.  
+",negative,-0.43992483522742987

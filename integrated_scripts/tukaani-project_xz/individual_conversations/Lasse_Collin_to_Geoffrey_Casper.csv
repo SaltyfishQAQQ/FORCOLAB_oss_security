@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Geoffrey Casper,issue_81.csv,"The 5.6.4 release includes Windows binaries. They have been built against UCRT instead of MSVCRT.
+
+I don't know if next releases will include Windows binaries. If the 5.6.4 ones are useful to you, please comment here, on IRC, or send an email.",neutral,-0.07085336744785309

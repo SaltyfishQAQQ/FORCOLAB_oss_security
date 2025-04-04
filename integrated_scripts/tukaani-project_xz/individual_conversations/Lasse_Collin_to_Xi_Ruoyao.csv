@@ -1,0 +1,8 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Xi Ruoyao,pr_86.csv,"
+That makes sense but the target-specific intrinsic works with current toolchains and not everyone can upgrade them as quickly as they might upgrade xz. The target-specific code is simple enough so finishing this PR in the near future makes sense to me.",positive,0.5076291062869132
+Lasse Collin,Xi Ruoyao,pr_86.csv,I merged it. Hopefully I sorted your name correctly by family name in [THANKS](https://github.com/tukaani-project/xz/commit/45d08abc33ccc52d2f050dcec458badc2ce59d0b). Thank you!,positive,0.9772612184751779
+Lasse Collin,Xi Ruoyao,pr_86.csv,I did the change to `crc32_arm64.h` too in the `crc32_arm64` branch. It passes CI on ARM64 macOS.,neutral,0.0702463227789849
+Lasse Collin,Xi Ruoyao,pr_86.csv,"Thanks! It was a stupid mistake, the aligning was wrong too. Your original code had these done correctly.
+
+Now it really should be correct. I think the ARM64 version could use this kind of code too. It's not ideal that the aligning is done one byte at a time in the ARM64 code.",negative,-0.7230343827977777

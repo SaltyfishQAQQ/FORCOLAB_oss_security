@@ -1,0 +1,3 @@
+from,to,file_name,message,mood,score
+root,David Chalmers,issue_92.csv,"
+could you please elaborate on the scope? and what is the point of updating brew itself instead of removing/downgrading the package? the main question if it was possible to affect Mac Silicons via this ""bug"", as far as i understand it was some kind of shellcode triggering hence it must be only x86_x64 targeted, correct me if im wrong please",negative,-0.38639464043080807

@@ -1,0 +1,3 @@
+from,to,file_name,message,mood,score
+Jia Tan,Lasse Collin,pr_77.csv,"
+Thanks for pointing this out! I pushed a new version to avoid pointer arithmetic beyond the beginning of the buffer. I also added macOS support, but I couldn't test it since I do not have an Apple device. The Apple specific code is small so it should work but I hope someone can test this.",positive,0.5609789825975895

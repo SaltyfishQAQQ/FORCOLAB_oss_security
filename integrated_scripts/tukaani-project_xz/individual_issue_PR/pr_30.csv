@@ -1,0 +1,44 @@
+event,from,created_at,body,to
+thread_started,JiaT75,2023-02-04T13:14:21Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [X] Build was run locally and without warnings or errors
+- [X] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [X] Build related changes
+- [X] Documentation content changes
+- [ ] Other (please describe): 
+
+## What is the new behavior?
+<!-- Please describe the behavior or changes that are being added by this
+PR. -->
+- The Doxygen html docs are now included in the release tarball
+- If only the liblzma API function documentation is generated, the docs are created in /doc/liblzma
+- If all files documentation is generated, the docs are created in /doc/html
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [X] No
+
+## Other information
+Putting the docs in liblzma folder may be unnecessary. Other distributions seems to place their html documentation files in a directory called ""html"" in the doc directory. If we just want to include it in the ""html"" directory in /doc, then the first and third commit can be omitted.",['JiaT75']
+commented,JiaT75,2023-02-15T12:13:05Z,"This includes the doxygen .html files in the release, but does not install them. I will need to rework this to actually install the files, which seems more useful than just including them.",['JiaT75']
+commented,JiaT75,2023-02-16T14:31:59Z,"Now I have the HTML files being installed. They are currently installed to `$(docdir)/liblzma`, for liblzma headers only, or `$(docdir)/html` for full documentation. So, by default, it will install to `/share/doc/xz/liblzma`, which I am not sure if I like.
+
+I don't know of a good clean way to install to `/share/doc/liblzma` (or  `/share/doc/liblzma/html` if that makes more sense) since `$(docdir)` is `/share/doc/xz`. We can always install to `$(docdir)/../liblzma`, but that is hacky. If there is a good clean way to do this, I might be interested to try it.
+
+If we don't like how it is now, the easiest alternative is to always install to `/share/doc/xz/html` and not care about the distinction between liblzma header only documentation and all source files documentation. ",['JiaT75']

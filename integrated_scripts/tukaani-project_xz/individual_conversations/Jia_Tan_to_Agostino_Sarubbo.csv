@@ -1,0 +1,8 @@
+from,to,file_name,message,mood,score
+Jia Tan,Agostino Sarubbo,issue_89.csv,"Hello!
+
+Thanks for the bug report. The cause of this is because in 5.6.0 we made the default compression mode multi threaded. By default, xz will try to use the number of cores to determine how many threads to use when compressing/decompressing. If there is not enough memory to support this many threads, it will reduce the number of threads. Showing this as a warning message made more sense before because multi threading was not the default.
+
+To answer your question, the amount of memory required per thread with default options is the block size * 3 + LZMA2 dictionary size + a little extra encoder buffers. Block size is determined by 3 * LZMA2 dictionary size or a minimum of 1 MiB. So the amount of memory you give to xz depends on how many threads you want to be used. More threads just means faster compression, not better compression ratio. For best compression ratio, use single threaded mode (`-T1`).
+
+Another user reported this on the mailing list, so we already started considering different options. As a user, would you rather see the number of threads actually used in verbose mode (`-v`) or debug mode (`-vv`)? We are all in agreement that this message should not be displayed by default :)",neutral,-0.007596492767333984

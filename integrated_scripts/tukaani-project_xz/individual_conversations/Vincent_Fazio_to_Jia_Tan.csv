@@ -1,0 +1,9 @@
+from,to,file_name,message,mood,score
+Vincent Fazio,Jia Tan,pr_32.csv,"
+I'm not an expert on Microblaze at all, but using the asm "".symver"" syntax seems to allow the compile to work fine since we've already ported this patch to buildroot for xz 5.2.10 
+
+Here's a failing build log http://autobuild.buildroot.org/results/4dc/4dc0c88c1ed250dd5e1be492138bd6e1781128b4/build-end.log
+
+it looks like the handling for `__attribute__(__symver__)` is around this macro: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/elfos.h#L259 and my _guess_ is that it's not included in microblaze gcc toolchains
+
+I didn't see any build/link errors when switching but i suppose that doesn't mean it's working as intended.",neutral,0.011348754167556763

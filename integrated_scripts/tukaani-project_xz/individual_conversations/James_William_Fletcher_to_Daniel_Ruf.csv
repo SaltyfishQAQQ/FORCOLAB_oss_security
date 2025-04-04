@@ -1,0 +1,7 @@
+from,to,file_name,message,mood,score
+James William Fletcher,Daniel Ruf,issue_92.csv,"
+You can see who reacted btw, it's not anonymous. 
+
+Also zlib as much as I love it... Is dated, zstd is now recommended over zlib for performance reasons, and xz is probably much the same.",positive,0.3534023780375719
+James William Fletcher,Daniel Ruf,issue_92.csv,"
+Do I need to remind you that your first post in here was a meme that slights Chinese people.",negative,-0.9190052025951445

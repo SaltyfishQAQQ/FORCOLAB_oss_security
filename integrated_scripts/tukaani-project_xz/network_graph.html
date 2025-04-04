@@ -1,0 +1,163 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 750px;
+                 background-color: #ffffff;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": "Jia Tan", "label": "Jia Tan", "shape": "dot", "title": "Jia Tan"}, {"color": "#97c2fc", "id": "Gabriela Gutierrez", "label": "Gabriela Gutierrez", "shape": "dot", "title": "Gabriela Gutierrez"}, {"color": "#97c2fc", "id": "Hans Jansen", "label": "Hans Jansen", "shape": "dot", "title": "Hans Jansen"}, {"color": "#97c2fc", "id": "Lasse Collin", "label": "Lasse Collin", "shape": "dot", "title": "Lasse Collin"}, {"color": "#97c2fc", "id": "Rayen Ouni", "label": "Rayen Ouni", "shape": "dot", "title": "Rayen Ouni"}, {"color": "#97c2fc", "id": "Dimitri Papadopoulos Orfanos", "label": "Dimitri Papadopoulos Orfanos", "shape": "dot", "title": "Dimitri Papadopoulos Orfanos"}, {"color": "#97c2fc", "id": "Chenxi Mao", "label": "Chenxi Mao", "shape": "dot", "title": "Chenxi Mao"}, {"color": "#97c2fc", "id": "Kian-Meng Ang", "label": "Kian-Meng Ang", "shape": "dot", "title": "Kian-Meng Ang"}, {"color": "#97c2fc", "id": "Kelvin Lee", "label": "Kelvin Lee", "shape": "dot", "title": "Kelvin Lee"}, {"color": "#97c2fc", "id": "Sam James", "label": "Sam James", "shape": "dot", "title": "Sam James"}, {"color": "#97c2fc", "id": "David Chalmers", "label": "David Chalmers", "shape": "dot", "title": "David Chalmers"}, {"color": "#97c2fc", "id": "Ricky Tigg", "label": "Ricky Tigg", "shape": "dot", "title": "Ricky Tigg"}, {"color": "#97c2fc", "id": "TheStoryEnd", "label": "TheStoryEnd", "shape": "dot", "title": "TheStoryEnd"}, {"color": "#97c2fc", "id": "Nika", "label": "Nika", "shape": "dot", "title": "Nika"}, {"color": "#97c2fc", "id": "Christian Hesse", "label": "Christian Hesse", "shape": "dot", "title": "Christian Hesse"}, {"color": "#97c2fc", "id": "Vincent Fazio", "label": "Vincent Fazio", "shape": "dot", "title": "Vincent Fazio"}, {"color": "#97c2fc", "id": "Nick ODell", "label": "Nick ODell", "shape": "dot", "title": "Nick ODell"}, {"color": "#97c2fc", "id": "Fabio Pedretti", "label": "Fabio Pedretti", "shape": "dot", "title": "Fabio Pedretti"}, {"color": "#97c2fc", "id": "Caleb Maclennan", "label": "Caleb Maclennan", "shape": "dot", "title": "Caleb Maclennan"}, {"color": "#97c2fc", "id": "Tim Weber", "label": "Tim Weber", "shape": "dot", "title": "Tim Weber"}, {"color": "#97c2fc", "id": "Edward Vielmetti", "label": "Edward Vielmetti", "shape": "dot", "title": "Edward Vielmetti"}, {"color": "#97c2fc", "id": "Janne Enberg", "label": "Janne Enberg", "shape": "dot", "title": "Janne Enberg"}, {"color": "#97c2fc", "id": "Ben Boeckel", "label": "Ben Boeckel", "shape": "dot", "title": "Ben Boeckel"}, {"color": "#97c2fc", "id": "ShalokShalom", "label": "ShalokShalom", "shape": "dot", "title": "ShalokShalom"}, {"color": "#97c2fc", "id": "Michael Cook (mackal)", "label": "Michael Cook (mackal)", "shape": "dot", "title": "Michael Cook (mackal)"}, {"color": "#97c2fc", "id": "Noah Leick", "label": "Noah Leick", "shape": "dot", "title": "Noah Leick"}, {"color": "#97c2fc", "id": "Azrael", "label": "Azrael", "shape": "dot", "title": "Azrael"}, {"color": "#97c2fc", "id": "James William Fletcher", "label": "James William Fletcher", "shape": "dot", "title": "James William Fletcher"}, {"color": "#97c2fc", "id": "root", "label": "root", "shape": "dot", "title": "root"}, {"color": "#97c2fc", "id": "\ud83c\udff4\u200d\u2620\ufe0f ", "label": "\ud83c\udff4\u200d\u2620\ufe0f ", "shape": "dot", "title": "\ud83c\udff4\u200d\u2620\ufe0f "}, {"color": "#97c2fc", "id": "Daniel Ruf", "label": "Daniel Ruf", "shape": "dot", "title": "Daniel Ruf"}, {"color": "#97c2fc", "id": "Alan Coopersmith", "label": "Alan Coopersmith", "shape": "dot", "title": "Alan Coopersmith"}, {"color": "#97c2fc", "id": "P-EB", "label": "P-EB", "shape": "dot", "title": "P-EB"}, {"color": "#97c2fc", "id": "Yao Wei", "label": "Yao Wei", "shape": "dot", "title": "Yao Wei"}, {"color": "#97c2fc", "id": "Deleted user", "label": "Deleted user", "shape": "dot", "title": "Deleted user"}, {"color": "#97c2fc", "id": "Paul Marquess", "label": "Paul Marquess", "shape": "dot", "title": "Paul Marquess"}, {"color": "#97c2fc", "id": "Kostadin", "label": "Kostadin", "shape": "dot", "title": "Kostadin"}, {"color": "#97c2fc", "id": "vector-is", "label": "vector-is", "shape": "dot", "title": "vector-is"}, {"color": "#97c2fc", "id": "Geoffrey Casper", "label": "Geoffrey Casper", "shape": "dot", "title": "Geoffrey Casper"}, {"color": "#97c2fc", "id": "Michael Catanzaro", "label": "Michael Catanzaro", "shape": "dot", "title": "Michael Catanzaro"}, {"color": "#97c2fc", "id": "Ashish Shirodkar", "label": "Ashish Shirodkar", "shape": "dot", "title": "Ashish Shirodkar"}, {"color": "#97c2fc", "id": "Andreas M\u00fcller", "label": "Andreas M\u00fcller", "shape": "dot", "title": "Andreas M\u00fcller"}, {"color": "#97c2fc", "id": "Sergey Kosukhin", "label": "Sergey Kosukhin", "shape": "dot", "title": "Sergey Kosukhin"}, {"color": "#97c2fc", "id": "Xi Ruoyao", "label": "Xi Ruoyao", "shape": "dot", "title": "Xi Ruoyao"}, {"color": "#97c2fc", "id": "Ewout van Mansom", "label": "Ewout van Mansom", "shape": "dot", "title": "Ewout van Mansom"}, {"color": "#97c2fc", "id": "Xin Li", "label": "Xin Li", "shape": "dot", "title": "Xin Li"}, {"color": "#97c2fc", "id": "Ari Archer (migrated to https://git.ari.lt/ari)", "label": "Ari Archer (migrated to https://git.ari.lt/ari)", "shape": "dot", "title": "Ari Archer (migrated to https://git.ari.lt/ari)"}, {"color": "#97c2fc", "id": "Luis Carilla Ternero", "label": "Luis Carilla Ternero", "shape": "dot", "title": "Luis Carilla Ternero"}, {"color": "#97c2fc", "id": "Marco K\u00f6pcke", "label": "Marco K\u00f6pcke", "shape": "dot", "title": "Marco K\u00f6pcke"}, {"color": "#97c2fc", "id": "i\u0027m not nullify", "label": "i\u0027m not nullify", "shape": "dot", "title": "i\u0027m not nullify"}, {"color": "#97c2fc", "id": "Anton Kochkov", "label": "Anton Kochkov", "shape": "dot", "title": "Anton Kochkov"}, {"color": "#97c2fc", "id": "Feng Yu", "label": "Feng Yu", "shape": "dot", "title": "Feng Yu"}, {"color": "#97c2fc", "id": "Agostino Sarubbo", "label": "Agostino Sarubbo", "shape": "dot", "title": "Agostino Sarubbo"}, {"color": "#97c2fc", "id": "Satadru Pramanik, DO, MPH, MEng", "label": "Satadru Pramanik, DO, MPH, MEng", "shape": "dot", "title": "Satadru Pramanik, DO, MPH, MEng"}, {"color": "#97c2fc", "id": "Siarhei Siamashka", "label": "Siarhei Siamashka", "shape": "dot", "title": "Siarhei Siamashka"}, {"color": "#97c2fc", "id": "imide", "label": "imide", "shape": "dot", "title": "imide"}, {"color": "#97c2fc", "id": "Chad Hirsch", "label": "Chad Hirsch", "shape": "dot", "title": "Chad Hirsch"}, {"color": "#97c2fc", "id": "Carlos R.F.", "label": "Carlos R.F.", "shape": "dot", "title": "Carlos R.F."}, {"color": "#97c2fc", "id": "Hakkin Lain", "label": "Hakkin Lain", "shape": "dot", "title": "Hakkin Lain"}, {"color": "#97c2fc", "id": "mirabilos", "label": "mirabilos", "shape": "dot", "title": "mirabilos"}, {"color": "#97c2fc", "id": "Billy O\u0027Neal", "label": "Billy O\u0027Neal", "shape": "dot", "title": "Billy O\u0027Neal"}, {"color": "#97c2fc", "id": "Arthur S", "label": "Arthur S", "shape": "dot", "title": "Arthur S"}, {"color": "#97c2fc", "id": "Benjamin Buch", "label": "Benjamin Buch", "shape": "dot", "title": "Benjamin Buch"}, {"color": "#97c2fc", "id": "Chien Wong", "label": "Chien Wong", "shape": "dot", "title": "Chien Wong"}, {"color": "#97c2fc", "id": "Marcin Kowalczyk", "label": "Marcin Kowalczyk", "shape": "dot", "title": "Marcin Kowalczyk"}, {"color": "#97c2fc", "id": "Justin B", "label": "Justin B", "shape": "dot", "title": "Justin B"}]);
+                  edges = new vis.DataSet([{"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 5, Neu: 2, Neg: 0, Score: 0.662", "to": "Gabriela Gutierrez", "value": 7}, {"arrows": "to", "color": "#0624FF", "from": "Gabriela Gutierrez", "title": "Pos: 4, Neu: 1, Neg: 0, Score: 0.630", "to": "Jia Tan", "value": 5}, {"arrows": "to", "color": "#0624FF", "from": "Gabriela Gutierrez", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.965", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 4, Neu: 0, Neg: 0, Score: 0.900", "to": "Hans Jansen", "value": 4}, {"arrows": "to", "color": "#808080", "from": "Hans Jansen", "title": "Pos: 2, Neu: 2, Neg: 1, Score: 0.004", "to": "Jia Tan", "value": 5}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 3, Neu: 1, Neg: 1, Score: 0.402", "to": "Hans Jansen", "value": 5}, {"arrows": "to", "color": "#0624FF", "from": "Hans Jansen", "title": "Pos: 6, Neu: 1, Neg: 0, Score: 0.666", "to": "Lasse Collin", "value": 7}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 1, Neu: 4, Neg: 3, Score: -0.145", "to": "Jia Tan", "value": 8}, {"arrows": "to", "color": "#0624FF", "from": "Rayen Ouni", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.241", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.473", "to": "Dimitri Papadopoulos Orfanos", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Dimitri Papadopoulos Orfanos", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.152", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 1, Neu: 2, Neg: 0, Score: 0.367", "to": "Chenxi Mao", "value": 3}, {"arrows": "to", "color": "#808080", "from": "Chenxi Mao", "title": "Pos: 0, Neu: 2, Neg: 2, Score: -0.182", "to": "Lasse Collin", "value": 4}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 2, Neg: 0, Score: 0.335", "to": "Kian-Meng Ang", "value": 3}, {"arrows": "to", "color": "#0624FF", "from": "Kian-Meng Ang", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.911", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Jia Tan", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.468", "to": "Kelvin Lee", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Kelvin Lee", "title": "Pos: 1, Neu: 1, Neg: 1, Score: -0.027", "to": "Jia Tan", "value": 3}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 4, Neu: 4, Neg: 0, Score: 0.400", "to": "Kelvin Lee", "value": 8}, {"arrows": "to", "color": "#0624FF", "from": "Kelvin Lee", "title": "Pos: 2, Neu: 3, Neg: 0, Score: 0.271", "to": "Lasse Collin", "value": 5}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.176", "to": "Chenxi Mao", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Sam James", "title": "Pos: 0, Neu: 1, Neg: 1, Score: -0.507", "to": "Jia Tan", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "Hans Jansen", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.323", "to": "Sam James", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Chenxi Mao", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.494", "to": "Hans Jansen", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.561", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "David Chalmers", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.803", "to": "i\u0027m not nullify", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 2, Neg: 0, Score: 0.289", "to": "Ricky Tigg", "value": 3}, {"arrows": "to", "color": "#808080", "from": "Ricky Tigg", "title": "Pos: 1, Neu: 0, Neg: 1, Score: 0.042", "to": "Jia Tan", "value": 2}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 0, Neu: 3, Neg: 0, Score: -0.038", "to": "Ricky Tigg", "value": 3}, {"arrows": "to", "color": "#808080", "from": "Ricky Tigg", "title": "Pos: 1, Neu: 0, Neg: 1, Score: -0.096", "to": "Lasse Collin", "value": 2}, {"arrows": "to", "color": "#f7b500", "from": "Lasse Collin", "title": "Pos: 0, Neu: 0, Neg: 2, Score: -0.680", "to": "Sam James", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 1, Neg: 0, Score: 0.366", "to": "Anton Kochkov", "value": 2}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.099", "to": "TheStoryEnd", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "TheStoryEnd", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.312", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 1, Neu: 1, Neg: 0, Score: 0.174", "to": "Feng Yu", "value": 2}, {"arrows": "to", "color": "#f7b500", "from": "Lasse Collin", "title": "Pos: 0, Neu: 1, Neg: 1, Score: -0.218", "to": "Agostino Sarubbo", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "Nika", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.901", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.289", "to": "Nika", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.008", "to": "Agostino Sarubbo", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.049", "to": "Satadru Pramanik, DO, MPH, MEng", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.031", "to": "Christian Hesse", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Christian Hesse", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.963", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.058", "to": "Siarhei Siamashka", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Vincent Fazio", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.011", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Vincent Fazio", "title": "Pos: 0, Neu: 2, Neg: 0, Score: 0.020", "to": "Lasse Collin", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.275", "to": "Vincent Fazio", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Nick ODell", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.630", "to": "Caleb Maclennan", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Fabio Pedretti", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.069", "to": "Nick ODell", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Caleb Maclennan", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.821", "to": "Fabio Pedretti", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Tim Weber", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.034", "to": "Caleb Maclennan", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Edward Vielmetti", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.100", "to": "P-EB", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Janne Enberg", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.351", "to": "Edward Vielmetti", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Ben Boeckel", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.613", "to": "imide", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "ShalokShalom", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.440", "to": "imide", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Janne Enberg", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.366", "to": "ShalokShalom", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Michael Cook (mackal)", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.019", "to": "Janne Enberg", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Noah Leick", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.702", "to": "Michael Cook (mackal)", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Azrael", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.749", "to": "Chad Hirsch", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "James William Fletcher", "title": "Pos: 1, Neu: 0, Neg: 1, Score: -0.283", "to": "Daniel Ruf", "value": 2}, {"arrows": "to", "color": "#f7b500", "from": "root", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.280", "to": "Carlos R.F.", "value": 1}, {"arrows": "to", "color": "#808080", "from": "David Chalmers", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.105", "to": "root", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "root", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.386", "to": "David Chalmers", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "\ud83c\udff4\u200d\u2620\ufe0f ", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.868", "to": "root", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "David Chalmers", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.657", "to": "\ud83c\udff4\u200d\u2620\ufe0f ", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Daniel Ruf", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.025", "to": "David Chalmers", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Alan Coopersmith", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.804", "to": "Hakkin Lain", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "P-EB", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.976", "to": "Caleb Maclennan", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Yao Wei", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.840", "to": "mirabilos", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Deleted user", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.159", "to": "Yao Wei", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "David Chalmers", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.930", "to": "Deleted user", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Deleted user", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.980", "to": "David Chalmers", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Jia Tan", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.821", "to": "Paul Marquess", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Paul Marquess", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.970", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Deleted user", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.924", "to": "Azrael", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Kostadin", "title": "Pos: 1, Neu: 1, Neg: 0, Score: 0.190", "to": "Lasse Collin", "value": 2}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.114", "to": "Sam James", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 1, Neu: 1, Neg: 0, Score: 0.186", "to": "vector-is", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "vector-is", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.486", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Geoffrey Casper", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.350", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.071", "to": "Geoffrey Casper", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Michael Catanzaro", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.798", "to": "Rayen Ouni", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Michael Catanzaro", "title": "Pos: 0, Neu: 1, Neg: 1, Score: -0.475", "to": "Billy O\u0027Neal", "value": 2}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.253", "to": "Arthur S", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.018", "to": "Ashish Shirodkar", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Ashish Shirodkar", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.670", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.762", "to": "Andreas M\u00fcller", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Andreas M\u00fcller", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.755", "to": "Lasse Collin", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.648", "to": "Andreas M\u00fcller", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 3, Neg: 0, Score: 0.036", "to": "Sergey Kosukhin", "value": 3}, {"arrows": "to", "color": "#f7b500", "from": "Sergey Kosukhin", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.574", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 2, Neu: 1, Neg: 0, Score: 0.445", "to": "Sergey Kosukhin", "value": 3}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 3, Neu: 0, Neg: 0, Score: 0.891", "to": "Xi Ruoyao", "value": 3}, {"arrows": "to", "color": "#808080", "from": "Xi Ruoyao", "title": "Pos: 0, Neu: 3, Neg: 0, Score: -0.062", "to": "Jia Tan", "value": 3}, {"arrows": "to", "color": "#f7b500", "from": "Ewout van Mansom", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.857", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Xi Ruoyao", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.213", "to": "Ewout van Mansom", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Ewout van Mansom", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.191", "to": "Daniel Ruf", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Daniel Ruf", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.294", "to": "Ewout van Mansom", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Xi Ruoyao", "title": "Pos: 0, Neu: 3, Neg: 2, Score: -0.407", "to": "Lasse Collin", "value": 5}, {"arrows": "to", "color": "#f7b500", "from": "Xi Ruoyao", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.936", "to": "Sam James", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Lasse Collin", "title": "Pos: 2, Neu: 1, Neg: 1, Score: 0.208", "to": "Xi Ruoyao", "value": 4}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.967", "to": "Benjamin Buch", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Jia Tan", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.962", "to": "Chien Wong", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 0, Neu: 2, Neg: 0, Score: -0.065", "to": "Marcin Kowalczyk", "value": 2}, {"arrows": "to", "color": "#f7b500", "from": "Xin Li", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.608", "to": "Jia Tan", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Jia Tan", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.006", "to": "Xin Li", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Lasse Collin", "title": "Pos: 1, Neu: 0, Neg: 1, Score: -0.028", "to": "Xin Li", "value": 2}, {"arrows": "to", "color": "#808080", "from": "Sam James", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.005", "to": "Deleted user", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Ari Archer (migrated to https://git.ari.lt/ari)", "title": "Pos: 0, Neu: 1, Neg: 0, Score: 0.121", "to": "Justin B", "value": 1}, {"arrows": "to", "color": "#0624FF", "from": "Luis Carilla Ternero", "title": "Pos: 1, Neu: 0, Neg: 0, Score: 0.678", "to": "Ari Archer (migrated to https://git.ari.lt/ari)", "value": 1}, {"arrows": "to", "color": "#808080", "from": "Ari Archer (migrated to https://git.ari.lt/ari)", "title": "Pos: 0, Neu: 1, Neg: 0, Score: -0.154", "to": "Luis Carilla Ternero", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Marco K\u00f6pcke", "title": "Pos: 0, Neu: 0, Neg: 1, Score: -0.865", "to": "Ari Archer (migrated to https://git.ari.lt/ari)", "value": 1}, {"arrows": "to", "color": "#f7b500", "from": "Luis Carilla Ternero", "title": "Pos: 0, Neu: 1, Neg: 2, Score: -0.499", "to": "Marco K\u00f6pcke", "value": 3}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "barnesHut": {
+            "avoidOverlap": 0,
+            "centralGravity": 0.3,
+            "damping": 0.09,
+            "gravitationalConstant": -10000,
+            "springConstant": 0.01,
+            "springLength": 150
+        },
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,8 @@
+from,to,file_name,message,mood,score
+Jia Tan,TheStoryEnd,issue_61.csv,"Hello!
+
+This CVE was never reported to us, so we do not have any further information about it. So at this moment we cannot say which versions of XZ Utils this effects or if it was unknowingly patched by a change made after 5.2.5.
+
+If you or anyone else has additional information about this CVE please share it over email or through a [GitHub security advisory](https://github.com/tukaani-project/xz/security/advisories). For more information please see [our Security Policy](https://github.com/tukaani-project/xz/blob/master/.github/SECURITY.md).
+
+Thanks for bringing this to our attention.",neutral,-0.09938536677509546

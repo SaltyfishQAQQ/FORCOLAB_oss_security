@@ -1,0 +1,24 @@
+from,to,file_name,message,mood,score
+Xi Ruoyao,Lasse Collin,pr_86.csv,"
+I'll recreate it after 5.8.0 release considering you are focusing on more important issues now.",neutral,-0.11722082644701004
+Xi Ruoyao,Lasse Collin,pr_86.csv,"
+```diff
+diff --git a/src/liblzma/check/crc32_loongarch.h b/src/liblzma/check/crc32_loongarch.h
+index f154ebc8..a25ed2ec 100644
+--- a/src/liblzma/check/crc32_loongarch.h
++++ b/src/liblzma/check/crc32_loongarch.h
+@@ -22,7 +22,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc_unsigned)
+ 	int32_t crc = (int32_t)~crc_unsigned;
+ 
+ 	if (size >= 8) {
+-		size -= (uintptr_t)buf & 7;
++		size -= 8 - (uintptr_t)buf & 7;
+ 
+ 		if ((uintptr_t)buf & 1)
+ 			crc = __crc_w_b_w((int8_t)*buf++, crc);
+```",neutral,0.005087962374091148
+Xi Ruoyao,Lasse Collin,pr_86.csv,"
+Actually `(8 - (uintptr_t)buf) & 7` to silence `-Wparentheses` (cmake enables it but autotools does not).",neutral,-0.1749729299917817
+Xi Ruoyao,Lasse Collin,pr_86.csv,"BTW strangely my previous fork is now marked as ""forked from xxxxxx/xz"" (xxxxxx is a different user instead of tukaani-project) and it's still suspended.  I'm contacting with GH support to see if they can just delete the fork and then I can fork again.",negative,-0.8237120043486357
+Xi Ruoyao,Lasse Collin,pr_86.csv,"
+There are some test failures and I'm investigating.",negative,-0.924514789134264

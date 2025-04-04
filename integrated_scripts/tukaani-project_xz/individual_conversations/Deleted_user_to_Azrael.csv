@@ -1,0 +1,3 @@
+from,to,file_name,message,mood,score
+Deleted user,Azrael,issue_96.csv,"We should really check for stuff like these more.
+The only reason we know that this stuff exist is because ""someone's ssh login time was a 0.5s slower.""",negative,-0.9242526344023645

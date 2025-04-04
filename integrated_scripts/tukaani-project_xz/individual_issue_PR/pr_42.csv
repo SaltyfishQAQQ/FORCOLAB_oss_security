@@ -1,0 +1,55 @@
+event,from,created_at,body,to
+thread_started,autoantwort,2023-02-26T11:19:06Z,"## Pull request checklist
+
+Please check if your PR fulfills the following requirements:
+- [ ] Tests for the changes have been added (for bug fixes / features)
+- [ ] Docs have been reviewed and added / updated if needed (for bug fixes / features)
+- [x] Build was run locally and without warnings or errors
+- [x] All previous and new tests pass
+
+
+## Pull request type
+
+<!-- Please try to limit your pull request to one type, submit multiple
+pull requests if needed. --> 
+
+Please check the type of change your PR introduces:
+- [x] Bugfix
+- [ ] Feature
+- [ ] Code style update (formatting, renaming, typo fix)
+- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Build related changes
+- [ ] Documentation content changes
+- [ ] Other (please describe): 
+
+
+## What is the current behavior?
+If the compiler uses a very old c standard as default, it will fail to build
+
+
+<!-- Related issue this PR addresses, if applicable -->
+Related Issue URL: https://github.com/microsoft/vcpkg/issues/21680#issuecomment-983342257
+
+
+## What is the new behavior?
+Set the required c standard to C99
+
+## Does this introduce a breaking change?
+
+- [ ] Yes
+- [x] No
+
+
+",['autoantwort']
+commented,JiaT75,2023-02-27T12:33:26Z,"Hi! Thanks for the bug report and PR.
+
+All of the targets that need to be compiled require C99, so it would be better to just set the CMAKE_C_STANDARD variable at the top of CMakeLists.txt like this:
+
+```
+set(CMAKE_C_STANDARD 99)
+```",['autoantwort']
+commented,autoantwort,2023-02-27T12:40:38Z,Do the headers also require C99 or only the source code?,['JiaT75']
+commented,JiaT75,2023-02-27T13:09:18Z,"The liblzma API headers should be compatible with C89, but the internal headers used by the source code are not. ",['autoantwort']
+commented,JiaT75,2023-02-27T16:45:14Z,"This should be fixed as of commit 4b7fb3bf41a0ca4c97fad3799949a2aa61b13b99 on master. @autoantwort can you let us know if this does not solve the bug?
+
+This will be in a new stable 5.4.2 release in the near future. Thanks again for reporting this!",autoantwort

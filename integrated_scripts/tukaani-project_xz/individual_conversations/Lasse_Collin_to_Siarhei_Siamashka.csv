@@ -1,0 +1,51 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Siarhei Siamashka,issue_50.csv,"In principle, adding a filter for UTF-8 text files is fine. It just has to be done carefully as decoder support can never be removed (I don't want to end up with ""text filter"", ""a little better text filter"", ""hopefully the best text filter""...).
+
+Old tools cannot decompress new filters but that's just how it is. Once a new filter is official, it takes some time until it can be used widely.
+
+Your example with ukrainskakuhnya1998_djvu.txt uses `CP1124//TRANSLIT` which means that it's not reversible: converting it back to UTF-8 gives 2838134 bytes, 0.8 % smaller than the original file. It still gives an indication how much a filter might help though.
+
+Similarly, the pg70694.html isn't reversible and becomes 739319 bytes when restored to UTF-8, 0.4 % smaller than the original. I guess Finnish, Swedish, German, and such languages likely won't see big enough savings with a filter like this. The amount of non-ASCII characters is fairly low.
+
+Using LZMA2 option `pb=0` tends to help with text files but with these files it makes no significant difference.
+
+Converting to UTF-16BE helps with ukrainskakuhnya1998_djvu.txt (it's 2-byte-aligned data thus `pb=1,lp=1`):
+
+```
+$ iconv -f utf8 -tutf16be < ukrainskakuhnya1998_djvu.txt > ukrainskakuhnya1998_djvu.txt.utf16be
+$ xz -k --lzma2=pb=1,lp=1 ukrainskakuhnya1998_djvu.txt.utf16be
+$ du -b --apparent ukrainskakuhnya1998_djvu.txt*
+2860770 ukrainskakuhnya1998_djvu.txt
+3343440 ukrainskakuhnya1998_djvu.txt.utf16be
+427884  ukrainskakuhnya1998_djvu.txt.utf16be.xz
+
+$ xz -k --lzma2=preset=6e,pb=1,lp=1 ukrainskakuhnya1998_djvu.txt.utf16be
+$ du -b --apparent ukrainskakuhnya1998_djvu.txt.utf16be.xz 
+426312  ukrainskakuhnya1998_djvu.txt.utf16be.xz
+```
+
+So it's not as good as your result but this is completely reversible as long as the original is valid UTF-8. Note that when compressing integers, big endian is usually better input than little endian.
+
+Have you looked at existing Unicode compression schemes like [SCSU](https://www.unicode.org/reports/tr6/tr6-4.html)? It may not be good here but perhaps some ideas can be had still, perhaps not.
+
+I understood that your idea could take a 8-bit codepage as an argument and then convert as much as possible using that, encoding unconvertible binary data via escape sequences or such. This could be fairly simple. On the other hand, it requires user to tell which codepage to use. In any case, character mapping should be done so that the decoder doesn't need to know any codepages: Filter Properties or the filtered raw stream itself should encode the mapping in some compact form instead.
+
+A more advanced idea could be to detect non-ASCII UTF-8 characters as they come in and assign a 8-bit replacement code for them. The advantage would be that then the filter would work with many languages without any configuration from the user. This is much more complex though. It should ensure that the same UTF-8 codepoint consistently gets mapped to the same 8-bit value, otherwise compression could be terrible. It matters if the input file has like 300 codepoints and thus not all of them can have an 8-bit mapping active at the same time. On the other hand, it's acceptable that compression ratio will be good only with certain languages.
+
+On the second thought, perhaps the above is just too complicated. At least some of the languages (where this kind of filter could be useful) need one or perhaps two small contiguous codepoint ranges above ASCII. CP1124 is almost 0x0401-0x045F, only 0x0490-0x0491 are missing.
+
+More random ideas: A two-byte UTF-8 sequence encodes 11-bit codepoint. It could be encoded as 0x10-0x17 followed by any 8-bit byte. Three-byte UTF-8 sequence encodes 16 bits so 0x18 followed by any two bytes would work (same length as in UTF-8). And four-byte UTF-8 could be 0x19 and three bytes. Then 0x80-0xFF could be used for language-specific 8-bit encodings and code points outside the language would still never use more space than in UTF-8 if the repurposed ASCII control codes aren't needed. A few more ASCII control codes would need to be repurposed for escaping binary data (including the repurposed control codes themselves) and possibly for configuring the 0x80-0xFF range (unless only using a static mapping from Filter Properties).
+
+A static mapping in Filter Properties could simply be a list of pairs <start><len>. For example, 0x0400 0x5F 0x0490 0x02 could put 0x0400-0x045F to 0x80-0xDF and 0x0490-0x0491 to 0xE0-0xE1, perhaps leaving 0xE2-0xFF to mean 0xE2-0xFF.
+
+The above are just some quick ideas and better ones likely exist. :-)
+
+When deciding the encoded format of the filter, xz-file-format.txt section 5.2 must be taken into account. Basically, 200 bytes of input to a decoder must produce at least 100 bytes of output for security reasons.
+
+For early prototypes, standalone filter programs that filter from stdin to stdout are probably the most convenient.
+
+If you wish to add prototype filters in .xz, please use a custom filter as described in xz-file-format.txt section 5.4. The small ID numbers must be used for final official filters only.
+
+How to add the actual code: Look how Delta filter hooks into the rest of the code. Delta filter is very simple and doesn't change the size of the data. A text filter would change the size of the data so it would likely need some internal buffering. XZ for Java has cleaner codebase than XZ Utils so, depending on your preferences, Java code might be nicer for prototyping than C in this case.
+
+We can talk on IRC on #tukaani at Libera Chat too, if you wish (and we happen to be online at the same time).",neutral,-0.05807439982891083

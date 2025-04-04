@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Sergey Kosukhin,Jia Tan,pr_91.csv,"I was also surprised that `#pragma routine novector` made the difference for `delta_decode`, which does not have a loop. It might have to do with the `restrict`. I haven't dug deeper.
+
+The problems in `delta_decoder.c` and `range_decoder.h` have not been reported yet. The one in `string_conversion.c` was reported long ago but NVIDIA does not seem to have high priority for their C compiler (C++ and Fortran get more attention). We monitor several issues ([1](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L213-222), [2](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L245-253), [3](https://gitlab.dkrz.de/dkrz-sw/yac/-/blob/c8fe4fe545ab2e6090afc649fb28263333bb4daf/src/config_yaml.c#L268-271)) in our project and I will let you know if anything changes.",negative,-0.5740763023495674

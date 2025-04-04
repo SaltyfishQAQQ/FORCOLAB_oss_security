@@ -1,0 +1,11 @@
+from,to,file_name,message,mood,score
+Lasse Collin,Marcin Kowalczyk,issue_36.csv,"I have read about this a bit now. Sounds like it probably needs to be fixed. Quite a few functions have to be reviewed to spot all such cases as there definitely are more than those you already found. XZ Embedded needs to be reviewed too.
+
+At least with a trivial test program, the method in `in_start != 0 ? in + in_start : in;` seems to be optimized to the same code as `in + in_start`, at least with modern GCC and Clang. So there won't be an extra branch in reality.
+
+To me this seems like a bug in the standard that could have been fixed by adding an extra sentence to explicitly allow null-pointer + 0. Based on search engine results, it seems that it was decided that it's better to change hundreds of codebases instead, hopefully spotting every problematic case. Feels a bit similar to the `memcpy(NULL, NULL, 0)` issue that was (hopefully) fixed in XZ Utils in 2019.
+
+Thanks for reporting this!",neutral,-0.057430509477853775
+Lasse Collin,Marcin Kowalczyk,issue_36.csv,"It should be fixed now. Thanks!
+
+XZ Embedded has the same problem. The initial plan is to fix it by changing the API documentation to say that the input and output buffer pointers must not be NULL even for empty buffers. First the code in the Linux kernel has to be checked if NULLs are used in xz_dec_* calls.",neutral,-0.07223980873823166

@@ -1,0 +1,16 @@
+from,to,file_name,message,mood,score
+Jia Tan,Andreas Müller,issue_18.csv,"
+This will be really helpful to include since for now I just test things locally on a VM with x64 MSVC. Automating this plus extending coverage will save me some effort :)
+
+
+I haven't worked much with Windows Batch scripting or PowerShell either :/
+At a glance what you have makes sense but I will play around with it a bit.
+
+
+We currently just use the built-in test harnesses for our Autotools and CMake builds. The way you have it now seems logical, to just loop through the test executables and run them, although the best way to report the errors may need to be looked at. Maybe this is something we could add to `tuktest.h`, but at the moment I'm not sure how it would fit in.
+
+
+We had another recent request for Windows binaries, so we will more seriously consider this. We need to verify there are no license restrictions preventing us from distributing Windows binaries with the compiler we choose to use (MinGW-w64, MSVC, Clang-cl, etc.). Also, I would probably want to generate the Windows binaries locally instead of relying on GitHub runners. The GitHub CI runners are a common attack surface these days so it could be an extra risk. Currently, we only use CI for testing so if the GitHub runners are compromised then its not a security threat. 
+
+
+I cloned your fork already, so no need to make a PR unless you want to. I suppose it could be helpful to keep the conversation focused on various parts of the code. We usually don't merge PRs directly anyway. Instead we usually take commits we like and adapt the other parts as needed. Don't worry, you'll still be the Author on any commits that are mostly unchanged :)",positive,0.6475306190550327

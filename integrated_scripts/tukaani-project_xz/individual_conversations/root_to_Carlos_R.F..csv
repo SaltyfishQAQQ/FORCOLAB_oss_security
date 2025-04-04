@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+root,Carlos R.F.,issue_92.csv,So should Mac/brew users worry or not? It was definitely shipped with homebrew (5.6.1) but as I understand since there is no systemd which was targeted as well as it is unclear if binaries was targeting x86_x64 only. Could please someone elaborate ,negative,-0.279542185831815

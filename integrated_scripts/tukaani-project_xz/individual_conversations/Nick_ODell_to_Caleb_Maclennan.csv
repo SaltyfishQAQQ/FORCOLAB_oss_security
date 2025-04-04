@@ -1,0 +1,10 @@
+from,to,file_name,message,mood,score
+Nick ODell,Caleb Maclennan,issue_92.csv,"Some more resources about this:
+
+Red Hat has published a security advisory about this: https://nvd.nist.gov/vuln/detail/CVE-2024-3094
+
+Xe Iaso has an excellent blog post about this: https://xeiaso.net/notes/2024/xz-vuln/
+
+Debian has released a security advisory about this: https://lists.debian.org/debian-security-announce/2024/msg00057.html Users of testing, unstable and experimental are advised to update. Users of stable distributions are unaffected.
+
+Ubuntu has not made an announcement, but I believe they are unaffected: the newest liblzma they ship is 5.4.1.",positive,0.6299162372015417

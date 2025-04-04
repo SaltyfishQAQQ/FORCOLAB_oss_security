@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+Fabio Pedretti,Nick ODell,issue_92.csv,"Ubuntu published 5.6 in proposed for some time, then it looks like it was reverted:
+https://bugs.launchpad.net/ubuntu/+source/xz-utils/+bug/2055422
+Now they are syncing 5.6.1+really5.4.5-1 to make sure you get safer 5.4, even if you installed 5.6 the days it was in proposed:
+https://launchpad.net/ubuntu/+source/xz-utils",neutral,0.06889729667454958

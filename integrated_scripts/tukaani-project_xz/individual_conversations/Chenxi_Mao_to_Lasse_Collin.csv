@@ -1,0 +1,30 @@
+from,to,file_name,message,mood,score
+Chenxi Mao,Lasse Collin,pr_77.csv,"I will update this part in next push. 
+thx.
+Unaligned memory access is a default feature by ARM64, so there is no need to consider align it first.
+
+I don't have big-endian test environments, so I cannot predict the behavior and unit test on big-endian.
+I think support little-endian-only is a good idea. I will modify the code.
+
+
+Try to fix in the next push.
+
+
+""crc"" is a part of ARMv8.1 feature. To make all armv8 processors happy, it need to detect the processor feature on runtime.
+
+",neutral,0.15918733552098274
+Chenxi Mao,Lasse Collin,pr_77.csv,"I've updated aarch64 CRC code with align memory access.
+Other parts will be rebased to the latest code.",neutral,0.1560324695892632
+Chenxi Mao,Lasse Collin,pr_75.csv,"
+Yes, you are correct, I disassemble the code, not only memcpy but also UNSAFE_TYPE_PUNNING are all interpreted as below:
+```
+ 640:	f9400000 	ldr	x0, [x0]
+ 644:	d65f03c0 	ret
+```
+
+So the 2nd patch is useless, we can keep the 1st patch only.
+
+",negative,-0.47272829711437225
+Chenxi Mao,Lasse Collin,pr_77.csv,"
+Based on my local test, unaligned access is slower(25%) than aligned access.
+So I will modify the code to handle unaligned data first.",negative,-0.568863115273416

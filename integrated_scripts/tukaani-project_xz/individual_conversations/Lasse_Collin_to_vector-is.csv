@@ -1,0 +1,39 @@
+from,to,file_name,message,mood,score
+Lasse Collin,vector-is,issue_81.csv,"Examples: GNU/Linux distributions like Arch Linux, Debian, Fedora,
+Gentoo, Slackware, and Ubuntu include XZ Utils. FreeBSD includes
+XZ Utils in the base system. OpenBSD provides a prebuilt package.
+
+https://archlinux.org/
+
+https://www.debian.org/
+
+https://fedoraproject.org/
+
+https://www.gentoo.org/
+
+http://www.slackware.com/
+
+https://ubuntu.com/
+
+https://www.freebsd.org/
+
+https://www.openbsd.org/
+
+I hope this helps.
+
+If you were looking for binaries for non-free operating systems like
+Windows, then I don't have a recommendations for up-to-date binaries.
+The XZ Utils home page has binaries for 5.2.9. I'm hoping to include
+updated simplified build instructions for Windows in XZ Utils 5.6.0, if
+I have time.",positive,0.2807935532182455
+Lasse Collin,vector-is,issue_81.csv,"On 2024-02-18 vector-is wrote:
+
+The thought of starting to provide official binaries again has been
+considered for a while. The package build script etc. have been updated
+recently and hopefully get merged to master this week. There are some
+non-technical considerations to decide but there is a possibility (so
+it's still very uncertain) that XZ Utils 5.6.0 might get a Windows
+binary package as well.
+
+-- 
+Lasse Collin",neutral,0.09130193525925279

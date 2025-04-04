@@ -1,0 +1,3 @@
+from,to,file_name,message,mood,score
+Tim Weber,Caleb Maclennan,issue_92.csv,"
+I'd say, if you're a compression library, it makes a lot of sense to have binary files containing compressed data in the repo, as part of your test suite. Which is what happened here.",neutral,0.0335131399333477

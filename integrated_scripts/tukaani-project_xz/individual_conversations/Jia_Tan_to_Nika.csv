@@ -1,0 +1,4 @@
+from,to,file_name,message,mood,score
+Jia Tan,Nika,issue_76.csv,"Thanks for sharing your Dockerfile. The reason that 5.2.11 ""works"" is because there was a bug when disabling threads. See [this issue](https://github.com/tukaani-project/xz/issues/45). The bug was fixed in 5.2.12, so with your `configure` options you are building shared libraries again. So you can use `--disable-shared` instead of `--enable-static=yes` and this will disable symbol versioning as a side effect (symbol versioning is only enabled when building a shared library). Or, if you actually want a shared library, you can use `--disable-symbol-versions` as I mentioned before.
+
+Hope this helps!",positive,0.28896118327975273

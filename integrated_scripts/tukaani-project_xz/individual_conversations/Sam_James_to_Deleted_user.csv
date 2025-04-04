@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Sam James,Deleted user,pr_95.csv,"I wouldn't do https://github.com/tukaani-project/xz/pull/95/commits/71ff4e23932ed8eb9be8d6dbb8e5413fb11e3cd2. As I mention in the commits somewhere, the change is right to begin with. See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114115.
+
+But I don't object strenuously - we can always redo it later.
+
+I haven't checked the reverts do what they say they do, but the list sounds right to me.",neutral,0.004801549017429352

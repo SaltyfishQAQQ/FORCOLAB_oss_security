@@ -1,0 +1,6 @@
+from,to,file_name,message,mood,score
+Daniel Ruf,Ewout van Mansom,pr_86.csv,"
+Currently I'm unsure how this PR is connected to the backdoor, if at all. Is this really related or just unrelated? Because in my opinion the architecture is not relevant (since the requirements for the backdoor are different and unrelated to the CPU architecture).
+
+
+Makes sense. A very interesting case which seems to have been planned over a long timespan. At least that's the assumption from the mentioned commits from https://www.openwall.com/lists/oss-security/2024/03/29/4",negative,-0.2942512817680836

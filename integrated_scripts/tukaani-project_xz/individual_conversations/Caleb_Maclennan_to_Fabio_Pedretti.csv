@@ -1,0 +1,2 @@
+from,to,file_name,message,mood,score
+Caleb Maclennan,Fabio Pedretti,issue_92.csv,"[This comment on Hacker News](https://news.ycombinator.com/item?id=39866275) suggests *very* heavily the OP is and was a bad actor for a long time. All things considered it definitely sounds like deep review of lots of things (linked binaries, kernel, containers, etc.) is going to be needed and simply rolling back one release might not be enough.",negative,-0.820614421274513

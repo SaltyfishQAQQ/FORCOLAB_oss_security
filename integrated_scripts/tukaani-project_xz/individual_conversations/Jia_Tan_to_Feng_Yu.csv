@@ -1,0 +1,5 @@
+from,to,file_name,message,mood,score
+Jia Tan,Feng Yu,issue_88.csv,"Hello! Thanks for the bug report and build logs. Luckily, the workaround for this is very simple. With Autotools build, you can pass the flag `--disable-sandbox` to `configure`. With CMake, pass `-DENABLE_SANDBOX=OFF`.
+
+The underlying problem here is that we assumed having the `linux/landlock.h` header file meant that the system would also have `SYS_landlock_create_ruleset` and `SYS_landlock_restrict_self` defined in `sys/syscall.h`. So the fix on our side is to add checks for these system calls before setting `HAVE_LINUX_LANDLOCK_H` during configurations. ",positive,0.32091791555285454
+Jia Tan,Feng Yu,issue_88.csv,Added a [commit to master](https://github.com/tukaani-project/xz/commit/328c52da8a2bbb81307644efdb58db2c422d9ba7) for this. Let us know if this solves the problem!,neutral,0.026702985167503357
